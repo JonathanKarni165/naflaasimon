@@ -61,55 +61,32 @@ export function placeLabel(t) {
   return parts.join(' ');
 }
 
-/** Featured card (home page), same as the approved design. */
-export function TutorCard({ tutor }) {
-  return (
-    <article className="tutor">
-      <a href={`#tutor-${tutor.id}`} tabIndex={-1} aria-hidden="true"><Avatar tutor={tutor} /></a>
-      <div>
-        <div className="t-top">
-          <a className="t-name" href={`#tutor-${tutor.id}`}>{tutor.name}</a>
-          <span className="price"><bdi>{money(Math.min(...[tutor.priceOnline, tutor.priceFrontal].filter(Boolean)))}</bdi> <small>לשעה</small></span>
-        </div>
-        <p className="t-meta">{tutor.headline} · {placeLabel(tutor)}</p>
-        <div className="t-tags">{(tutor.levels || []).slice(0, 3).map((l, i) => <span key={l} className={'tag' + (i === 0 ? ' brass' : '')}>{l}</span>)}</div>
-        <div className="t-foot">
-          <Stars avg={tutor.ratingAvg} count={tutor.ratingCount} />
-          <a className="btn btn-brand t-cta" href={`#tutor-${tutor.id}`}>לפרופיל</a>
-        </div>
-      </div>
-    </article>
-  );
-}
-
-/** Search result row. */
+/** Tutor row: medium photo, caption, what they teach, rating. Used on home + search. */
 export function TutorRow({ tutor, sort }) {
+  const href = `#tutor-${tutor.id}`;
+  const levels = (tutor.levels || []).slice(0, 4);
   return (
     <article className="t-row">
-      <a href={`#tutor-${tutor.id}`} className="t-row-photo" tabIndex={-1} aria-hidden="true"><Avatar tutor={tutor} className="avatar-sq" /></a>
+      <a href={href} className="t-row-photo" tabIndex={-1} aria-hidden="true"><Avatar tutor={tutor} className="avatar-sq" /></a>
       <div className="t-row-main">
-        <div className="t-row-head">
-          <div>
-            <a className="t-name" href={`#tutor-${tutor.id}`}>{tutor.name}</a> <Verified tutor={tutor} />
-            <p className="t-meta">{tutor.headline}</p>
-          </div>
-          <PriceLines tutor={tutor} />
+        <div className="t-row-title">
+          <a className="t-name" href={href}>{tutor.name}</a> <Verified tutor={tutor} />
         </div>
+        <p className="t-caption">{tutor.headline}</p>
+        <p className="t-teaches">
+          <span className="t-label">מלמד/ת:</span> {(tutor.subjects || []).join(', ')}
+          {levels.length ? <span className="t-levels"> · {levels.join(', ')}</span> : null}
+        </p>
         <p className="t-meta">
           {placeLabel(tutor)}
           {tutor.distance != null && tutor.teachesFrontal ? <b className={'dist' + (sort === 'near' ? ' hot' : '')}> · {km(tutor.distance)}</b> : null}
+          {tutor.contactCount && sort ? <span className={'demand' + (sort === 'popular' ? ' hot' : '')}> · <bdi>{tutor.contactCount}</bdi> פניות</span> : null}
         </p>
-        <div className="t-tags">
-          {(tutor.subjects || []).slice(0, 3).map((s) => <span key={s} className="tag brass">{s}</span>)}
-          {(tutor.levels || []).slice(0, 4).map((l) => <span key={l} className="tag">{l}</span>)}
-        </div>
-        <div className="t-foot">
-          <span className="t-foot-stats">
-            <Stars avg={tutor.ratingAvg} count={tutor.ratingCount} />
-            {tutor.contactCount ? <span className={'demand' + (sort === 'popular' ? ' hot' : '')}><bdi>{tutor.contactCount}</bdi> פניות</span> : null}
-          </span>
-          <a className="btn btn-brand t-cta" href={`#tutor-${tutor.id}`}>לפרופיל</a>
-        </div>
+      </div>
+      <div className="t-row-side">
+        <div className="t-rating"><Stars avg={tutor.ratingAvg} count={tutor.ratingCount} /></div>
+        <PriceLines tutor={tutor} />
+        <a className="btn btn-brand t-cta" href={href}>לפרופיל</a>
       </div>
     </article>
   );

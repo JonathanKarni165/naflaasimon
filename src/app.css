@@ -320,3 +320,31 @@ footer .linkish { color: inherit; font-weight: 600; }
   .profile-side { order: 1; }
   .profile .p-sec { padding-top: 0; }
 }
+
+/* Tutor rows v2 (2026-11-05): one list with rules between rows, no card grid */
+.t-rows { display: block; background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; overflow: hidden; }
+.t-row { display: grid; grid-template-columns: 96px minmax(0,1fr); gap: 14px 16px; padding: 16px; border: 0; border-radius: 0; background: none; align-items: center; }
+.t-row + .t-row { border-top: 1px solid var(--line); }
+.t-row:hover { background: var(--brass-soft, #FBF4D9); border-color: var(--line); }
+.avatar-sq { width: 96px; height: 96px; border-radius: 12px; }
+.t-row-main { gap: 2px; }
+.t-row-title { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.t-row .t-name { font-size: 19px; }
+.t-caption { font-size: 16px; color: var(--ink); margin: 0; }
+.t-teaches { font-size: 15px; margin: 4px 0 0; }
+.t-label { font-weight: 700; }
+.t-levels { color: var(--muted); }
+.t-row .t-meta { margin-top: 2px; }
+.t-row-side { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.t-row-side { flex-wrap: nowrap; }
+.t-row-side .price-lines { text-align: start; grid-auto-flow: row; gap: 0; }
+.t-row-side .price-lines .price { font-size: 16px; }
+.t-rating .stars { font-size: 16px; }
+@media (min-width: 760px) {
+  .t-row { grid-template-columns: 136px minmax(0,1fr) auto; padding: 18px 22px; gap: 24px; }
+  .avatar-sq { width: 136px; height: 136px; font-size: 44px; }
+  .t-row-side { grid-column: auto; flex-direction: column; align-items: end; justify-content: center; gap: 8px; min-width: 150px; }
+  .t-row-side .price-lines { text-align: end; grid-auto-flow: row; gap: 0; }
+  .t-rating .stars { font-size: 17px; }
+}
+.t-row-photo { text-decoration: none; }

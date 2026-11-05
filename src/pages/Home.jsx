@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useApp, go } from '../state.jsx';
 import { SUBJECTS, LEVELS, CITIES, cityByName } from '../data/constants.js';
 import { filterTutors, sortTutors, globalMean } from '../lib/ranking.js';
-import { TutorCard, GroupCard, Avatar, Loading } from '../components/ui.jsx';
+import { TutorRow, GroupCard, Avatar, Loading } from '../components/ui.jsx';
 
 const TRACKS = [
   ['5 יח״ל', 'בגרות מוגברת', 'שאלונים 581, 582'],
@@ -126,7 +126,7 @@ export default function Home() {
             <div><h2 id="tutors-h">מורים מומלצים</h2><p className="sec-sub">מדורגים לפי ציון משוקלל: גם כמה כוכבים וגם כמה ביקורות.</p></div>
             <a href="#search">לכל המורים</a>
           </div>
-          {tutors ? <div className="tutors">{featured.map((t) => <TutorCard key={t.id} tutor={t} />)}</div> : <Loading />}
+          {tutors ? <div className="t-rows">{featured.map((t) => <TutorRow key={t.id} tutor={t} />)}</div> : <Loading />}
         </div>
       </section>
 
