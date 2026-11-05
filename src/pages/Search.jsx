@@ -1,0 +1,133 @@
+import { useMemo, useState } from 'react';
+import { useApp } from '../state.jsx';
+import { SUBJECTS, LEVELS, CITIES, cityByName } from '../data/constants.js';
+import { filterTutors, sortTutors } from '../lib/ranking.js';
+import { TutorRow, Seg, Loading, Empty } from '../components/ui.jsx';
+
+const SORTS = [
+  ['best', 'מומלצים'],
+  ['near', 'הכי קרוב'],
+  ['cheap', 'הכי זול'],
+  ['popular', 'הכי מבוקש'],
+];
+
+export default function Search() {
+  const { tutors, filters: f, setFilters, resetFilters } = useApp();
+  const [showFilters, setShowFilters] = useState(false);
+  const [locMsg, setLocMsg] = useState('');
+  const set = (patch) => setFilters((x) => ({ ...x, ...patch }));
+
+  const results = useMemo(() => {
+    if (!tutors) return null;
+    return sortTutors(filterTutors(tutors, f), f.sort, { origin: f.origin, mode: f.mode });
+  }, [tutors, f]);
+
+  const pickCity = (name) => {
+    const c = cityByName(name);
+    set({ city: name, origin: c ? { lat: c.lat, lng: c.lng } : null, sort: c && f.sort === 'best' ? 'near' : f.sort });
+  };
+  const useMyLocation = () => {
+    setLocMsg('מאתרים…');
+    if (!navigator.geolocation) { setLocMsg('הדפדפן לא תומך באיתור מיקום. בחרו עיר מהרשימה.'); return; }
+    navigator.geolocation.getCurrentPosition(
+      (p) => { set({ origin: { lat: p.coords.latitude, lng: p.coords.longitude }, city: 'המיקום שלי', sort: 'near' }); setLocMsg(''); },
+      () => setLocMsg('לא קיבלנו הרשאה למיקום. בחרו עיר מהרשימה.'),
+      { timeout: 8000, maximumAge: 600000 },
+    );
+  };
+
+  const needOrigin = f.sort === 'near' && !f.origin;
+  const activeCount = [f.subject, f.level, f.mode !== 'any', f.maxPrice, f.maxKm, f.q].filter(Boolean).length;
+
+  return (
+    <main className="wrap page-pad">
+      <div className="page-head">
+        <h1>מורים פרטיים{f.subject ? ` ל${f.subject}` : ''}{f.level ? `, ${f.level}` : ''}</h1>
+        <p className="muted-text">{results ? `${results.length} מורים` : ''}{f.city && f.origin ? ` · מרחקים מ${f.city === 'המיקום שלי' ? 'המיקום שלכם' : f.city}` : ''}</p>
+      </div>
+
+      <div className="search-layout">
+        <aside className={'filters' + (showFilters ? ' open' : '')} aria-label="סינון">
+          <div className="filters-inner">
+            <div className="filters-top"><h2>סינון</h2><button type="button" className="linkish" onClick={resetFilters}>ניקוי</button></div>
+
+            <label className="field-label" htmlFor="q">חיפוש חופשי</label>
+            <input id="q" className="input" type="search" placeholder="שם מורה, נושא, עיר…" value={f.q} onChange={(e) => set({ q: e.target.value })} />
+
+            <label className="field-label" htmlFor="f-subject">מקצוע</label>
+            <select id="f-subject" className="select" value={f.subject} onChange={(e) => set({ subject: e.target.value })}>
+              <option value="">כל המקצועות</option>
+              {SUBJECTS.map((s) => <option key={s}>{s}</option>)}
+              <option>פסיכומטרי</option>
+            </select>
+
+            <label className="field-label" htmlFor="f-level">רמה</label>
+            <select id="f-level" className="select" value={f.level} onChange={(e) => set({ level: e.target.value })}>
+              <option value="">כל הרמות</option>
+              {LEVELS.map((l) => <option key={l}>{l}</option>)}
+            </select>
+
+            <span className="field-label" id="f-mode">איך לומדים</span>
+            <Seg label="f-mode" value={f.mode} onChange={(mode) => set({ mode })} options={[['any', 'הכול'], ['frontal', 'פרונטלי'], ['online', 'אונליין']]} />
+
+            <label className="field-label" htmlFor="f-city">אני נמצא/ת ב…</label>
+            <select id="f-city" className="select" value={cityByName(f.city) ? f.city : ''} onChange={(e) => pickCity(e.target.value)}>
+              <option value="">{f.city === 'המיקום שלי' ? 'המיקום הנוכחי שלי' : 'בחרו עיר'}</option>
+              {CITIES.map((c) => <option key={c.name}>{c.name}</option>)}
+            </select>
+            <button type="button" className="btn btn-line btn-sm loc-btn" onClick={useMyLocation}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /><circle cx="12" cy="12" r="8" /></svg>
+              להשתמש במיקום הנוכחי
+            </button>
+            {locMsg ? <p className="hint">{locMsg}</p> : null}
+
+            {f.origin && f.mode !== 'online' ? (
+              <>
+                <label className="field-label" htmlFor="f-km">מרחק מקסימלי: {f.maxKm ? `${f.maxKm} ק״מ` : 'ללא הגבלה'}</label>
+                <input id="f-km" type="range" min="0" max="60" step="5" value={f.maxKm} onChange={(e) => set({ maxKm: Number(e.target.value) })} />
+              </>
+            ) : null}
+
+            <label className="field-label" htmlFor="f-price">מחיר לשעה עד: {f.maxPrice ? `${f.maxPrice} ₪` : 'ללא הגבלה'}</label>
+            <input id="f-price" type="range" min="0" max="250" step="10" value={f.maxPrice} onChange={(e) => set({ maxPrice: Number(e.target.value) })} />
+
+            <button type="button" className="btn btn-brand go only-sm" onClick={() => setShowFilters(false)}>הצגת {results?.length ?? ''} מורים</button>
+          </div>
+        </aside>
+
+        <section className="results" aria-label="תוצאות">
+          <div className="sortbar">
+            <button type="button" className="btn btn-line btn-sm only-sm" onClick={() => setShowFilters(true)}>סינון{activeCount ? ` (${activeCount})` : ''}</button>
+            <div className="chips" role="group" aria-label="מיון">
+              {SORTS.map(([v, label]) => <button key={v} type="button" className="chip" aria-pressed={f.sort === v} onClick={() => set({ sort: v })}>{label}</button>)}
+            </div>
+          </div>
+          <p className="sort-note">
+            {f.sort === 'best' && 'דירוג משוקלל: מורה עם 40 ביקורות של 4.8 יופיע לפני מורה עם ביקורת אחת של 5, כי דירוג על סמך מעט ביקורות פחות אמין.'}
+            {f.sort === 'near' && (f.origin ? 'המורים הקרובים אליכם קודם. מורים שמלמדים רק אונליין מופיעים בסוף.' : 'בחרו עיר או השתמשו במיקום הנוכחי כדי למיין לפי מרחק.')}
+            {f.sort === 'cheap' && `מהמחיר הנמוך לגבוה${f.mode === 'online' ? ' (מחיר אונליין)' : f.mode === 'frontal' ? ' (מחיר פרונטלי)' : ' (המחיר הנמוך מבין פרונטלי ואונליין)'}.`}
+            {f.sort === 'popular' && 'המורים שהכי הרבה תלמידים פנו אליהם וכתבו עליהם ביקורת.'}
+          </p>
+          {needOrigin ? (
+            <div className="inline-pick">
+              <select className="select" aria-label="בחירת עיר" value="" onChange={(e) => pickCity(e.target.value)}>
+                <option value="">באיזו עיר אתם?</option>
+                {CITIES.map((c) => <option key={c.name}>{c.name}</option>)}
+              </select>
+              <button type="button" className="btn btn-line" onClick={useMyLocation}>מיקום נוכחי</button>
+            </div>
+          ) : null}
+
+          {!results ? <Loading /> : results.length === 0 ? (
+            <Empty title="לא מצאנו מורים שמתאימים לכל הסינונים">
+              <p>נסו להסיר את הגבלת המחיר או המרחק, או לבחור רמה אחרת.</p>
+              <button type="button" className="btn btn-brand" onClick={resetFilters}>ניקוי הסינון</button>
+            </Empty>
+          ) : (
+            <div className="t-rows">{results.map((t) => <TutorRow key={t.id} tutor={t} sort={f.sort} />)}</div>
+          )}
+        </section>
+      </div>
+    </main>
+  );
+}
