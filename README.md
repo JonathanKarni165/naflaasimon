@@ -12,6 +12,7 @@ npm run dev
 ## חיבור לשרת אמיתי (פעם אחת)
 1. **Supabase** (supabase.com, חינם): New project, אזור Frankfurt.
    SQL Editor → מדביקים את `supabase/schema.sql` → Run.
+   אחר כך, באותו מקום, מדביקים גם את `supabase/moderation.sql` → Run (חסימת ספאם וקללות). את רשימת המילים עורכים ב-`src/lib/moderation.js` ומריצים `npm run moderation-sql`.
 2. **Google sign-in**: ב־Google Cloud Console יוצרים OAuth Client (Web).
    Authorized redirect URI: `https://YOUR-PROJECT.supabase.co/auth/v1/callback`.
    ב־Supabase: Authentication → Providers → Google → מדביקים Client ID ו־Secret.

@@ -1,4 +1,5 @@
 // Real backend: Supabase (Postgres + Google sign-in + storage). Same interface as api/demo.js.
+import { MESSAGES } from '../lib/moderation.js';
 import { createClient } from '@supabase/supabase-js';
 import { cityByName } from '../data/constants.js';
 
@@ -45,6 +46,9 @@ function need() { if (!user) throw new Error('צריך להתחבר כדי לע�
 function check({ data, error }) {
   if (error) {
     const m = error.message || '';
+    const mod = m.match(/moderation: (\w+)/);
+    if (mod) throw new Error(MESSAGES[mod[1]] || MESSAGES.profanity);
+    if (m.includes('rate limit')) throw new Error('שלחתם הרבה הודעות בזמן קצר. נסו שוב מאוחר יותר');
     if (m.includes('group full')) throw new Error('הקבוצה מלאה');
     if (m.includes('duplicate')) throw new Error('כבר נרשמתם');
     if (m.includes('login required')) throw new Error('צריך להתחבר כדי לעשות את זה');

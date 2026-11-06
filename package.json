@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "moderation-sql": "node scripts/build-moderation-sql.mjs",
+    "test": "node scripts/test-moderation.mjs"
   },
   "keywords": [],
   "author": "",
