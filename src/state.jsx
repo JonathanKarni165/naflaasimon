@@ -49,6 +49,13 @@ export function AppProvider({ children }) {
     }
   }, []);
   useEffect(() => { reload(); }, [reload, user?.id]);
+  // Live: when anyone changes data, refresh (debounced so a burst of changes reloads once).
+  useEffect(() => {
+    if (!api.subscribe) return undefined;
+    let t = null;
+    const off = api.subscribe(() => { clearTimeout(t); t = setTimeout(reload, 400); });
+    return () => { clearTimeout(t); off(); };
+  }, [reload]);
 
   const notify = useCallback((text, bad = false) => {
     setToast({ text, bad, at: Date.now() });

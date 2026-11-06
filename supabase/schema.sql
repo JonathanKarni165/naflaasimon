@@ -336,3 +336,14 @@ create policy "photos read" on storage.objects for select using (bucket_id = 'tu
 
 -- Make yourself admin after your first Google sign-in (replace the email):
 -- update public.profiles set is_admin = true where email = 'you@gmail.com';
+
+-- Live updates: the site listens to these tables (row level security still applies to what each viewer receives).
+do $$
+declare t text;
+begin
+  foreach t in array array['tutors', 'groups', 'group_seats', 'group_messages', 'reviews', 'inquiries'] loop
+    if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;

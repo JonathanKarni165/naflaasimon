@@ -239,3 +239,10 @@ export async function addGroupMessage(groupId, text) {
 }
 
 export function resetDemo() { mem = fresh(); save(); }
+
+// Demo "live" updates: other tabs of this browser see changes right away.
+export function subscribe(onChange) {
+  const on = (e) => { if (e.key === KEY) { mem = null; onChange('all'); } };
+  window.addEventListener('storage', on);
+  return () => window.removeEventListener('storage', on);
+}

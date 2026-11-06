@@ -51,7 +51,7 @@ export function Group({ id }) {
   const { api, user, version, reload, requireLogin, notify } = useApp();
   const [group, loading] = useLoad(() => api.getGroup(id), [id, version]);
   const [seats, , , refreshSeats] = useLoad(() => api.mySeats(), [user?.id, version]);
-  const [messages, , , refreshMsgs] = useLoad(() => api.listGroupMessages(id), [id]);
+  const [messages, , , refreshMsgs] = useLoad(() => api.listGroupMessages(id), [id, version]);
   const [joining, setJoining] = useState(false);
   const [form, setForm] = useState({ name: '', phone: '', note: '' });
   const [msg, setMsg] = useState('');

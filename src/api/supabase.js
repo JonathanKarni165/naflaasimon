@@ -2,7 +2,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { cityByName } from '../data/constants.js';
 
-const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
+import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
+
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 export const mode = 'supabase';
 export const demoUsers = [];
@@ -237,3 +239,12 @@ export async function addGroupMessage(groupId, text) {
 }
 
 export function resetDemo() {}
+
+// Live updates: any change anyone makes (new group, seat, inquiry, review…) reaches every open page.
+const LIVE_TABLES = ['tutors', 'groups', 'group_seats', 'group_messages', 'reviews', 'inquiries'];
+export function subscribe(onChange) {
+  const ch = sb.channel('site-changes');
+  LIVE_TABLES.forEach((table) => ch.on('postgres_changes', { event: '*', schema: 'public', table }, () => onChange(table)));
+  ch.subscribe();
+  return () => { sb.removeChannel(ch); };
+}
