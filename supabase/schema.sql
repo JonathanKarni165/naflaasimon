@@ -113,13 +113,46 @@ create table if not exists public.group_seats (
 );
 alter table public.group_seats add column if not exists status text not null default 'approved' check (status in ('approved', 'pending', 'declined'));
 
--- Only approved students take a seat; pending ones wait for the tutor.
+-- Seat counts are stored on the group row and kept up to date by a trigger (fast to read,
+-- and the public sees only the numbers, never who joined).
+alter table public.groups add column if not exists seats_taken integer not null default 0;
+alter table public.groups add column if not exists pending_count integer not null default 0;
+
+create or replace function public.refresh_seat_counts() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare g uuid;
+begin
+  for g in select distinct x from unnest(array[case when tg_op <> 'INSERT' then old.group_id end,
+                                               case when tg_op <> 'DELETE' then new.group_id end]) as x where x is not null loop
+    perform set_config('app.bypass', 'on', true);
+    update public.groups set
+      seats_taken = (select count(*) from public.group_seats s where s.group_id = g and s.status = 'approved'),
+      pending_count = (select count(*) from public.group_seats s where s.group_id = g and s.status = 'pending')
+    where id = g;
+    perform set_config('app.bypass', 'off', true);
+  end loop;
+  return null;
+end $$;
+drop trigger if exists seats_count on public.group_seats;
+create trigger seats_count after insert or update or delete on public.group_seats
+  for each row execute function public.refresh_seat_counts();
+
+-- Tutors can't edit the counts themselves.
+create or replace function public.protect_group_counts() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if current_setting('app.bypass', true) = 'on' then return new; end if;
+  if tg_op = 'INSERT' then new.seats_taken := 0; new.pending_count := 0;
+  else new.seats_taken := old.seats_taken; new.pending_count := old.pending_count; end if;
+  return new;
+end $$;
+drop trigger if exists groups_protect on public.groups;
+create trigger groups_protect before insert or update on public.groups
+  for each row execute function public.protect_group_counts();
+
 drop view if exists public.group_seat_counts;
-create view public.group_seat_counts as
-  select group_id,
-         count(*) filter (where status = 'approved')::int as seats_taken,
-         count(*) filter (where status = 'pending')::int as pending_count
-  from public.group_seats group by group_id;
+create view public.group_seat_counts with (security_invoker = true) as
+  select id as group_id, seats_taken, pending_count from public.groups;
 
 -- Inquiries: a student contacts a tutor through the site (the tutor's phone is never shown).
 create table if not exists public.inquiries (
@@ -294,7 +327,12 @@ create policy "reviews delete" on public.reviews for delete using (user_id = (se
 drop policy if exists "groups readable" on public.groups;
 create policy "groups readable" on public.groups for select using (true);
 drop policy if exists "groups write" on public.groups;
-create policy "groups write" on public.groups for all using (public.owns_tutor(tutor_id)) with check (public.owns_tutor(tutor_id));
+drop policy if exists "groups insert" on public.groups;
+create policy "groups insert" on public.groups for insert with check (public.owns_tutor(tutor_id));
+drop policy if exists "groups update" on public.groups;
+create policy "groups update" on public.groups for update using (public.owns_tutor(tutor_id)) with check (public.owns_tutor(tutor_id));
+drop policy if exists "groups delete" on public.groups;
+create policy "groups delete" on public.groups for delete using (public.owns_tutor(tutor_id));
 
 -- Seats: you see your own; the group's tutor sees everyone who joined. Joining goes through join_group().
 drop policy if exists "seats read" on public.group_seats;
@@ -321,7 +359,7 @@ create policy "inquiries send" on public.inquiries for insert to authenticated w
 drop policy if exists "inquiries delete" on public.inquiries;
 create policy "inquiries delete" on public.inquiries for delete using (user_id = (select auth.uid()) or (select public.is_admin()));
 
--- Views read through the owner, so expose only aggregate columns.
+-- Both views run with the viewer's own permissions.
 grant select on public.tutor_stats, public.group_seat_counts to anon, authenticated;
 grant execute on function public.join_group(uuid, text, text, text), public.set_seat_status(uuid, text), public.answer_inquiry(uuid, text, text) to authenticated;
 revoke execute on function public.join_group(uuid, text, text, text), public.set_seat_status(uuid, text), public.answer_inquiry(uuid, text, text) from anon, public;
@@ -376,7 +414,7 @@ drop trigger if exists messages_rate on public.group_messages;
 create trigger messages_rate before insert on public.group_messages for each row execute function public.rate_limit();
 
 -- Trigger functions are not API endpoints.
-revoke execute on function public.handle_new_user(), public.protect_tutor_fields(), public.on_inquiry_insert(), public.rate_limit() from anon, authenticated, public;
+revoke execute on function public.handle_new_user(), public.protect_tutor_fields(), public.on_inquiry_insert(), public.rate_limit(), public.refresh_seat_counts(), public.protect_group_counts() from anon, authenticated, public;
 
 -- Make yourself admin after your first Google sign-in (replace the email):
 -- update public.profiles set is_admin = true where email = 'you@gmail.com';
