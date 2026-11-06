@@ -76,7 +76,7 @@ create table if not exists public.reviews (
   unique (tutor_id, user_id)
 );
 
-create or replace view public.tutor_stats as
+create or replace view public.tutor_stats with (security_invoker = true) as
   select tutor_id, count(*)::int as rating_count, avg(rating)::float as rating_avg
   from public.reviews group by tutor_id;
 
@@ -258,22 +258,22 @@ alter table public.group_messages enable row level security;
 alter table public.inquiries enable row level security;
 
 drop policy if exists "own profile" on public.profiles;
-create policy "own profile" on public.profiles for select using (id = auth.uid() or public.is_admin());
+create policy "own profile" on public.profiles for select using (id = (select auth.uid()) or (select public.is_admin()));
 drop policy if exists "update own profile" on public.profiles;
-create policy "update own profile" on public.profiles for update using (id = auth.uid())
-  with check (id = auth.uid() and is_admin = (select p.is_admin from public.profiles p where p.id = auth.uid()));
+create policy "update own profile" on public.profiles for update using (id = (select auth.uid()))
+  with check (id = (select auth.uid()) and is_admin = (select p.is_admin from public.profiles p where p.id = (select auth.uid())));
 
 drop policy if exists "tutors readable" on public.tutors;
 create policy "tutors readable" on public.tutors for select using (true);
 drop policy if exists "tutors insert" on public.tutors;
 create policy "tutors insert" on public.tutors for insert
-  with check (public.is_admin() or (owner_id = auth.uid() and verified = false and contact_count = 0));
+  with check ((select public.is_admin()) or (owner_id = (select auth.uid()) and verified = false and contact_count = 0));
 drop policy if exists "tutors update" on public.tutors;
 create policy "tutors update" on public.tutors for update
-  using (owner_id = auth.uid() or public.is_admin())
-  with check (public.is_admin() or owner_id = auth.uid());
+  using (owner_id = (select auth.uid()) or (select public.is_admin()))
+  with check ((select public.is_admin()) or owner_id = (select auth.uid()));
 drop policy if exists "tutors delete" on public.tutors;
-create policy "tutors delete" on public.tutors for delete using (owner_id = auth.uid() or public.is_admin());
+create policy "tutors delete" on public.tutors for delete using (owner_id = (select auth.uid()) or (select public.is_admin()));
 
 -- Only the tutor themself or an admin can read the phone directly (for editing).
 drop policy if exists "contacts owner" on public.tutor_contacts;
@@ -284,12 +284,12 @@ drop policy if exists "reviews readable" on public.reviews;
 create policy "reviews readable" on public.reviews for select using (true);
 drop policy if exists "reviews insert" on public.reviews;
 create policy "reviews insert" on public.reviews for insert with check (
-  user_id = auth.uid()
-  and not exists (select 1 from public.tutors t where t.id = tutor_id and t.owner_id = auth.uid()));
+  user_id = (select auth.uid())
+  and not exists (select 1 from public.tutors t where t.id = tutor_id and t.owner_id = (select auth.uid())));
 drop policy if exists "reviews update" on public.reviews;
-create policy "reviews update" on public.reviews for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "reviews update" on public.reviews for update using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 drop policy if exists "reviews delete" on public.reviews;
-create policy "reviews delete" on public.reviews for delete using (user_id = auth.uid() or public.is_admin());
+create policy "reviews delete" on public.reviews for delete using (user_id = (select auth.uid()) or (select public.is_admin()));
 
 drop policy if exists "groups readable" on public.groups;
 create policy "groups readable" on public.groups for select using (true);
@@ -299,40 +299,84 @@ create policy "groups write" on public.groups for all using (public.owns_tutor(t
 -- Seats: you see your own; the group's tutor sees everyone who joined. Joining goes through join_group().
 drop policy if exists "seats read" on public.group_seats;
 create policy "seats read" on public.group_seats for select using (
-  user_id = auth.uid() or exists (select 1 from public.groups g where g.id = group_id and public.owns_tutor(g.tutor_id)));
+  user_id = (select auth.uid()) or exists (select 1 from public.groups g where g.id = group_id and public.owns_tutor(g.tutor_id)));
 drop policy if exists "seats leave" on public.group_seats;
 create policy "seats leave" on public.group_seats for delete using (
-  user_id = auth.uid() or exists (select 1 from public.groups g where g.id = group_id and public.owns_tutor(g.tutor_id)));
+  user_id = (select auth.uid()) or exists (select 1 from public.groups g where g.id = group_id and public.owns_tutor(g.tutor_id)));
 
 drop policy if exists "messages readable" on public.group_messages;
 create policy "messages readable" on public.group_messages for select using (true);
 drop policy if exists "messages insert" on public.group_messages;
 create policy "messages insert" on public.group_messages for insert with check (
-  user_id = auth.uid()
+  user_id = (select auth.uid())
   and (is_tutor = false or exists (select 1 from public.groups g where g.id = group_id and public.owns_tutor(g.tutor_id))));
 drop policy if exists "messages delete" on public.group_messages;
-create policy "messages delete" on public.group_messages for delete using (user_id = auth.uid() or public.is_admin());
+create policy "messages delete" on public.group_messages for delete using (user_id = (select auth.uid()) or (select public.is_admin()));
 
 -- Inquiries: the student sees what they sent, the tutor (or admin) sees what they got.
 drop policy if exists "inquiries read" on public.inquiries;
-create policy "inquiries read" on public.inquiries for select using (user_id = auth.uid() or public.owns_tutor(tutor_id));
+create policy "inquiries read" on public.inquiries for select using (user_id = (select auth.uid()) or public.owns_tutor(tutor_id));
 drop policy if exists "inquiries send" on public.inquiries;
-create policy "inquiries send" on public.inquiries for insert to authenticated with check (user_id = auth.uid());
+create policy "inquiries send" on public.inquiries for insert to authenticated with check (user_id = (select auth.uid()));
 drop policy if exists "inquiries delete" on public.inquiries;
-create policy "inquiries delete" on public.inquiries for delete using (user_id = auth.uid() or public.is_admin());
+create policy "inquiries delete" on public.inquiries for delete using (user_id = (select auth.uid()) or (select public.is_admin()));
 
 -- Views read through the owner, so expose only aggregate columns.
 grant select on public.tutor_stats, public.group_seat_counts to anon, authenticated;
 grant execute on function public.join_group(uuid, text, text, text), public.set_seat_status(uuid, text), public.answer_inquiry(uuid, text, text) to authenticated;
 revoke execute on function public.join_group(uuid, text, text, text), public.set_seat_status(uuid, text), public.answer_inquiry(uuid, text, text) from anon, public;
 
--- Photos bucket (public read; signed-in users upload).
-insert into storage.buckets (id, name, public) values ('tutor-photos', 'tutor-photos', true)
-  on conflict (id) do nothing;
-drop policy if exists "photos upload" on storage.objects;
-create policy "photos upload" on storage.objects for insert to authenticated with check (bucket_id = 'tutor-photos');
+-- Photos bucket: anyone can view a photo by its link; each signed-in user writes only in their own folder
+-- (<user id>/...), images only, up to 5 MB. No listing policy, so nobody can enumerate the bucket.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  values ('tutor-photos', 'tutor-photos', true, 5242880, array['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+  on conflict (id) do update set public = true, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
 drop policy if exists "photos read" on storage.objects;
-create policy "photos read" on storage.objects for select using (bucket_id = 'tutor-photos');
+drop policy if exists "photos upload" on storage.objects;
+create policy "photos upload" on storage.objects for insert to authenticated
+  with check (bucket_id = 'tutor-photos' and (storage.foldername(name))[1] = (select auth.uid())::text);
+drop policy if exists "photos own" on storage.objects;
+create policy "photos own" on storage.objects for select to authenticated
+  using (bucket_id = 'tutor-photos' and (storage.foldername(name))[1] = (select auth.uid())::text);
+drop policy if exists "photos update" on storage.objects;
+create policy "photos update" on storage.objects for update to authenticated
+  using (bucket_id = 'tutor-photos' and (storage.foldername(name))[1] = (select auth.uid())::text);
+drop policy if exists "photos delete" on storage.objects;
+create policy "photos delete" on storage.objects for delete to authenticated
+  using (bucket_id = 'tutor-photos' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+-- Indexes for the queries the site runs (foreign keys, per-user lists, subject filter).
+create index if not exists reviews_user on public.reviews(user_id);
+create index if not exists groups_tutor on public.groups(tutor_id);
+create index if not exists groups_start on public.groups(start_date);
+create index if not exists seats_user on public.group_seats(user_id);
+create index if not exists messages_group on public.group_messages(group_id, created_at);
+create index if not exists messages_user on public.group_messages(user_id);
+create index if not exists tutors_subjects on public.tutors using gin (subjects);
+create index if not exists tutors_city on public.tutors(city);
+
+-- Anti-spam: limits per signed-in user.
+create or replace function public.rate_limit() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare n int;
+begin
+  if public.is_admin() then return new; end if;
+  if tg_table_name = 'inquiries' then
+    select count(*) into n from public.inquiries where user_id = auth.uid() and created_at > now() - interval '1 hour';
+    if n >= 10 then raise exception 'rate limit: too many inquiries, try again later'; end if;
+  elsif tg_table_name = 'group_messages' then
+    select count(*) into n from public.group_messages where user_id = auth.uid() and created_at > now() - interval '1 minute';
+    if n >= 15 then raise exception 'rate limit: too many messages, slow down'; end if;
+  end if;
+  return new;
+end $$;
+drop trigger if exists inquiries_rate on public.inquiries;
+create trigger inquiries_rate before insert on public.inquiries for each row execute function public.rate_limit();
+drop trigger if exists messages_rate on public.group_messages;
+create trigger messages_rate before insert on public.group_messages for each row execute function public.rate_limit();
+
+-- Trigger functions are not API endpoints.
+revoke execute on function public.handle_new_user(), public.protect_tutor_fields(), public.on_inquiry_insert(), public.rate_limit() from anon, authenticated, public;
 
 -- Make yourself admin after your first Google sign-in (replace the email):
 -- update public.profiles set is_admin = true where email = 'you@gmail.com';
