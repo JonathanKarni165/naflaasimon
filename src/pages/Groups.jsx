@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useApp, useLoad } from '../state.jsx';
 import { SUBJECTS } from '../data/constants.js';
 import { money, dateLong, relDays, dateShort } from '../lib/format.js';
-import { GroupCard, Seg, SeatDots, Avatar, Verified, Stars, PhoneReveal, Loading, Empty } from '../components/ui.jsx';
+import { GroupCard, Seg, SeatDots, Avatar, Verified, Stars, Loading, Empty } from '../components/ui.jsx';
 
 export function Groups() {
   const { groups, filters } = useApp();
@@ -63,6 +63,8 @@ export function Group({ id }) {
   const t = group.tutor;
   const mine = (seats || []).find((s) => s.groupId === id);
   const full = group.seatsTaken >= group.maxSeats;
+  const approval = group.joinMode === 'approval';
+  const activeSeat = mine && mine.status !== 'declined' ? mine : null;
   const isTutor = user && t && (user.id === t.ownerId || user.isAdmin);
 
   const startJoin = () => {
@@ -73,7 +75,7 @@ export function Group({ id }) {
     e.preventDefault();
     if (!/^0\d{1,2}-?\d{7}$/.test(form.phone.replace(/\s/g, ''))) { notify('בדקו את מספר הטלפון, למשל 050-1234567', true); return; }
     setBusy(true);
-    try { await api.joinGroup(id, form); notify('שמרנו לכם מקום! המורה יצור קשר לפני המפגש.'); setJoining(false); refreshSeats(); reload(); } catch (err) { notify(err.message, true); }
+    try { const st = await api.joinGroup(id, form); notify(st === 'pending' ? 'הבקשה נשלחה למורה. נעדכן אתכם כשיאשר.' : 'שמרנו לכם מקום! המורה יצור קשר לפני המפגש.'); setJoining(false); refreshSeats(); reload(); } catch (err) { notify(err.message, true); }
     setBusy(false);
   };
   const leave = async () => {
@@ -140,11 +142,12 @@ export function Group({ id }) {
             <div className="side-price"><b><bdi>{money(group.pricePerPerson)}</bdi></b><span>{group.sessions > 1 ? 'לתלמיד לכל מפגש' : 'לתלמיד'}</span></div>
             {group.sessions > 1 ? <p className="hint">סה״כ <bdi>{money(group.pricePerPerson * group.sessions)}</bdi> ל־{group.sessions} מפגשים</p> : null}
             <SeatDots taken={group.seatsTaken} max={group.maxSeats} />
-            {mine ? (
-              <div className="joined">
-                <b>✓ שמרתם מקום בקבוצה</b>
-                <p className="hint">נרשמתם ב־{dateShort(mine.createdAt)}. המורה יקבל את הטלפון שלכם ויצור קשר לתיאום תשלום.</p>
-                <button type="button" className="btn btn-line btn-sm" onClick={leave} disabled={busy}>ביטול ההרשמה</button>
+            <p className="join-mode">{approval ? 'הצטרפות באישור המורה: שולחים בקשה, והמורה מאשר.' : 'הרשמה פתוחה: נרשמים ונכנסים מיד.'}</p>
+            {activeSeat ? (
+              <div className={'joined' + (activeSeat.status === 'pending' ? ' pending' : '')}>
+                <b>{activeSeat.status === 'pending' ? '⏳ הבקשה ממתינה לאישור המורה' : '✓ אתם בקבוצה'}</b>
+                <p className="hint">{activeSeat.status === 'pending' ? `שלחתם בקשה ב־${dateShort(activeSeat.createdAt)}. ברגע שהמורה יאשר, תראו את זה כאן וב״הפניות וההרשמות שלי״.` : `נרשמתם ב־${dateShort(activeSeat.createdAt)}. המורה יקבל את הטלפון שלכם ויצור קשר לתיאום תשלום.`}</p>
+                <button type="button" className="btn btn-line btn-sm" onClick={leave} disabled={busy}>{activeSeat.status === 'pending' ? 'ביטול הבקשה' : 'ביטול ההרשמה'}</button>
               </div>
             ) : joining ? (
               <form className="join-form" onSubmit={join}>
@@ -154,14 +157,17 @@ export function Group({ id }) {
                 <input id="j-phone" className="input" required inputMode="tel" dir="ltr" placeholder="050-1234567" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
                 <label className="field-label" htmlFor="j-note">הערה למורה (לא חובה)</label>
                 <input id="j-note" className="input" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="כיתה, נושא שקשה לכם…" />
-                <button type="submit" className="btn btn-brand go" disabled={busy}>{busy ? 'שומרים…' : 'שמירת מקום'}</button>
+                <button type="submit" className="btn btn-brand go" disabled={busy}>{busy ? 'שולחים…' : approval ? 'שליחת בקשה למורה' : 'שמירת מקום'}</button>
                 <button type="button" className="btn btn-ghost" onClick={() => setJoining(false)}>ביטול</button>
               </form>
             ) : (
-              <button type="button" className="btn btn-brand go" onClick={startJoin} disabled={full}>{full ? 'הקבוצה מלאה' : 'אני נכנס/ת, שמרו לי מקום'}</button>
+              <>
+                {mine?.status === 'declined' ? <p className="hint">המורה לא אישר/ה את הבקשה הקודמת שלכם. אפשר לשאול אותו/ה למטה למה, או לשלוח שוב.</p> : null}
+                <button type="button" className="btn btn-brand go" onClick={startJoin} disabled={full}>{full ? 'הקבוצה מלאה' : approval ? 'בקשת הצטרפות' : 'אני נכנס/ת, שמרו לי מקום'}</button>
+              </>
             )}
-            {t ? <><h2 className="side-h">לדבר עם המורה</h2><PhoneReveal tutor={t} message={`היי ${t.name}, אני מתעניין/ת בקבוצה "${group.title}" שראיתי בנפל האסימון.`} /></> : null}
-            {isTutor ? <a className="btn btn-line btn-sm" href="#panel-groups">לרשימת הנרשמים בפאנל</a> : null}
+            {t && !isTutor ? <a className="btn btn-line btn-sm" href={`#tutor-${t.id}`}>פנייה פרטית למורה</a> : null}
+            {isTutor ? <a className="btn btn-line btn-sm" href="#panel-groups">{group.pendingCount ? `${group.pendingCount} ממתינים לאישור בפאנל` : 'לרשימת הנרשמים בפאנל'}</a> : null}
           </div>
         </aside>
       </div>

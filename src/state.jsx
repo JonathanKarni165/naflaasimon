@@ -19,7 +19,7 @@ export function go(name) {
   }
 }
 
-const DEFAULT_FILTERS = { subject: 'מתמטיקה', level: '', mode: 'any', city: '', origin: null, sort: 'best', maxPrice: 0, maxKm: 0, q: '' };
+const DEFAULT_FILTERS = { subject: 'מתמטיקה', level: '', mode: 'any', city: '', origin: null, sort: 'best', maxPrice: 0, maxKm: 0, q: '', place: '' };
 
 export function AppProvider({ children }) {
   const [route, setRoute] = useState(parseRoute(window.location.hash));

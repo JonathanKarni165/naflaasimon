@@ -106,7 +106,7 @@ export function buildSeedGroups() {
       mode: 'online', location: '', pricePerPerson: 90, maxSeats: 12,
       description: 'יום מרתון אחד לפני הבגרות: חוזרים על כל סוגי השאלות בשאלון 472, פותרים בחינה מלאה מהשנה שעברה ומסיימים עם דף טיפים. מקבלים הקלטה של המרתון.' },
     { id: 'g2', tutorId: 't1', title: 'הכנה לבגרות 582, שמונה מפגשים', subject: 'מתמטיקה', level: '5 יח״ל', startDate: day(6), time: 'ימי ג׳ 18:00', sessions: 8,
-      mode: 'online', location: '', pricePerPerson: 70, maxSeats: 6,
+      mode: 'online', location: '', pricePerPerson: 70, maxSeats: 6, joinMode: 'approval',
       description: 'קבוצה קטנה של עד שישה תלמידים. כל מפגש נושא אחד: חדו״א, וקטורים, מרוכבים וגדילה ודעיכה, עם שיעורי בית ובדיקה.' },
     { id: 'g3', tutorId: 't3', title: 'פסיכומטרי כמותי, קבוצת ערב', subject: 'פסיכומטרי', level: 'פסיכומטרי', startDate: day(26), time: 'ימי ב׳ וד׳ 20:00', sessions: 12,
       mode: 'online', location: '', pricePerPerson: 60, maxSeats: 6,
@@ -127,10 +127,26 @@ export function buildSeedGroups() {
   for (const [gid, n] of Object.entries(fill)) {
     for (let i = 0; i < n; i++) seats.push({ id: `s${++k}`, groupId: gid, userId: `seed-s${k}`, name: NAMES[(k * 7) % NAMES.length], phone: `050-00002${String(k).padStart(2, '0')}`, note: '', createdAt: new Date().toISOString() });
   }
+  // Dana's 582 group is "by approval": two students are waiting for her answer.
+  seats.push({ id: 'sp1', groupId: 'g2', userId: 'seed-p1', name: 'גיא אלון', phone: '050-0000301', note: 'כיתה י״ב, נבחן בקיץ', status: 'pending', createdAt: new Date(Date.now() - 5 * 3600000).toISOString() });
+  seats.push({ id: 'sp2', groupId: 'g2', userId: 'seed-p2', name: 'ליה כרמי', phone: '050-0000302', note: '', status: 'pending', createdAt: new Date(Date.now() - 26 * 3600000).toISOString() });
   const messages = [
     { id: 'm1', groupId: 'g1', userId: 'seed-m1', userName: 'תמר', isTutor: false, text: 'אם אני לא יכולה להגיע לכל היום, תהיה הקלטה?', createdAt: new Date(Date.now() - 2 * 86400000).toISOString() },
     { id: 'm2', groupId: 'g1', userId: null, userName: 'מיכאל רוזן', isTutor: true, text: 'כן, כל מי שנרשם מקבל את ההקלטה המלאה ודף הטיפים במייל.', createdAt: new Date(Date.now() - 1.8 * 86400000).toISOString() },
     { id: 'm3', groupId: 'g2', userId: 'seed-m3', userName: 'איתי', isTutor: false, text: 'אפשר להצטרף מהמפגש השני?', createdAt: new Date(Date.now() - 86400000).toISOString() },
   ];
   return { groups: groups.map((g) => ({ city: '', createdAt: '2026-10-20T10:00:00Z', ...g })), seats, messages };
+}
+
+export function buildSeedInquiries() {
+  const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
+  return [
+    { id: 'q1', tutorId: 't1', userId: 'seed-q1', name: 'אורי שגב', phone: '050-0000401', subject: 'מתמטיקה', level: '5 יח״ל', mode: 'frontal',
+      message: 'היי דנה, אני בכיתה י״א ונבחן ב־581 בעוד חודשיים. קשה לי בעיקר עם חדו״א. יש לך זמן פנוי בימי שני?', status: 'new', reply: '', createdAt: ago(3), repliedAt: null },
+    { id: 'q2', tutorId: 't1', userId: 'seed-q2', name: 'מירב (אמא של נועם)', phone: '050-0000402', subject: 'מתמטיקה', level: '4 יח״ל', mode: 'online',
+      message: 'שלום, הבן שלי צריך חיזוק בגאומטריה לפני המגן. אפשר שיעור ניסיון אונליין?', status: 'new', reply: '', createdAt: ago(20), repliedAt: null },
+    { id: 'q3', tutorId: 't1', userId: 'seed-q3', name: 'יעל דוד', phone: '050-0000403', subject: 'סטטיסטיקה', level: 'אקדמיה', mode: 'online',
+      message: 'סטודנטית שנה א׳ בפסיכולוגיה, צריכה עזרה בסטטיסטיקה לקראת המבחן.', status: 'replied',
+      reply: 'היי יעל, בשמחה. אני פנויה ביום רביעי ב־19:00, אשלח לך הודעה בוואטסאפ לתיאום.', createdAt: ago(60), repliedAt: ago(50) },
+  ];
 }

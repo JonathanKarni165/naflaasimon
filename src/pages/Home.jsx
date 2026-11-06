@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useApp, go } from '../state.jsx';
-import { SUBJECTS, LEVELS, CITIES, cityByName } from '../data/constants.js';
+import { SUBJECTS, LEVELS } from '../data/constants.js';
 import { filterTutors, sortTutors, globalMean } from '../lib/ranking.js';
-import { TutorRow, GroupCard, Avatar, Loading } from '../components/ui.jsx';
+import { TutorRow, GroupCard, Avatar, Loading, WherePicker, resolveWhere } from '../components/ui.jsx';
 
 const TRACKS = [
   ['5 יח״ל', 'בגרות מוגברת', 'שאלונים 581, 582'],
@@ -17,13 +17,14 @@ export default function Home() {
   const { tutors, groups, filters, setFilters } = useApp();
   const [subject, setSubject] = useState(filters.subject || 'מתמטיקה');
   const [level, setLevel] = useState(filters.level || '');
-  const [where, setWhere] = useState(filters.mode === 'online' ? 'online' : filters.city || '');
+  const [where, setWhere] = useState(filters.mode === 'online' ? 'online' : filters.city || filters.place || '');
   const [kind, setKind] = useState('private');
 
   const count = useMemo(() => {
     if (!tutors) return null;
     if (kind === 'group') return (groups || []).filter((g) => (!subject || g.subject === subject) && (!level || g.level === level)).length;
-    return filterTutors(tutors, { subject, level, mode: where === 'online' ? 'online' : 'any' }).length;
+    const w = resolveWhere(where);
+    return filterTutors(tutors, { subject, level, mode: w.mode, place: w.place }).length;
   }, [tutors, groups, subject, level, where, kind]);
 
   const featured = useMemo(() => (tutors ? sortTutors(tutors, 'best').filter((t) => t.ratingCount >= 10 && t.photo).slice(0, 3) : []), [tutors]);
@@ -37,11 +38,8 @@ export default function Home() {
   const submit = (e) => {
     e.preventDefault();
     if (kind === 'group') { setFilters((f) => ({ ...f, subject, level })); go('groups'); return; }
-    const c = cityByName(where);
-    setFilters((f) => ({
-      ...f, subject, level, mode: where === 'online' ? 'online' : 'any', city: c ? c.name : '',
-      origin: c ? { lat: c.lat, lng: c.lng } : null, sort: c ? 'near' : 'best',
-    }));
+    const w = resolveWhere(where);
+    setFilters((f) => ({ ...f, subject, level, ...w, sort: w.origin ? 'near' : 'best' }));
     go('search');
   };
   const track = (lvl) => { setFilters((f) => ({ ...f, subject: lvl === 'פסיכומטרי' ? '' : 'מתמטיקה', level: lvl, sort: 'best' })); go('search'); };
@@ -87,13 +85,7 @@ export default function Home() {
             </div>
             <div>
               <label className="field-label" htmlFor="home-where">איפה?</label>
-              <select className="select" id="home-where" value={where} onChange={(e) => setWhere(e.target.value)}>
-                <option value="">כל הארץ</option>
-                <option value="online">אונליין</option>
-                <optgroup label="קרוב אליי, בעיר:">
-                  {CITIES.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
-                </optgroup>
-              </select>
+              <WherePicker id="home-where" value={where} onChange={setWhere} />
             </div>
           </div>
           <div>
@@ -153,7 +145,7 @@ export default function Home() {
           <div className="why-list">
             <div className="why-item"><div className="why-art"><img className="art" src="img/art-verified.svg" alt="" /></div><div><h3>מורים מאומתים</h3><p>מורה עם סימן ✓ עבר בדיקה של תעודת זהות ותארים או תעודות הוראה.</p></div></div>
             <div className="why-item"><div className="why-art"><img className="art" src="img/art-reviews.svg" alt="" /></div><div><h3>דירוג שאי אפשר לנפח</h3><p>ביקורת אחת לכל חשבון Google, והדירוג מתחשב בכמות: חמישה כוכבים מביקורת אחת לא עוקפים 40 ביקורות טובות.</p></div></div>
-            <div className="why-item"><div className="why-art"><img className="art" src="img/art-phone.svg" alt="" /></div><div><h3>ישר למורה, בלי עמלה</h3><p>מתחברים, רואים את הטלפון, שולחים וואטסאפ ומשלמים למורה ישירות.</p></div></div>
+            <div className="why-item"><div className="why-art"><img className="art" src="img/art-phone.svg" alt="" /></div><div><h3>ישר למורה, בלי עמלה</h3><p>שולחים פנייה מהפרופיל, המורה עונה לכם באתר או בטלפון, ומשלמים לו ישירות.</p></div></div>
           </div>
         </div>
       </section>
@@ -164,7 +156,7 @@ export default function Home() {
           <ol className="steps">
             <li className="step"><span className="n">1</span><div><h3>מחפשים</h3><p>מקצוע, רמה ועיר. ממיינים לפי הכי קרוב, הכי זול או הכי מבוקש.</p></div></li>
             <li className="step"><span className="n">2</span><div><h3>משווים</h3><p>מחיר פרונטלי ואונליין, ניסיון וביקורות של תלמידים.</p></div></li>
-            <li className="step"><span className="n">3</span><div><h3>פונים ישירות</h3><p>נכנסים עם Google, רואים את הטלפון ושולחים הודעה. בלי מתווכים.</p></div></li>
+            <li className="step"><span className="n">3</span><div><h3>שולחים פנייה</h3><p>נכנסים עם Google ושולחים למורה פנייה. התשובה מחכה לכם באזור האישי.</p></div></li>
           </ol>
         </div>
       </section>
@@ -180,7 +172,7 @@ export default function Home() {
             <ul>
               <li>פרופיל עם מחיר פרונטלי ואונליין, אזור ורמות</li>
               <li>ביקורות מתלמידים שלמדו אצלכם</li>
-              <li>פניות ישירות לוואטסאפ ולטלפון</li>
+              <li>תיבת פניות אישית, בלי לפרסם את הטלפון שלכם</li>
               <li>קבוצות ומרתונים עם הרשמה ושמירת מקום</li>
             </ul>
             <a className="btn btn-brand" href="#panel">פתיחת פרופיל מורה</a>

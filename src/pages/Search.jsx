@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useApp } from '../state.jsx';
 import { SUBJECTS, LEVELS, CITIES, cityByName } from '../data/constants.js';
 import { filterTutors, sortTutors } from '../lib/ranking.js';
-import { TutorRow, Seg, Loading, Empty } from '../components/ui.jsx';
+import { TutorRow, Seg, Loading, Empty, WherePicker, resolveWhere } from '../components/ui.jsx';
 
 const SORTS = [
   ['best', 'מומלצים'],
@@ -22,6 +22,12 @@ export default function Search() {
     return sortTutors(filterTutors(tutors, f), f.sort, { origin: f.origin, mode: f.mode });
   }, [tutors, f]);
 
+  const [whereText, setWhereText] = useState(f.mode === 'online' ? 'online' : f.city === 'המיקום שלי' ? '' : f.city || f.place || '');
+  const pickWhere = (text) => {
+    setWhereText(text);
+    const w = resolveWhere(text);
+    set({ ...w, mode: w.mode === 'online' ? 'online' : f.mode === 'online' ? 'any' : f.mode, sort: w.origin && f.sort === 'best' ? 'near' : f.sort });
+  };
   const pickCity = (name) => {
     const c = cityByName(name);
     set({ city: name, origin: c ? { lat: c.lat, lng: c.lng } : null, sort: c && f.sort === 'best' ? 'near' : f.sort });
@@ -30,14 +36,14 @@ export default function Search() {
     setLocMsg('מאתרים…');
     if (!navigator.geolocation) { setLocMsg('הדפדפן לא תומך באיתור מיקום. בחרו עיר מהרשימה.'); return; }
     navigator.geolocation.getCurrentPosition(
-      (p) => { set({ origin: { lat: p.coords.latitude, lng: p.coords.longitude }, city: 'המיקום שלי', sort: 'near' }); setLocMsg(''); },
+      (p) => { set({ origin: { lat: p.coords.latitude, lng: p.coords.longitude }, city: 'המיקום שלי', place: '', sort: 'near' }); setWhereText(''); setLocMsg(''); },
       () => setLocMsg('לא קיבלנו הרשאה למיקום. בחרו עיר מהרשימה.'),
       { timeout: 8000, maximumAge: 600000 },
     );
   };
 
   const needOrigin = f.sort === 'near' && !f.origin;
-  const activeCount = [f.subject, f.level, f.mode !== 'any', f.maxPrice, f.maxKm, f.q].filter(Boolean).length;
+  const activeCount = [f.subject, f.level, f.mode !== 'any', f.maxPrice, f.maxKm, f.q, f.place].filter(Boolean).length;
 
   return (
     <main className="wrap page-pad">
@@ -49,7 +55,7 @@ export default function Search() {
       <div className="search-layout">
         <aside className={'filters' + (showFilters ? ' open' : '')} aria-label="סינון">
           <div className="filters-inner">
-            <div className="filters-top"><h2>סינון</h2><button type="button" className="linkish" onClick={resetFilters}>ניקוי</button></div>
+            <div className="filters-top"><h2>סינון</h2><button type="button" className="linkish" onClick={() => { resetFilters(); setWhereText(''); }}>ניקוי</button></div>
 
             <label className="field-label" htmlFor="q">חיפוש חופשי</label>
             <input id="q" className="input" type="search" placeholder="שם מורה, נושא, עיר…" value={f.q} onChange={(e) => set({ q: e.target.value })} />
@@ -71,10 +77,7 @@ export default function Search() {
             <Seg label="f-mode" value={f.mode} onChange={(mode) => set({ mode })} options={[['any', 'הכול'], ['frontal', 'פרונטלי'], ['online', 'אונליין']]} />
 
             <label className="field-label" htmlFor="f-city">אני נמצא/ת ב…</label>
-            <select id="f-city" className="select" value={cityByName(f.city) ? f.city : ''} onChange={(e) => pickCity(e.target.value)}>
-              <option value="">{f.city === 'המיקום שלי' ? 'המיקום הנוכחי שלי' : 'בחרו עיר'}</option>
-              {CITIES.map((c) => <option key={c.name}>{c.name}</option>)}
-            </select>
+            <WherePicker id="f-city" value={whereText} onChange={pickWhere} placeholder={f.city === 'המיקום שלי' ? 'המיקום הנוכחי שלי' : 'עיר או שכונה'} />
             <button type="button" className="btn btn-line btn-sm loc-btn" onClick={useMyLocation}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /><circle cx="12" cy="12" r="8" /></svg>
               להשתמש במיקום הנוכחי
@@ -121,7 +124,7 @@ export default function Search() {
           {!results ? <Loading /> : results.length === 0 ? (
             <Empty title="לא מצאנו מורים שמתאימים לכל הסינונים">
               <p>נסו להסיר את הגבלת המחיר או המרחק, או לבחור רמה אחרת.</p>
-              <button type="button" className="btn btn-brand" onClick={resetFilters}>ניקוי הסינון</button>
+              <button type="button" className="btn btn-brand" onClick={() => { resetFilters(); setWhereText(''); }}>ניקוי הסינון</button>
             </Empty>
           ) : (
             <div className="t-rows">{results.map((t) => <TutorRow key={t.id} tutor={t} sort={f.sort} />)}</div>

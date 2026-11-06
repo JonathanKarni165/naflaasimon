@@ -34,8 +34,8 @@ language sql stable security definer set search_path = public as $$
   select coalesce((select is_admin from public.profiles where id = auth.uid()), false);
 $$;
 
--- Tutors: public profile. The phone number lives in tutor_contacts and is only
--- handed out by reveal_phone() to signed-in users.
+-- Tutors: public profile. The phone number lives in tutor_contacts and is private:
+-- only the tutor and admins read it. Students reach tutors through inquiries.
 create table if not exists public.tutors (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid references auth.users(id) on delete set null,
@@ -95,8 +95,10 @@ create table if not exists public.groups (
   location text,
   price_per_person integer not null check (price_per_person >= 0),
   max_seats integer not null check (max_seats between 1 and 200),
+  join_mode text not null default 'open' check (join_mode in ('open', 'approval')),
   created_at timestamptz not null default now()
 );
+alter table public.groups add column if not exists join_mode text not null default 'open' check (join_mode in ('open', 'approval'));
 
 create table if not exists public.group_seats (
   id uuid primary key default gen_random_uuid(),
@@ -105,12 +107,38 @@ create table if not exists public.group_seats (
   name text not null,
   phone text,
   note text,
+  status text not null default 'approved' check (status in ('approved', 'pending', 'declined')),
   created_at timestamptz not null default now(),
   unique (group_id, user_id)
 );
+alter table public.group_seats add column if not exists status text not null default 'approved' check (status in ('approved', 'pending', 'declined'));
 
-create or replace view public.group_seat_counts as
-  select group_id, count(*)::int as seats_taken from public.group_seats group by group_id;
+-- Only approved students take a seat; pending ones wait for the tutor.
+drop view if exists public.group_seat_counts;
+create view public.group_seat_counts as
+  select group_id,
+         count(*) filter (where status = 'approved')::int as seats_taken,
+         count(*) filter (where status = 'pending')::int as pending_count
+  from public.group_seats group by group_id;
+
+-- Inquiries: a student contacts a tutor through the site (the tutor's phone is never shown).
+create table if not exists public.inquiries (
+  id uuid primary key default gen_random_uuid(),
+  tutor_id uuid not null references public.tutors(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null check (length(name) between 1 and 100),
+  phone text not null check (length(phone) between 7 and 20),
+  subject text,
+  level text,
+  mode text,
+  message text not null check (length(message) between 1 and 1000),
+  status text not null default 'new' check (status in ('new', 'replied', 'booked', 'declined')),
+  reply text check (reply is null or length(reply) <= 1000),
+  replied_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists inquiries_tutor on public.inquiries(tutor_id, created_at desc);
+create index if not exists inquiries_user on public.inquiries(user_id, created_at desc);
 
 create table if not exists public.group_messages (
   id uuid primary key default gen_random_uuid(),
@@ -144,31 +172,79 @@ drop trigger if exists tutors_protect on public.tutors;
 create trigger tutors_protect before insert or update on public.tutors
   for each row execute function public.protect_tutor_fields();
 
--- Signed-in users get the phone number; each reveal counts as one inquiry ("הכי מבוקש").
-create or replace function public.reveal_phone(t uuid) returns text
+drop function if exists public.reveal_phone(uuid);
+
+-- Each inquiry counts toward "הכי מבוקש". Students can't write the status or reply themselves.
+create or replace function public.on_inquiry_insert() returns trigger
 language plpgsql security definer set search_path = public as $$
-declare p text;
 begin
-  if auth.uid() is null then raise exception 'login required'; end if;
-  select phone into p from public.tutor_contacts where tutor_id = t;
+  if exists (select 1 from public.tutors where id = new.tutor_id and owner_id = auth.uid()) then
+    raise exception 'cannot contact yourself';
+  end if;
+  new.user_id := auth.uid(); new.status := 'new'; new.reply := null; new.replied_at := null; new.created_at := now();
   perform set_config('app.bypass', 'on', true);
-  update public.tutors set contact_count = contact_count + 1 where id = t;
+  update public.tutors set contact_count = contact_count + 1 where id = new.tutor_id;
   perform set_config('app.bypass', 'off', true);
-  return p;
+  return new;
+end $$;
+drop trigger if exists inquiries_insert on public.inquiries;
+create trigger inquiries_insert before insert on public.inquiries
+  for each row execute function public.on_inquiry_insert();
+
+-- The tutor answers: change status and/or write a reply the student sees in their area.
+create or replace function public.answer_inquiry(q uuid, p_status text, p_reply text) returns void
+language plpgsql security definer set search_path = public as $$
+declare t uuid;
+begin
+  select tutor_id into t from public.inquiries where id = q;
+  if t is null or not public.owns_tutor(t) then raise exception 'not allowed'; end if;
+  if p_reply is not null then
+    update public.inquiries set reply = left(p_reply, 1000), replied_at = now(),
+      status = case when coalesce(p_status, status) = 'new' then 'replied' else coalesce(p_status, status) end
+    where id = q;
+  elsif p_status is not null then
+    update public.inquiries set status = p_status where id = q;
+  end if;
 end $$;
 
--- Reserve a seat without overbooking: lock the group row, then count.
-create or replace function public.join_group(g uuid, p_name text, p_phone text, p_note text) returns void
+-- Reserve a seat without overbooking: lock the group row, then count approved seats.
+-- Open groups approve at once; "approval" groups leave the seat pending for the tutor.
+drop function if exists public.join_group(uuid, text, text, text);
+create or replace function public.join_group(g uuid, p_name text, p_phone text, p_note text) returns text
 language plpgsql security definer set search_path = public as $$
-declare cap int; taken int;
+declare cap int; jm text; taken int; st text;
 begin
   if auth.uid() is null then raise exception 'login required'; end if;
-  select max_seats into cap from public.groups where id = g for update;
+  select max_seats, join_mode into cap, jm from public.groups where id = g for update;
   if cap is null then raise exception 'group not found'; end if;
-  select count(*) into taken from public.group_seats where group_id = g;
+  if exists (select 1 from public.group_seats where group_id = g and user_id = auth.uid() and status <> 'declined') then
+    raise exception 'duplicate';
+  end if;
+  select count(*) into taken from public.group_seats where group_id = g and status = 'approved';
   if taken >= cap then raise exception 'group full'; end if;
-  insert into public.group_seats (group_id, user_id, name, phone, note)
-  values (g, auth.uid(), p_name, p_phone, p_note);
+  st := case when jm = 'approval' then 'pending' else 'approved' end;
+  delete from public.group_seats where group_id = g and user_id = auth.uid();
+  insert into public.group_seats (group_id, user_id, name, phone, note, status)
+  values (g, auth.uid(), p_name, p_phone, p_note, st);
+  return st;
+end $$;
+
+-- The group's tutor approves, declines or removes a student.
+create or replace function public.set_seat_status(s uuid, p_status text) returns void
+language plpgsql security definer set search_path = public as $$
+declare g uuid; cap int; taken int; cur text;
+begin
+  if p_status not in ('approved', 'pending', 'declined') then raise exception 'bad status'; end if;
+  select group_id, status into g, cur from public.group_seats where id = s;
+  if g is null or not exists (select 1 from public.groups x where x.id = g and public.owns_tutor(x.tutor_id)) then
+    raise exception 'not allowed';
+  end if;
+  if p_status = 'approved' and cur <> 'approved' then
+    select max_seats into cap from public.groups where id = g for update;
+    select count(*) into taken from public.group_seats where group_id = g and status = 'approved';
+    if taken >= cap then raise exception 'group full'; end if;
+  end if;
+  update public.group_seats set status = p_status where id = s;
 end $$;
 
 -- Row level security ----------------------------------------------------------
@@ -179,6 +255,7 @@ alter table public.reviews enable row level security;
 alter table public.groups enable row level security;
 alter table public.group_seats enable row level security;
 alter table public.group_messages enable row level security;
+alter table public.inquiries enable row level security;
 
 drop policy if exists "own profile" on public.profiles;
 create policy "own profile" on public.profiles for select using (id = auth.uid() or public.is_admin());
@@ -236,10 +313,18 @@ create policy "messages insert" on public.group_messages for insert with check (
 drop policy if exists "messages delete" on public.group_messages;
 create policy "messages delete" on public.group_messages for delete using (user_id = auth.uid() or public.is_admin());
 
+-- Inquiries: the student sees what they sent, the tutor (or admin) sees what they got.
+drop policy if exists "inquiries read" on public.inquiries;
+create policy "inquiries read" on public.inquiries for select using (user_id = auth.uid() or public.owns_tutor(tutor_id));
+drop policy if exists "inquiries send" on public.inquiries;
+create policy "inquiries send" on public.inquiries for insert to authenticated with check (user_id = auth.uid());
+drop policy if exists "inquiries delete" on public.inquiries;
+create policy "inquiries delete" on public.inquiries for delete using (user_id = auth.uid() or public.is_admin());
+
 -- Views read through the owner, so expose only aggregate columns.
 grant select on public.tutor_stats, public.group_seat_counts to anon, authenticated;
-grant execute on function public.reveal_phone(uuid), public.join_group(uuid, text, text, text) to authenticated;
-revoke execute on function public.reveal_phone(uuid), public.join_group(uuid, text, text, text) from anon, public;
+grant execute on function public.join_group(uuid, text, text, text), public.set_seat_status(uuid, text), public.answer_inquiry(uuid, text, text) to authenticated;
+revoke execute on function public.join_group(uuid, text, text, text), public.set_seat_status(uuid, text), public.answer_inquiry(uuid, text, text) from anon, public;
 
 -- Photos bucket (public read; signed-in users upload).
 insert into storage.buckets (id, name, public) values ('tutor-photos', 'tutor-photos', true)

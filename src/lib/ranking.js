@@ -48,6 +48,7 @@ export function filterTutors(tutors, f) {
     if (f.mode === 'online' && !t.teachesOnline) return false;
     if (f.mode === 'frontal' && !t.teachesFrontal) return false;
     if (f.maxPrice) { const p = priceFor(t, f.mode); if (p == null || p > f.maxPrice) return false; }
+    if (f.place && !`${t.city || ''} ${t.area || ''}`.includes(f.place.trim())) return false;
     if (q && !`${t.name} ${t.headline || ''} ${t.city || ''} ${(t.subjects || []).join(' ')}`.includes(q)) return false;
     if (f.maxKm && f.origin && f.mode !== 'online') {
       const d = distanceKm(f.origin, tutorPoint(t));
@@ -76,7 +77,7 @@ export function sortTutors(tutors, sort, { origin, mode } = {}) {
   return withScore.sort(cmp);
 }
 
-/** Demand: students who asked for the phone number plus reviewers (each review is a lesson that happened). */
+/** Demand: inquiries sent through the site plus reviewers (each review is a lesson that happened). */
 export function popularity(t) {
   return (t.contactCount || 0) + 3 * (t.ratingCount || 0);
 }

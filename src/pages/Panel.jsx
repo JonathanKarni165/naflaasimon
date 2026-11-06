@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useApp, useLoad, go } from '../state.jsx';
 import { SUBJECTS, LEVELS, CITIES } from '../data/constants.js';
-import { money, dateShort, dateLong } from '../lib/format.js';
-import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin } from '../components/ui.jsx';
+import { money, dateShort, dateLong, normalizePhone } from '../lib/format.js';
+import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, StatusTag } from '../components/ui.jsx';
 
 const TABS = [
   ['panel', 'הפרופיל שלי'],
+  ['panel-inbox', 'פניות מתלמידים'],
   ['panel-groups', 'קבוצות למידה'],
-  ['panel-seats', 'ההרשמות שלי'],
+  ['panel-seats', 'הפניות וההרשמות שלי'],
   ['panel-admin', 'ניהול מורים'],
 ];
 
 export default function Panel() {
-  const { user, route, setLoginOpen } = useApp();
+  const { user, setLoginOpen } = useApp();
   if (!user) {
     return (
       <main className="wrap page-pad">
@@ -22,7 +23,7 @@ export default function Panel() {
           <p className="muted-text">כאן פותחים פרופיל מורה, מעדכנים מחירים ומיקום, ומעלים קבוצות למידה ומרתונים. מתחילים בכניסה עם Google.</p>
           <ul className="check-list">
             <li>פרופיל עם מקצועות, רמות, מיקום ומחיר פרונטלי ואונליין</li>
-            <li>פניות ישירות לטלפון ולוואטסאפ, בלי עמלה</li>
+            <li>פניות מתלמידים מגיעות לתיבה אישית בפאנל, בלי לחשוף את הטלפון שלכם ובלי עמלה</li>
             <li>קבוצות עם הרשמה, שמירת מקום ושאלות מתלמידים</li>
           </ul>
           <button type="button" className="btn btn-brand go" onClick={() => setLoginOpen(true)}>כניסה עם Google</button>
@@ -30,15 +31,23 @@ export default function Panel() {
       </main>
     );
   }
+  return <PanelTabs />;
+}
+
+function PanelTabs() {
+  const { user, route, api, version } = useApp();
+  const [inbox] = useLoad(() => api.tutorInquiries().catch(() => []), [user.id, version]);
+  const fresh = (inbox || []).filter((q) => q.status === 'new').length;
   const tabs = TABS.filter(([k]) => k !== 'panel-admin' || user.isAdmin);
   const tab = tabs.some(([k]) => k === route.name) ? route.name : 'panel';
   return (
     <main className="wrap page-pad">
-      <div className="page-head"><h1>פאנל מורה</h1><p className="muted-text">שלום {user.name}{user.isAdmin ? ' · מנהל/ת האתר' : ''}</p></div>
+      <div className="page-head"><h1>האזור האישי</h1><p className="muted-text">שלום {user.name}{user.isAdmin ? ' · מנהל/ת האתר' : ''}</p></div>
       <nav className="tabs" aria-label="פאנל">
-        {tabs.map(([k, label]) => <a key={k} href={'#' + k} aria-current={tab === k ? 'page' : undefined}>{label}</a>)}
+        {tabs.map(([k, label]) => <a key={k} href={'#' + k} aria-current={tab === k ? 'page' : undefined}>{label}{k === 'panel-inbox' && fresh ? <span className="badge"><bdi>{fresh}</bdi></span> : null}</a>)}
       </nav>
       {tab === 'panel' && <MyProfile />}
+      {tab === 'panel-inbox' && <Inbox />}
       {tab === 'panel-groups' && <MyGroups />}
       {tab === 'panel-seats' && <MySeats />}
       {tab === 'panel-admin' && <AdminTutors />}
@@ -76,7 +85,7 @@ function MyProfile() {
           <p className="muted-text">{mine.headline}</p>
           <p>{(mine.subjects || []).join(', ')} · {(mine.levels || []).join(', ')}</p>
           <p>{mine.teachesFrontal && mine.priceFrontal ? `פרונטלי ${money(mine.priceFrontal)} ב${mine.city}` : ''}{mine.teachesFrontal && mine.teachesOnline ? ' · ' : ''}{mine.teachesOnline && mine.priceOnline ? `אונליין ${money(mine.priceOnline)}` : ''}</p>
-          <p>טלפון: <bdi>{mine.phone}</bdi></p>
+          <p>טלפון (לא מוצג לתלמידים): <bdi>{mine.phone}</bdi></p>
           <div className="form-actions">
             <button type="button" className="btn btn-brand" onClick={() => setEditing(true)}>עריכה</button>
             <a className="btn btn-line" href={`#tutor-${mine.id}`}>איך תלמידים רואים אותי</a>
@@ -96,10 +105,75 @@ function Stats({ tutorId, contactCount }) {
   const g = (groups || []).filter((x) => x.tutorId === tutorId);
   return (
     <div className="stat-row">
-      <div><b><bdi>{contactCount || 0}</bdi></b><span>תלמידים ראו את הטלפון</span></div>
+      <div><b><bdi>{contactCount || 0}</bdi></b><span>פניות מתלמידים</span></div>
       <div><b><bdi>{t?.ratingCount || 0}</bdi></b><span>ביקורות{t?.ratingCount ? ` · ממוצע ${t.ratingAvg.toFixed(1)}` : ''}</span></div>
       <div><b><bdi>{g.reduce((a, x) => a + x.seatsTaken, 0)}</bdi></b><span>נרשמים בקבוצות שלי</span></div>
     </div>
+  );
+}
+
+const MODE_LABEL = { online: 'אונליין', frontal: 'פרונטלי', '': 'לא משנה' };
+
+function Inbox() {
+  const { api, user, version, reload, notify } = useApp();
+  const [list, loading, error] = useLoad(() => api.tutorInquiries(), [user.id, version]);
+  const [filter, setFilter] = useState('open');
+  if (loading && !list) return <Loading />;
+  if (error) return <p className="err">{error.message}</p>;
+  const all = list || [];
+  const shown = all.filter((q) => (filter === 'open' ? q.status === 'new' || q.status === 'replied' : filter === 'all' ? true : q.status === filter));
+  const n = (st) => all.filter((q) => q.status === st).length;
+  return (
+    <div className="inbox">
+      <p className="muted-text">תלמידים שולחים לכם פנייה מהפרופיל. הטלפון שלכם לא מוצג באתר: אתם רואים את הפרטים שלהם ובוחרים אם לחזור אליהם.</p>
+      <div className="chips wrap-chips" role="group" aria-label="סינון פניות">
+        {[['open', `פתוחות (${n('new') + n('replied')})`], ['new', `חדשות (${n('new')})`], ['booked', `נקבע שיעור (${n('booked')})`], ['declined', `לא מתאים (${n('declined')})`], ['all', `הכול (${all.length})`]].map(([k, l]) => (
+          <button key={k} type="button" className="chip" aria-pressed={filter === k} onClick={() => setFilter(k)}>{l}</button>
+        ))}
+      </div>
+      {!all.length ? (
+        <Empty title="עוד אין פניות"><p>כשתלמיד ישלח פנייה מהפרופיל שלכם, היא תופיע כאן.</p></Empty>
+      ) : !shown.length ? <p className="muted-text">אין פניות בסינון הזה.</p> : (
+        <div className="inq-list">
+          {shown.map((q) => <InquiryItem key={q.id} q={q} showTutor={user.isAdmin} onChange={async (patch, msg) => {
+            try { await api.answerInquiry(q.id, patch); notify(msg); reload(); } catch (e) { notify(e.message, true); }
+          }} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InquiryItem({ q, onChange, showTutor }) {
+  const [replying, setReplying] = useState(false);
+  const [text, setText] = useState(q.reply || '');
+  const wa = `https://wa.me/${normalizePhone(q.phone)}?text=${encodeURIComponent(`היי ${q.name.split(' ')[0]}, כאן ${q.tutor?.name || ''} מנפל האסימון. קיבלתי את הפנייה שלך.`)}`;
+  return (
+    <article className={'inq' + (q.status === 'new' ? ' is-new' : '')}>
+      <div className="inq-top">
+        <b className="inq-name">{q.name}</b>
+        <StatusTag status={q.status} />
+        <span className="muted-text inq-date">{dateShort(q.createdAt)}</span>
+      </div>
+      <p className="t-meta">{[q.subject, q.level, q.mode != null ? MODE_LABEL[q.mode] : ''].filter(Boolean).join(' · ')}{showTutor && q.tutor ? ` · אל ${q.tutor.name}` : ''}</p>
+      <p className="inq-msg">{q.message}</p>
+      {q.reply && !replying ? <div className="inq-answer"><small>התשובה שלכם{q.repliedAt ? ` · ${dateShort(q.repliedAt)}` : ''}</small><p>{q.reply}</p></div> : null}
+      {replying ? (
+        <form className="inq-reply-form" onSubmit={(e) => { e.preventDefault(); if (!text.trim()) return; onChange({ reply: text.trim() }, 'התשובה נשלחה לתלמיד'); setReplying(false); }}>
+          <label className="sr-only" htmlFor={'rp-' + q.id}>תשובה</label>
+          <textarea id={'rp-' + q.id} className="input" rows={3} maxLength={1000} value={text} onChange={(e) => setText(e.target.value)} placeholder="למשל: היי, אני פנוי ביום שני ב־18:00. נתאם בוואטסאפ?" />
+          <div className="form-actions"><button type="submit" className="btn btn-brand btn-sm">שליחת תשובה</button><button type="button" className="btn btn-ghost btn-sm" onClick={() => setReplying(false)}>ביטול</button></div>
+        </form>
+      ) : null}
+      <div className="inq-actions">
+        {!replying ? <button type="button" className="btn btn-brand btn-sm" onClick={() => setReplying(true)}>{q.reply ? 'עריכת התשובה' : 'תשובה באתר'}</button> : null}
+        <a className="btn btn-wa btn-sm" href={wa} target="_blank" rel="noreferrer">וואטסאפ</a>
+        <a className="btn btn-line btn-sm" href={`tel:${q.phone.replace(/[^\d+]/g, '')}`}><bdi>{q.phone}</bdi></a>
+        {q.status !== 'booked' ? <button type="button" className="btn btn-line btn-sm" onClick={() => onChange({ status: 'booked' }, 'סומן: נקבע שיעור')}>נקבע שיעור ✓</button> : null}
+        {q.status !== 'declined' ? <button type="button" className="linkish small" onClick={() => onChange({ status: 'declined' }, 'הפנייה סומנה כלא מתאימה')}>לא מתאים</button>
+          : <button type="button" className="linkish small" onClick={() => onChange({ status: q.reply ? 'replied' : 'new' }, 'הפנייה הוחזרה לפתוחות')}>החזרה לפתוחות</button>}
+      </div>
+    </article>
   );
 }
 
@@ -168,7 +242,7 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
         </div>
         <div className="f2">
           <div><label className="field-label" htmlFor="tf-name">שם מלא</label><input id="tf-name" className="input" value={t.name} onChange={(e) => set({ name: e.target.value })} /><Err k="name" /></div>
-          <div><label className="field-label" htmlFor="tf-phone">טלפון (יוצג רק למשתמשים מחוברים)</label><input id="tf-phone" className="input" dir="ltr" inputMode="tel" placeholder="050-1234567" value={t.phone} onChange={(e) => set({ phone: e.target.value })} /><Err k="phone" /></div>
+          <div><label className="field-label" htmlFor="tf-phone">טלפון (לא מוצג באתר, רק לצוות)</label><input id="tf-phone" className="input" dir="ltr" inputMode="tel" placeholder="050-1234567" value={t.phone} onChange={(e) => set({ phone: e.target.value })} /><Err k="phone" /></div>
         </div>
         <label className="field-label" htmlFor="tf-headline">שורה אחת עליכם</label>
         <input id="tf-headline" className="input" maxLength={80} placeholder="למשל: סטודנטית לתואר שני במתמטיקה" value={t.headline} onChange={(e) => set({ headline: e.target.value })} />
@@ -259,10 +333,10 @@ function MyGroups() {
               <div className="ai-main">
                 <a className="t-name" href={`#group-${g.id}`}>{g.title}</a>
                 <p className="t-meta">{dateLong(g.startDate)} · {g.time} · {g.mode === 'online' ? 'אונליין' : g.location || g.city} · {money(g.pricePerPerson)} לתלמיד{user.isAdmin && g.tutor ? ` · ${g.tutor.name}` : ''}</p>
-                <p className="ai-seats"><b><bdi>{g.seatsTaken}</bdi></b> מתוך <bdi>{g.maxSeats}</bdi> מקומות תפוסים</p>
+                <p className="ai-seats"><b><bdi>{g.seatsTaken}</bdi></b> מתוך <bdi>{g.maxSeats}</bdi> מקומות תפוסים · {g.joinMode === 'approval' ? 'באישור המורה' : 'פתוחה'}{g.pendingCount ? <b className="pending-note"> · {g.pendingCount} ממתינים לאישור</b> : null}</p>
               </div>
               <div className="ai-actions">
-                <button type="button" className="btn btn-line btn-sm" onClick={() => setOpenSeats(openSeats === g.id ? null : g.id)} aria-expanded={openSeats === g.id}>נרשמים</button>
+                <button type="button" className="btn btn-line btn-sm" onClick={() => setOpenSeats(openSeats === g.id ? null : g.id)} aria-expanded={openSeats === g.id}>{g.pendingCount ? 'אישור נרשמים' : 'נרשמים'}</button>
                 <button type="button" className="btn btn-line btn-sm" onClick={() => setEditing(g)}>עריכה</button>
                 <ConfirmButton confirmText="למחוק את הקבוצה?" onConfirm={async () => { try { await api.deleteGroup(g.id); reload(); notify('הקבוצה נמחקה'); } catch (e) { notify(e.message, true); } }}>מחיקה</ConfirmButton>
               </div>
@@ -275,23 +349,39 @@ function MyGroups() {
   );
 }
 
+const SEAT_STATUS = { approved: ['מאושר/ת', 'st-booked'], pending: ['ממתין/ה לאישור', 'st-new'], declined: ['נדחה', 'st-declined'] };
+
 function SeatList({ groupId }) {
-  const { api, version } = useApp();
+  const { api, version, reload, notify } = useApp();
   const [seats, loading, error] = useLoad(() => api.listGroupSeats(groupId), [groupId, version]);
-  if (loading) return <Loading />;
+  if (loading && !seats) return <Loading />;
   if (error) return <p className="err">{error.message}</p>;
   if (!seats.length) return <p className="muted-text seat-list">עוד אין נרשמים.</p>;
+  const set = async (s, status, msg) => { try { await api.setSeatStatus(s.id, status); notify(msg); reload(); } catch (e) { notify(e.message, true); } };
+  const order = { pending: 0, approved: 1, declined: 2 };
   return (
     <div className="seat-list">
       <table>
-        <thead><tr><th>שם</th><th>טלפון</th><th>הערה</th><th>נרשם/ה</th></tr></thead>
-        <tbody>{seats.map((s) => <tr key={s.id}><td>{s.name}</td><td><bdi>{s.phone}</bdi></td><td>{s.note || '—'}</td><td>{dateShort(s.createdAt)}</td></tr>)}</tbody>
+        <thead><tr><th>שם</th><th>טלפון</th><th>הערה</th><th>סטטוס</th><th><span className="sr-only">פעולות</span></th></tr></thead>
+        <tbody>{[...seats].sort((a, b) => order[a.status] - order[b.status]).map((s) => (
+          <tr key={s.id} className={s.status === 'pending' ? 'is-new' : ''}>
+            <td>{s.name}<br /><small className="muted-text">{dateShort(s.createdAt)}</small></td>
+            <td><bdi>{s.phone}</bdi></td>
+            <td>{s.note || '—'}</td>
+            <td><StatusTag status={s.status} map={SEAT_STATUS} /></td>
+            <td className="seat-acts">
+              {s.status !== 'approved' ? <button type="button" className="btn btn-brand btn-sm" onClick={() => set(s, 'approved', `${s.name} אושר/ה לקבוצה`)}>אישור</button> : null}
+              {s.status === 'pending' ? <button type="button" className="btn btn-line btn-sm" onClick={() => set(s, 'declined', 'הבקשה נדחתה')}>דחייה</button> : null}
+              {s.status === 'approved' ? <button type="button" className="linkish small" onClick={() => set(s, 'declined', `${s.name} הוצא/ה מהקבוצה`)}>הוצאה</button> : null}
+            </td>
+          </tr>
+        ))}</tbody>
       </table>
     </div>
   );
 }
 
-const EMPTY_GROUP = { tutorId: '', title: '', subject: 'מתמטיקה', level: '', description: '', startDate: '', time: '', sessions: 1, mode: 'online', city: '', location: '', pricePerPerson: '', maxSeats: 8 };
+const EMPTY_GROUP = { tutorId: '', title: '', subject: 'מתמטיקה', level: '', description: '', startDate: '', time: '', sessions: 1, mode: 'online', city: '', location: '', pricePerPerson: '', maxSeats: 8, joinMode: 'open' };
 
 function GroupForm({ initial, tutors, onSaved, onCancel }) {
   const { api, notify } = useApp();
@@ -314,7 +404,7 @@ function GroupForm({ initial, tutors, onSaved, onCancel }) {
     if (Object.keys(e).length) { notify('יש כמה שדות לתקן', true); return; }
     setBusy(true);
     try {
-      const { tutor, seatsTaken, ...clean } = g; void tutor; void seatsTaken;
+      const { tutor, seatsTaken, pendingCount, ...clean } = g; void tutor; void seatsTaken; void pendingCount;
       onSaved(await api.saveGroup({ ...clean, pricePerPerson: Number(g.pricePerPerson), maxSeats: Number(g.maxSeats), sessions: Number(g.sessions) || 1 }));
     } catch (err) { notify(err.message, true); }
     setBusy(false);
@@ -362,6 +452,12 @@ function GroupForm({ initial, tutors, onSaved, onCancel }) {
           <div><label className="field-label" htmlFor="gf-seats">מספר מקומות</label><input id="gf-seats" className="input" type="number" min="1" max="200" value={g.maxSeats} onChange={(e) => set({ maxSeats: e.target.value })} /><Err k="maxSeats" /></div>
         </div>
       </fieldset>
+      <fieldset>
+        <legend>מי יכול להצטרף</legend>
+        <span className="sr-only" id="gf-join">אופן ההצטרפות</span>
+        <Seg label="gf-join" value={g.joinMode || 'open'} onChange={(joinMode) => set({ joinMode })} options={[['open', 'פתוחה לכולם'], ['approval', 'באישור שלי']]} />
+        <p className="hint">{(g.joinMode || 'open') === 'open' ? 'כל מי שנרשם נכנס מיד לקבוצה, עד שהמקומות נגמרים.' : 'תלמידים שולחים בקשה, ואתם מאשרים או דוחים כל אחד בפאנל. רק מאושרים תופסים מקום.'}</p>
+      </fieldset>
       <div className="form-actions sticky-actions">
         <button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'שומרים…' : initial ? 'שמירת השינויים' : 'פרסום הקבוצה'}</button>
         <button type="button" className="btn btn-ghost" onClick={onCancel}>ביטול</button>
@@ -373,20 +469,46 @@ function GroupForm({ initial, tutors, onSaved, onCancel }) {
 function MySeats() {
   const { api, user, groups, version } = useApp();
   const [seats, loading] = useLoad(() => api.mySeats(), [user.id, version]);
-  if (loading && !seats) return <Loading />;
+  const [inqs, loadingQ] = useLoad(() => api.myInquiries(), [user.id, version]);
+  if ((loading && !seats) || (loadingQ && !inqs)) return <Loading />;
   const list = (seats || []).map((s) => ({ s, g: (groups || []).find((g) => g.id === s.groupId) })).filter((x) => x.g);
-  if (!list.length) return <Empty title="עוד לא נרשמתם לקבוצה"><a className="btn btn-brand" href="#groups">לקבוצות הלמידה</a></Empty>;
   return (
-    <div className="admin-list">
-      {list.map(({ s, g }) => (
-        <article key={s.id} className="admin-item">
-          <div className="ai-main">
-            <a className="t-name" href={`#group-${g.id}`}>{g.title}</a>
-            <p className="t-meta">{dateLong(g.startDate)} · {g.time} · {g.mode === 'online' ? 'אונליין' : g.location || g.city} · עם {g.tutor?.name}</p>
+    <div className="my-requests">
+      <section>
+        <h2 className="sub-h">פניות ששלחתי למורים</h2>
+        {!(inqs || []).length ? <p className="muted-text">עוד לא שלחתם פנייה. <a href="#search">חיפוש מורה</a></p> : (
+          <div className="inq-list">
+            {inqs.map((q) => (
+              <article key={q.id} className="inq">
+                <div className="inq-top">
+                  {q.tutor ? <a className="inq-name t-name" href={`#tutor-${q.tutorId}`}>{q.tutor.name}</a> : <b className="inq-name">מורה שהוסר/ה</b>}
+                  <StatusTag status={q.status} />
+                  <span className="muted-text inq-date">{dateShort(q.createdAt)}</span>
+                </div>
+                <p className="inq-msg muted-text">{q.message}</p>
+                {q.reply ? <div className="inq-answer"><small>תשובת המורה{q.repliedAt ? ` · ${dateShort(q.repliedAt)}` : ''}</small><p>{q.reply}</p></div>
+                  : q.status === 'new' ? <p className="hint">המורה עוד לא ענה. הוא יכול גם לחזור אליכם ישירות לטלפון.</p> : null}
+              </article>
+            ))}
           </div>
-          <div className="ai-actions"><a className="btn btn-line btn-sm" href={`#group-${g.id}`}>לעמוד הקבוצה</a></div>
-        </article>
-      ))}
+        )}
+      </section>
+      <section>
+        <h2 className="sub-h">קבוצות שנרשמתי אליהן</h2>
+        {!list.length ? <p className="muted-text">עוד לא נרשמתם לקבוצה. <a href="#groups">לקבוצות הלמידה</a></p> : (
+          <div className="admin-list">
+            {list.map(({ s, g }) => (
+              <article key={s.id} className="admin-item">
+                <div className="ai-main">
+                  <a className="t-name" href={`#group-${g.id}`}>{g.title}</a> <StatusTag status={s.status} map={SEAT_STATUS} />
+                  <p className="t-meta">{dateLong(g.startDate)} · {g.time} · {g.mode === 'online' ? 'אונליין' : g.location || g.city} · עם {g.tutor?.name}</p>
+                </div>
+                <div className="ai-actions"><a className="btn btn-line btn-sm" href={`#group-${g.id}`}>לעמוד הקבוצה</a></div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

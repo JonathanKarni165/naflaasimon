@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useApp, useLoad } from '../state.jsx';
 import { bayesScore, globalMean } from '../lib/ranking.js';
 import { money, dateShort, rating1, reviewsLabel } from '../lib/format.js';
-import { Avatar, Stars, StarRow, Verified, PhoneReveal, GroupCard, ConfirmButton, Loading, Empty, placeLabel } from '../components/ui.jsx';
+import { Avatar, Stars, StarRow, Verified, InquiryBox, GroupCard, ConfirmButton, Loading, Empty, placeLabel } from '../components/ui.jsx';
 
 export default function Tutor({ id }) {
   const { api, tutors, groups, user, version, reload } = useApp();
@@ -83,8 +83,8 @@ export default function Tutor({ id }) {
               {tutor.teachesFrontal && tutor.priceFrontal ? <div><span>פרונטלי</span><b><bdi>{money(tutor.priceFrontal)}</bdi></b><small>{tutor.city}</small></div> : null}
               {tutor.teachesOnline && tutor.priceOnline ? <div><span>אונליין</span><b><bdi>{money(tutor.priceOnline)}</bdi></b><small>זום או לוח משותף</small></div> : null}
             </div>
-            <h2 className="side-h">יצירת קשר</h2>
-            <PhoneReveal tutor={tutor} />
+            <h2 className="side-h">פנייה למורה</h2>
+            <InquiryBox tutor={tutor} />
             <p className="hint">משלמים למורה ישירות. לנפל האסימון אין עמלה.</p>
           </div>
         </aside>

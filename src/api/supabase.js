@@ -46,6 +46,8 @@ function check({ data, error }) {
     if (m.includes('group full')) throw new Error('הקבוצה מלאה');
     if (m.includes('duplicate')) throw new Error('כבר נרשמתם');
     if (m.includes('login required')) throw new Error('צריך להתחבר כדי לעשות את זה');
+    if (m.includes('cannot contact yourself')) throw new Error('אי אפשר לשלוח פנייה לעצמכם');
+    if (m.includes('not allowed')) throw new Error('אין הרשאה');
     throw new Error(m || 'משהו השתבש, נסו שוב');
   }
   return data;
@@ -100,9 +102,38 @@ export async function getTutorForEdit(id) {
   const r = check(await sb.from('tutors').select('*').eq('id', id).single());
   return withPhone(tutorFromRow(r));
 }
-export async function revealPhone(tutorId) {
+const inquiryFromRow = (q) => ({
+  id: q.id, tutorId: q.tutor_id, userId: q.user_id, name: q.name, phone: q.phone, subject: q.subject, level: q.level,
+  mode: q.mode, message: q.message, status: q.status, reply: q.reply || '', createdAt: q.created_at, repliedAt: q.replied_at,
+});
+async function attachTutors(list) {
+  const ids = [...new Set(list.map((q) => q.tutorId))];
+  if (!ids.length) return list;
+  const rows = check(await sb.from('tutors').select('*').in('id', ids));
+  const map = Object.fromEntries(rows.map((r) => [r.id, tutorFromRow(r)]));
+  return list.map((q) => ({ ...q, tutor: map[q.tutorId] || null }));
+}
+export async function sendInquiry({ tutorId, name, phone, subject, level, mode, message }) {
+  const u = need();
+  const row = check(await sb.from('inquiries').insert({ tutor_id: tutorId, user_id: u.id, name, phone, subject: subject || null, level: level || null, mode: mode ?? null, message }).select().single());
+  return inquiryFromRow(row);
+}
+export async function myInquiries() {
+  if (!user) return [];
+  return attachTutors(check(await sb.from('inquiries').select('*').eq('user_id', user.id).order('created_at', { ascending: false })).map(inquiryFromRow));
+}
+export async function tutorInquiries() {
+  const u = need();
+  let q = sb.from('tutors').select('id');
+  q = u.isAdmin ? q.or(`owner_id.eq.${u.id},owner_id.is.null`) : q.eq('owner_id', u.id);
+  const ids = check(await q).map((r) => r.id);
+  if (!ids.length) return [];
+  return attachTutors(check(await sb.from('inquiries').select('*').in('tutor_id', ids).order('created_at', { ascending: false })).map(inquiryFromRow));
+}
+export async function answerInquiry(id, { status, reply }) {
   need();
-  return check(await sb.rpc('reveal_phone', { t: tutorId }));
+  check(await sb.rpc('answer_inquiry', { q: id, p_status: status ?? null, p_reply: reply ?? null }));
+  return true;
 }
 export async function saveTutor(input) {
   const u = need();
@@ -141,12 +172,12 @@ export async function deleteReview(id) { need(); check(await sb.from('reviews').
 const groupFromRow = (g, counts = {}, tutors = {}) => ({
   id: g.id, tutorId: g.tutor_id, title: g.title, subject: g.subject, level: g.level, description: g.description,
   startDate: g.start_date, time: g.time, sessions: g.sessions, mode: g.mode, city: g.city, location: g.location,
-  pricePerPerson: g.price_per_person, maxSeats: g.max_seats, createdAt: g.created_at,
-  seatsTaken: counts[g.id] || 0, tutor: tutors[g.tutor_id] || null,
+  pricePerPerson: g.price_per_person, maxSeats: g.max_seats, joinMode: g.join_mode || 'open', createdAt: g.created_at,
+  seatsTaken: counts[g.id]?.seats_taken || 0, pendingCount: counts[g.id]?.pending_count || 0, tutor: tutors[g.tutor_id] || null,
 });
 async function countsMap() {
   const rows = check(await sb.from('group_seat_counts').select('*'));
-  return Object.fromEntries(rows.map((r) => [r.group_id, r.seats_taken]));
+  return Object.fromEntries(rows.map((r) => [r.group_id, r]));
 }
 export async function listGroups() {
   const [rows, counts, tutors] = await Promise.all([sb.from('groups').select('*').then(check), countsMap(), listTutors()]);
@@ -167,6 +198,7 @@ export async function saveGroup(input) {
     sessions: Number(input.sessions) || 1, mode: input.mode, city: input.mode === 'frontal' ? input.city || null : null,
     location: input.mode === 'frontal' ? input.location || null : null,
     price_per_person: Number(input.pricePerPerson) || 0, max_seats: Number(input.maxSeats) || 1,
+    join_mode: input.joinMode === 'approval' ? 'approval' : 'open',
   };
   const q = input.id ? sb.from('groups').update(row).eq('id', input.id) : sb.from('groups').insert(row);
   return groupFromRow(check(await q.select().single()));
@@ -174,11 +206,15 @@ export async function saveGroup(input) {
 export async function deleteGroup(id) { need(); check(await sb.from('groups').delete().eq('id', id)); return true; }
 export async function joinGroup(groupId, { name, phone, note }) {
   need();
-  check(await sb.rpc('join_group', { g: groupId, p_name: name, p_phone: phone, p_note: note || '' }));
+  return check(await sb.rpc('join_group', { g: groupId, p_name: name, p_phone: phone, p_note: note || '' }));
+}
+export async function setSeatStatus(seatId, status) {
+  need();
+  check(await sb.rpc('set_seat_status', { s: seatId, p_status: status }));
   return true;
 }
 export async function leaveGroup(groupId) { const u = need(); check(await sb.from('group_seats').delete().eq('group_id', groupId).eq('user_id', u.id)); return true; }
-const seatFromRow = (s) => ({ id: s.id, groupId: s.group_id, userId: s.user_id, name: s.name, phone: s.phone, note: s.note, createdAt: s.created_at });
+const seatFromRow = (s) => ({ id: s.id, groupId: s.group_id, userId: s.user_id, name: s.name, phone: s.phone, note: s.note, status: s.status || 'approved', createdAt: s.created_at });
 export async function mySeats() {
   if (!user) return [];
   return check(await sb.from('group_seats').select('*').eq('user_id', user.id)).map(seatFromRow);

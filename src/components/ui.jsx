@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useApp, go } from '../state.jsx';
-import { money, rating1, reviewsLabel, initials, avatarColor, km, relDays, dateLong, normalizePhone } from '../lib/format.js';
+import { money, rating1, reviewsLabel, initials, avatarColor, km, relDays, dateLong, dateShort } from '../lib/format.js';
+import { CITIES } from '../data/constants.js';
 
 export function Coin({ size = 30 }) {
   return (
@@ -113,6 +114,7 @@ export function GroupCard({ group }) {
       <p className="t-meta">{dateLong(group.startDate)} · {group.time} · {group.sessions > 1 ? `${group.sessions} מפגשים` : 'מפגש אחד'} · {group.mode === 'online' ? 'אונליין' : group.city || 'פרונטלי'}</p>
       {t ? <p className="t-meta host"><Avatar tutor={t} className="host-img" size={40} />עם {t.name} <Verified tutor={t} /></p> : null}
       <SeatDots taken={group.seatsTaken} max={group.maxSeats} />
+      <p className="join-mode">{group.joinMode === 'approval' ? 'הצטרפות באישור המורה' : 'הרשמה פתוחה, נכנסים מיד'}</p>
       <div className="t-foot"><span className="price"><bdi>{money(group.pricePerPerson)}</bdi> <small>{group.sessions > 1 ? 'לתלמיד למפגש' : 'לתלמיד'}</small></span><a className="btn btn-brand t-cta" href={`#group-${group.id}`}>{group.seatsTaken >= group.maxSeats ? 'פרטים' : 'הצטרפות'}</a></div>
     </article>
   );
@@ -160,37 +162,152 @@ export function CopyButton({ text }) {
   );
 }
 
-/** Phone number: visible only to signed-in users, fetched from the server on demand. */
-export function PhoneReveal({ tutor, message }) {
-  const { user, api, requireLogin, notify } = useApp();
-  const [phone, setPhone] = useState(null);
+export const INQ_STATUS = {
+  new: ['חדשה', 'st-new'],
+  replied: ['נענתה', 'st-replied'],
+  booked: ['נקבע שיעור', 'st-booked'],
+  declined: ['לא מתאים', 'st-declined'],
+};
+export function StatusTag({ status, map = INQ_STATUS }) {
+  const [label, cls] = map[status] || [status, ''];
+  return <span className={'status ' + cls}>{label}</span>;
+}
+
+/** Contact a tutor through the site. The tutor's phone is never shown; the request lands in their panel. */
+export function InquiryBox({ tutor }) {
+  const { user, api, requireLogin, notify, version } = useApp();
+  const [mine, setMine] = useState([]);
+  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  useEffect(() => { setPhone(null); }, [user?.id, tutor.id]);
-  const reveal = async () => {
-    if (!requireLogin('כדי לראות את מספר הטלפון של המורה צריך להתחבר. ככה אנחנו שומרים על המורים מספאם.')) return;
+  const both = tutor.teachesFrontal && tutor.teachesOnline;
+  const blank = () => ({
+    name: user?.name || '', phone: '', level: '', mode: both ? '' : tutor.teachesOnline ? 'online' : 'frontal',
+    message: `היי ${tutor.name.split(' ')[0]}, ראיתי את הפרופיל שלך בנפל האסימון ואשמח לשמוע על שיעורים.`,
+  });
+  const [f, setF] = useState(blank);
+  useEffect(() => {
+    let live = true;
+    if (!user) { setMine([]); return undefined; }
+    api.myInquiries().then((list) => live && setMine(list.filter((q) => q.tutorId === tutor.id)), () => {});
+    return () => { live = false; };
+  }, [user?.id, tutor.id, version, api]);
+
+  if (user && user.id === tutor.ownerId) return <p className="hint">זה הפרופיל שלכם. פניות מתלמידים מגיעות ל<a href="#panel-inbox">תיבת הפניות בפאנל</a>.</p>;
+
+  const start = () => {
+    if (!requireLogin('כדי לשלוח פנייה למורה צריך להתחבר. ככה המורה יודע שמדובר באדם אמיתי, ואתם רואים את התשובה באזור האישי.')) return;
+    setF(blank()); setOpen(true);
+  };
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!/^0\d{1,2}-?\d{7}$/.test(f.phone.replace(/\s/g, ''))) { notify('בדקו את מספר הטלפון, למשל 050-1234567', true); return; }
+    if (!f.message.trim()) { notify('כתבו כמה מילים למורה', true); return; }
     setBusy(true);
-    try { setPhone(await api.revealPhone(tutor.id)); } catch (e) { notify(e.message, true); }
+    try {
+      const q = await api.sendInquiry({ tutorId: tutor.id, ...f, subject: (tutor.subjects || [])[0] || '', message: f.message.trim() });
+      setMine((m) => [{ ...q, tutor }, ...m]); setOpen(false);
+      notify('הפנייה נשלחה! התשובה תופיע אצלכם ב״הפניות שלי״.');
+    } catch (err) { notify(err.message, true); }
     setBusy(false);
   };
-  if (!phone) {
+  const last = mine[0];
+
+  if (open) {
     return (
-      <div className="phone-box">
-        <div className="phone-masked" aria-hidden="true"><bdi>05X-XXX-XXXX</bdi></div>
-        <button type="button" className="btn btn-brand go" onClick={reveal} disabled={busy}>
-          {busy ? 'רגע…' : user ? 'הצגת מספר הטלפון' : 'התחברו כדי לראות טלפון'}
-        </button>
-        {!user ? <p className="hint">כניסה מהירה עם חשבון Google. בלי סיסמה.</p> : null}
-      </div>
+      <form className="inq-form" onSubmit={submit}>
+        <label className="field-label" htmlFor="iq-name">שם</label>
+        <input id="iq-name" className="input" required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+        <label className="field-label" htmlFor="iq-phone">טלפון לחזרה אליכם</label>
+        <input id="iq-phone" className="input" required inputMode="tel" dir="ltr" placeholder="050-1234567" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+        {(tutor.levels || []).length > 1 ? (
+          <>
+            <label className="field-label" htmlFor="iq-level">רמה</label>
+            <select id="iq-level" className="select" value={f.level} onChange={(e) => setF({ ...f, level: e.target.value })}>
+              <option value="">לא בטוח/ה</option>
+              {tutor.levels.map((l) => <option key={l}>{l}</option>)}
+            </select>
+          </>
+        ) : null}
+        {both ? (
+          <>
+            <span className="field-label" id="iq-mode">איך תרצו ללמוד?</span>
+            <Seg label="iq-mode" value={f.mode} onChange={(mode) => setF({ ...f, mode })} options={[['frontal', 'פרונטלי'], ['online', 'אונליין'], ['', 'לא משנה']]} />
+          </>
+        ) : null}
+        <label className="field-label" htmlFor="iq-msg">הודעה למורה</label>
+        <textarea id="iq-msg" className="input" rows={4} maxLength={1000} value={f.message} onChange={(e) => setF({ ...f, message: e.target.value })} />
+        <button type="submit" className="btn btn-brand go" disabled={busy}>{busy ? 'שולחים…' : 'שליחת הפנייה'}</button>
+        <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>ביטול</button>
+        <p className="hint">המורה יראה את השם, הטלפון וההודעה שלכם, ויחזור אליכם.</p>
+      </form>
     );
   }
-  const wa = `https://wa.me/${normalizePhone(phone)}?text=${encodeURIComponent(message || `היי ${tutor.name}, ראיתי את הפרופיל שלך בנפל האסימון ואשמח לשמוע על שיעורים.`)}`;
   return (
-    <div className="phone-box">
-      <div className="phone-num"><bdi>{phone}</bdi><CopyButton text={phone} /></div>
-      <div className="phone-actions">
-        <a className="btn btn-wa" href={wa} target="_blank" rel="noreferrer">וואטסאפ</a>
-        <a className="btn btn-line" href={`tel:${phone.replace(/[^\d+]/g, '')}`}>חיוג</a>
-      </div>
+    <div className="inq-box">
+      {last ? (
+        <div className="inq-sent">
+          <div className="inq-sent-top"><b>שלחתם פנייה</b><StatusTag status={last.status} /></div>
+          <p className="hint">{dateShort(last.createdAt)} · {last.status === 'new' ? 'המורה עוד לא ענה. בדרך כלל עונים תוך יום.' : 'המורה ענה לכם:'}</p>
+          {last.reply ? <p className="inq-reply">{last.reply}</p> : null}
+          <a className="linkish small" href="#panel-seats">לכל הפניות שלי</a>
+        </div>
+      ) : null}
+      <button type="button" className={'btn go ' + (last ? 'btn-line' : 'btn-brand')} onClick={start}>{last ? 'פנייה נוספת' : 'שליחת פנייה למורה'}</button>
+      {!user ? <p className="hint">כניסה מהירה עם Google, בלי סיסמה. הפנייה מגיעה ישר לאזור האישי של המורה.</p> : null}
+    </div>
+  );
+}
+
+const WHERE_FIXED = [['', 'כל הארץ'], ['online', 'אונליין']];
+/** Turns what was typed in "איפה?" into search filters. Free text that isn't a city searches city and area. */
+export function resolveWhere(text) {
+  const v = (text || '').trim();
+  if (!v || v === 'כל הארץ') return { mode: 'any', city: '', origin: null, place: '' };
+  if (v === 'online' || v === 'אונליין') return { mode: 'online', city: '', origin: null, place: '' };
+  const c = CITIES.find((x) => x.name === v) || CITIES.find((x) => v.includes(x.name));
+  if (c) return { mode: 'any', city: c.name, origin: { lat: c.lat, lng: c.lng }, place: '' };
+  return { mode: 'any', city: '', origin: null, place: v };
+}
+
+/** "איפה?" field: type anything, or pick from the list (cities, online, everywhere). */
+export function WherePicker({ id, value, onChange, placeholder = 'עיר או שכונה' }) {
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(-1);
+  const ref = useRef(null);
+  const shown = value === 'online' ? 'אונליין' : value;
+  const q = (shown || '').trim();
+  const opts = [
+    ...WHERE_FIXED.filter(([, l]) => !q || l.includes(q)),
+    ...CITIES.filter((c) => !q || c.name.includes(q)).map((c) => [c.name, c.name]),
+  ];
+  useEffect(() => {
+    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', close); return () => document.removeEventListener('mousedown', close);
+  }, []);
+  const pick = (v) => { onChange(v); setOpen(false); setActive(-1); };
+  const key = (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setActive((a) => Math.min(opts.length - 1, a + 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(0, a - 1)); }
+    else if (e.key === 'Enter' && open && active >= 0 && opts[active]) { e.preventDefault(); pick(opts[active][0]); }
+    else if (e.key === 'Escape') setOpen(false);
+  };
+  return (
+    <div className="combo" ref={ref}>
+      <input id={id} className="input combo-input" role="combobox" aria-expanded={open} aria-controls={id + '-list'} aria-autocomplete="list"
+        autoComplete="off" placeholder={placeholder} value={shown}
+        onChange={(e) => { onChange(e.target.value); setOpen(true); setActive(-1); }}
+        onFocus={() => setOpen(true)} onKeyDown={key} />
+      <button type="button" className="combo-btn" tabIndex={-1} aria-label="הצגת האפשרויות" onClick={() => setOpen((o) => !o)}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+      </button>
+      {open && opts.length ? (
+        <ul className="combo-list" id={id + '-list'} role="listbox">
+          {opts.map(([v, l], i) => (
+            <li key={l} role="option" aria-selected={i === active} className={i === active ? 'on' : ''}
+              onMouseDown={(e) => { e.preventDefault(); pick(v); }}>{l}</li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }
@@ -215,7 +332,7 @@ export function LoginModal() {
         <button type="button" className="modal-x" onClick={() => setLoginOpen(false)} aria-label="סגירה">×</button>
         <Coin size={44} />
         <h2>כניסה לנפל האסימון</h2>
-        <p className="muted-text">{loginReason || 'מתחברים כדי לראות מספרי טלפון, לכתוב ביקורות ולשמור מקום בקבוצות.'}</p>
+        <p className="muted-text">{loginReason || 'מתחברים כדי לפנות למורים, לכתוב ביקורות ולהצטרף לקבוצות.'}</p>
         {!picking ? (
           <button type="button" className="btn btn-google" onClick={google}>
             <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" /><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" /><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" /><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" /></svg>
@@ -268,7 +385,8 @@ export function UserMenu() {
           <b>{user.name}</b>{user.isAdmin ? <span className="tag brass">מנהל</span> : null}
           <a href="#panel" onClick={() => setOpen(false)}>פאנל מורה</a>
           <a href="#panel-groups" onClick={() => setOpen(false)}>קבוצות הלמידה שלי</a>
-          <a href="#panel-seats" onClick={() => setOpen(false)}>ההרשמות שלי</a>
+          <a href="#panel-inbox" onClick={() => setOpen(false)}>פניות מתלמידים</a>
+          <a href="#panel-seats" onClick={() => setOpen(false)}>הפניות וההרשמות שלי</a>
           {user.isAdmin ? <a href="#panel-admin" onClick={() => setOpen(false)}>ניהול מורים</a> : null}
           <button type="button" onClick={() => { setOpen(false); api.auth.signOut(); }}>התנתקות</button>
         </div>
@@ -345,4 +463,40 @@ export function Empty({ title, children }) {
   return <div className="empty"><Coin size={40} /><h3>{title}</h3>{children}</div>;
 }
 
-export function Loading() { return <div className="loading" aria-live="polite">טוען…</div>; }
+export function Loading() {
+  return <div className="loading" aria-live="polite"><Coin size={34} /><span>טוען…</span></div>;
+}
+
+/** Page change: a short coin-drop, like an asimon falling into the payphone slot (≈0.7s). */
+export function CoinTransition() {
+  const { route } = useApp();
+  const [n, setN] = useState(0);
+  const prev = useRef(null);
+  useEffect(() => {
+    const key = route.name.startsWith('panel') ? 'panel' : route.name + (route.id || '');
+    if (prev.current !== key) setN((x) => Math.abs(x) + 1);
+    prev.current = key;
+  }, [route]);
+  useEffect(() => {
+    if (n <= 0) return undefined;
+    const t = setTimeout(() => setN((x) => (x === n ? -x : x)), 760);
+    return () => clearTimeout(t);
+  }, [n]);
+  if (n <= 0) return null;
+  return (
+    <div className="coin-veil" key={n} aria-hidden="true">
+      <svg className="cv-svg" viewBox="0 0 120 150" width="120" height="150">
+        <g className="cv-coin">
+          <circle cx="60" cy="40" r="26" fill="#DFC166" stroke="#3A3130" strokeWidth="3" />
+          <circle cx="60" cy="40" r="19" fill="none" stroke="#1A1406" strokeOpacity=".25" strokeWidth="2.4" />
+          <rect x="44" y="37" width="32" height="6" rx="3" fill="#1A1406" fillOpacity=".55" />
+        </g>
+        <rect className="cv-slot" x="22" y="112" width="76" height="12" rx="6" fill="#3A3130" />
+        <rect x="0" y="118" width="120" height="32" fill="var(--bg)" />
+        <g className="cv-spark" stroke="#DFC166" strokeWidth="4" strokeLinecap="round">
+          <path d="M14 100l-8-8M106 100l8-8M60 92v-12" />
+        </g>
+      </svg>
+    </div>
+  );
+}

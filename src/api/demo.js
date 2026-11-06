@@ -1,20 +1,21 @@
 // Demo backend: keeps everything in this browser (localStorage), seeded with example data.
 // Same interface as api/supabase.js, so the UI does not know which one it talks to.
-import { SEED_TUTORS, DEMO_USERS, buildSeedReviews, buildSeedGroups } from '../data/seed.js';
+import { SEED_TUTORS, DEMO_USERS, buildSeedReviews, buildSeedGroups, buildSeedInquiries } from '../data/seed.js';
 
-const KEY = 'naflaasimon-demo-v1';
+const KEY = 'naflaasimon-demo-v2';
 const SESSION_KEY = 'naflaasimon-demo-user';
 let mem = null;
 const listeners = new Set();
 
 function fresh() {
   const { groups, seats, messages } = buildSeedGroups();
-  return { tutors: SEED_TUTORS.map((t) => ({ ...t })), reviews: buildSeedReviews(), groups, seats, messages };
+  return { tutors: SEED_TUTORS.map((t) => ({ ...t })), reviews: buildSeedReviews(), groups, seats, messages, inquiries: buildSeedInquiries() };
 }
 function db() {
   if (mem) return mem;
   try { const raw = localStorage.getItem(KEY); if (raw) mem = JSON.parse(raw); } catch { /* storage blocked */ }
   if (!mem) mem = fresh();
+  mem.inquiries ||= [];
   return mem;
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(mem)); } catch { /* keep in memory */ } }
@@ -37,10 +38,17 @@ function publicTutor(t) {
   const { phone, ...rest } = t; // the phone number never leaves the "server" without login
   return { ...rest, ...stats(t.id) };
 }
+const seatStatus = (s) => s.status || 'approved';
 function groupView(g) {
   const d = db();
   const t = d.tutors.find((x) => x.id === g.tutorId);
-  return { ...g, seatsTaken: d.seats.filter((s) => s.groupId === g.id).length, tutor: t ? publicTutor(t) : null };
+  const seats = d.seats.filter((s) => s.groupId === g.id);
+  return {
+    ...g, joinMode: g.joinMode || 'open',
+    seatsTaken: seats.filter((s) => seatStatus(s) === 'approved').length,
+    pendingCount: seats.filter((s) => seatStatus(s) === 'pending').length,
+    tutor: t ? publicTutor(t) : null,
+  };
 }
 
 export const mode = 'demo';
@@ -71,12 +79,34 @@ export async function getTutorForEdit(id) {
   return wait(clone(t));
 }
 
-export async function revealPhone(tutorId) {
-  need();
-  const t = db().tutors.find((x) => x.id === tutorId);
+// Inquiries: a student asks a tutor through the site; the tutor answers from the panel.
+export async function sendInquiry({ tutorId, name, phone, subject, level, mode, message }) {
+  const u = need(); const d = db();
+  const t = d.tutors.find((x) => x.id === tutorId);
   if (!t) throw new Error('המורה לא נמצא');
-  t.contactCount = (t.contactCount || 0) + 1; save();
-  return wait(t.phone);
+  if (t.ownerId === u.id) throw new Error('אי אפשר לשלוח פנייה לעצמכם');
+  const inq = { id: uid('q'), tutorId, userId: u.id, name, phone, subject, level, mode, message, status: 'new', reply: '', createdAt: new Date().toISOString(), repliedAt: null };
+  d.inquiries.push(inq);
+  t.contactCount = (t.contactCount || 0) + 1;
+  save(); return wait(clone(inq));
+}
+const withTutor = (q) => { const t = db().tutors.find((x) => x.id === q.tutorId); return { ...clone(q), tutor: t ? publicTutor(t) : null }; };
+export async function myInquiries() {
+  if (!user) return [];
+  return wait(db().inquiries.filter((q) => q.userId === user.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(withTutor));
+}
+export async function tutorInquiries() {
+  need(); const d = db();
+  const ids = d.tutors.filter((t) => t.ownerId === user.id || (user.isAdmin && !t.ownerId)).map((t) => t.id);
+  return wait(d.inquiries.filter((q) => ids.includes(q.tutorId)).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(withTutor));
+}
+export async function answerInquiry(id, { status, reply }) {
+  need(); const d = db();
+  const q = d.inquiries.find((x) => x.id === id);
+  if (!q || !canEditTutor(d.tutors.find((t) => t.id === q.tutorId))) throw new Error('אין הרשאה');
+  if (status) q.status = status;
+  if (reply != null) { q.reply = reply; q.repliedAt = new Date().toISOString(); if (q.status === 'new') q.status = 'replied'; }
+  save(); return wait(clone(q));
 }
 
 export async function saveTutor(input) {
@@ -104,6 +134,7 @@ export async function deleteTutor(id) {
   const gids = d.groups.filter((g) => g.tutorId === id).map((g) => g.id);
   d.groups = d.groups.filter((g) => g.tutorId !== id);
   d.seats = d.seats.filter((s) => !gids.includes(s.groupId));
+  d.inquiries = d.inquiries.filter((q) => q.tutorId !== id);
   save(); return wait(true);
 }
 
@@ -164,10 +195,22 @@ export async function joinGroup(groupId, { name, phone, note }) {
   const u = need(); const d = db();
   const g = d.groups.find((x) => x.id === groupId);
   if (!g) throw new Error('הקבוצה לא נמצאה');
-  if (d.seats.some((s) => s.groupId === groupId && s.userId === u.id)) throw new Error('כבר שמרתם מקום בקבוצה הזאת');
-  if (d.seats.filter((s) => s.groupId === groupId).length >= g.maxSeats) throw new Error('הקבוצה מלאה');
-  d.seats.push({ id: uid('s'), groupId, userId: u.id, name, phone, note, createdAt: new Date().toISOString() });
-  save(); return wait(true);
+  const mine = d.seats.find((s) => s.groupId === groupId && s.userId === u.id);
+  if (mine && seatStatus(mine) !== 'declined') throw new Error('כבר נרשמתם לקבוצה הזאת');
+  if (d.seats.filter((s) => s.groupId === groupId && seatStatus(s) === 'approved').length >= g.maxSeats) throw new Error('הקבוצה מלאה');
+  if (mine) d.seats = d.seats.filter((s) => s !== mine);
+  const status = (g.joinMode || 'open') === 'approval' ? 'pending' : 'approved';
+  d.seats.push({ id: uid('s'), groupId, userId: u.id, name, phone, note, status, createdAt: new Date().toISOString() });
+  save(); return wait(status);
+}
+export async function setSeatStatus(seatId, status) {
+  need(); const d = db();
+  const s = d.seats.find((x) => x.id === seatId);
+  const g = d.groups.find((x) => x.id === s?.groupId);
+  if (!s || !g || !canEditTutor(d.tutors.find((t) => t.id === g.tutorId))) throw new Error('אין הרשאה');
+  if (status === 'approved' && seatStatus(s) !== 'approved'
+    && d.seats.filter((x) => x.groupId === g.id && seatStatus(x) === 'approved').length >= g.maxSeats) throw new Error('הקבוצה מלאה. הגדילו את מספר המקומות כדי לאשר עוד');
+  s.status = status; save(); return wait(true);
 }
 export async function leaveGroup(groupId) {
   const u = need(); const d = db();
@@ -175,13 +218,13 @@ export async function leaveGroup(groupId) {
 }
 export async function mySeats() {
   if (!user) return [];
-  return wait(clone(db().seats.filter((s) => s.userId === user.id)));
+  return wait(clone(db().seats.filter((s) => s.userId === user.id).map((s) => ({ ...s, status: seatStatus(s) }))));
 }
 export async function listGroupSeats(groupId) {
   need(); const d = db();
   const g = d.groups.find((x) => x.id === groupId);
   if (!g || !canEditTutor(d.tutors.find((t) => t.id === g.tutorId))) throw new Error('רק המורה של הקבוצה רואה את רשימת הנרשמים');
-  return wait(clone(d.seats.filter((s) => s.groupId === groupId)));
+  return wait(clone(d.seats.filter((s) => s.groupId === groupId).map((s) => ({ ...s, status: seatStatus(s) }))));
 }
 export async function listGroupMessages(groupId) {
   return wait(clone(db().messages.filter((m) => m.groupId === groupId).sort((a, b) => a.createdAt.localeCompare(b.createdAt))));
