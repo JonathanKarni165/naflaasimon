@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useApp, go } from '../state.jsx';
-import { SUBJECTS, LEVELS } from '../data/constants.js';
+import { LEVELS } from '../data/constants.js';
 import { filterTutors, sortTutors, globalMean } from '../lib/ranking.js';
 import { TutorRow, GroupCard, Avatar, Loading, WherePicker, resolveWhere, TopicPicker } from '../components/ui.jsx';
 import { optionLabel } from '../data/topics.js';
@@ -16,7 +16,7 @@ const TRACKS = [
 
 export default function Home() {
   const { tutors, groups, filters, setFilters } = useApp();
-  const [subject, setSubject] = useState(filters.subject || 'מתמטיקה');
+  const [subject, setSubject] = useState(filters.subject || '');
   const [level, setLevel] = useState(filters.level || '');
   const [topic, setTopic] = useState(filters.topic || '');
   const [where, setWhere] = useState(filters.mode === 'online' ? 'online' : filters.city || filters.place || '');
@@ -73,11 +73,6 @@ export default function Home() {
             <label className="field-label" htmlFor="home-topic">מה רוצים ללמוד?</label>
             <TopicPicker id="home-topic" value={optionLabel({ subject, level, topic })}
               onPick={(o) => { setSubject(o?.subject || ''); setTopic(o?.topic || ''); setLevel(o ? (o.topic ? (o.level || level) : o.level) : ''); }} />
-            <div className="chips" role="group" aria-label="מקצועות נפוצים">
-              {SUBJECTS.slice(0, 8).map((s) => (
-                <button key={s} type="button" className="chip" aria-pressed={subject === s && !topic} onClick={() => { setSubject(subject === s && !topic ? '' : s); setTopic(''); }}>{s}</button>
-              ))}
-            </div>
           </div>
           <div className="row2">
             <div>

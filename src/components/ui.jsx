@@ -363,7 +363,7 @@ function Hl({ text, q }) {
 }
 
 /** "מה רוצים ללמוד?": one free-text field with hundreds of topics, e.g. "מתמטיקה - וקטורים". */
-export function TopicPicker({ id, value, onPick, placeholder = 'מקצוע או נושא: וקטורים, 582, אינפי, חומצות…', subjects, autoFocus, adder }) {
+export function TopicPicker({ id, value, onPick, placeholder = 'מקצוע או נושא, למשל וקטורים', subjects, autoFocus, adder }) {
   const [text, setText] = useState(value || '');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
@@ -386,9 +386,11 @@ export function TopicPicker({ id, value, onPick, placeholder = 'מקצוע או 
   return (
     <div className="combo topic-combo" ref={ref}>
       <input id={id} className="input combo-input" role="combobox" aria-expanded={open && opts.length > 0} aria-controls={id + '-list'} aria-autocomplete="list"
-        autoComplete="off" enterKeyHint="search" placeholder={placeholder} value={text} autoFocus={autoFocus}
+        autoComplete="off" enterKeyHint="search" placeholder={value && !text ? value : placeholder} value={text} autoFocus={autoFocus}
         onChange={(e) => { setText(e.target.value); setOpen(true); setActive(-1); }}
-        onFocus={(e) => { setOpen(true); if (picked) e.target.select(); }} onClick={() => setOpen(true)} onKeyDown={key} />
+        // Tapping a chosen value empties the field so you can type right away; leaving without a pick brings it back.
+        onFocus={() => { setOpen(true); if (picked) setText(''); }} onBlur={() => { if (!text.trim()) setText(value || ''); }}
+        onClick={() => setOpen(true)} onKeyDown={key} />
       {text ? <button type="button" className="combo-btn" aria-label="ניקוי" onClick={() => { setText(''); if (value) onPick(null); }}>×</button> : null}
       {open && opts.length ? (
         <ul className="combo-list" id={id + '-list'} role="listbox">
