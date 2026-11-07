@@ -74,14 +74,17 @@ export default function Home() {
             <TopicPicker id="home-topic" value={optionLabel({ subject, level, topic })}
               onPick={(o) => { setSubject(o?.subject || ''); setTopic(o?.topic || ''); setLevel(o ? (o.topic ? (o.level || level) : o.level) : ''); }} />
           </div>
-          <div className="row2">
-            <div>
-              <label className="field-label" htmlFor="home-level">רמה</label>
-              <select className="select" id="home-level" value={level} onChange={(e) => setLevel(e.target.value)}>
-                <option value="">כל הרמות</option>
-                {LEVELS.map((l) => <option key={l}>{l}</option>)}
-              </select>
-            </div>
+          {/* A chosen topic or "subject - level" already says the level, so the separate level field goes away. */}
+          <div className={subject && (topic || level) ? 'row1' : 'row2'}>
+            {subject && (topic || level) ? null : (
+              <div>
+                <label className="field-label" htmlFor="home-level">רמה</label>
+                <select className="select" id="home-level" value={level} onChange={(e) => setLevel(e.target.value)}>
+                  <option value="">כל הרמות</option>
+                  {LEVELS.map((l) => <option key={l}>{l}</option>)}
+                </select>
+              </div>
+            )}
             <div>
               <label className="field-label" htmlFor="home-where">איפה?</label>
               <WherePicker id="home-where" value={where} onChange={setWhere} />

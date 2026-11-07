@@ -68,11 +68,15 @@ export default function Search() {
             <label className="field-label" htmlFor="q">חיפוש לפי שם או מילה</label>
             <input id="q" className="input" type="search" placeholder="שם מורה, עיר, מילה מהפרופיל…" value={f.q} onChange={(e) => set({ q: e.target.value })} />
 
-            <label className="field-label" htmlFor="f-level">רמה</label>
-            <select id="f-level" className="select" value={f.level} onChange={(e) => set({ level: e.target.value })}>
-              <option value="">כל הרמות</option>
-              {LEVELS.map((l) => <option key={l}>{l}</option>)}
-            </select>
+            {f.subject && (f.topic || f.level) ? null : (
+              <>
+                <label className="field-label" htmlFor="f-level">רמה</label>
+                <select id="f-level" className="select" value={f.level} onChange={(e) => set({ level: e.target.value })}>
+                  <option value="">כל הרמות</option>
+                  {LEVELS.map((l) => <option key={l}>{l}</option>)}
+                </select>
+              </>
+            )}
 
             <span className="field-label" id="f-mode">איך לומדים</span>
             <Seg label="f-mode" value={f.mode} onChange={(mode) => set({ mode })} options={[['any', 'הכול'], ['frontal', 'פרונטלי'], ['online', 'אונליין']]} />

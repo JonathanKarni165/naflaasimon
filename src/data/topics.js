@@ -18,7 +18,7 @@ const RAW = `
 כימיה|אקדמיה|כימיה כללית, כימיה אורגנית, כימיה פיזיקלית, כימיה אנליטית, ביוכימיה
 ביולוגיה|תיכון|התא, גנטיקה, גוף האדם, אקולוגיה, אבולוציה, מעבדה וחקר בביולוגיה, בגרות בביולוגיה
 ביולוגיה|אקדמיה|ביולוגיה של התא, ביולוגיה מולקולרית, גנטיקה, מיקרוביולוגיה, פיזיולוגיה, אנטומיה
-מדעי המחשב|תיכון|פייתון, ג׳אווה, C#, מבני נתונים, בגרות במדעי המחשב, פרויקט גמר, סייבר
+מדעי המחשב|תיכון|פייתון, ג׳אווה, C#, בגרות במדעי המחשב, פרויקט גמר, סייבר
 מדעי המחשב|אקדמיה|מבוא למדעי המחשב, מבני נתונים, אלגוריתמים, תכנות בשפת C, C++, מערכות הפעלה, ארכיטקטורת מחשבים, רשתות תקשורת, בסיסי נתונים, אוטומטים וחישוביות, למידת מכונה, בינה מלאכותית, פיתוח אתרים, הכנה לראיונות עבודה
 אנגלית|תיכון|בגרות באנגלית, דקדוק, הבנת הנקרא, כתיבה באנגלית, שיחה באנגלית, אנגלית ליסודי
 אנגלית|אקדמיה|אמיר״ם, פטור באנגלית, TOEFL, IELTS, אנגלית אקדמית
@@ -63,6 +63,11 @@ export const TOPICS = RAW.trim().split('\n').flatMap((line) => {
     const level = examLevel(name) || (hint === 'אקדמיה' || hint === 'פסיכומטרי' ? hint : '');
     return { name, subject, hint, level };
   });
+}).filter((t, i, all) => {
+  // The same topic listed at two levels (e.g. organic chemistry in school and university) appears once, without a level.
+  const first = all.findIndex((x) => x.subject === t.subject && x.name === t.name);
+  if (first !== i) { all[first].level = all[first].level === t.level ? t.level : ''; return false; }
+  return true;
 });
 
 export const TOPIC_SUBJECTS = [...new Set(TOPICS.map((t) => t.subject))];
@@ -71,14 +76,23 @@ export const TOPIC_SUBJECTS = [...new Set(TOPICS.map((t) => t.subject))];
 export const norm = (s) => String(s || '').toLowerCase()
   .replace(/[״"׳'`\-–]/g, '').replace(/\s+/g, ' ').trim();
 
-const HINT_LEVELS = { 'תיכון': ['3 יח״ל', '4 יח״ל', '5 יח״ל'] };
+// Bagrut units that actually exist per subject (high school). Only these get a "subject - N יח״ל" row.
+// Compulsory humanities are 2 units, with a 5-unit extended track; the sciences are 5-unit majors.
+export const BAGRUT_UNITS = {
+  'מתמטיקה': [3, 4, 5], 'אנגלית': [3, 4, 5],
+  'פיזיקה': [5], 'כימיה': [5], 'ביולוגיה': [5], 'מדעי המחשב': [5], 'כלכלה': [5],
+  'לשון': [2], 'ספרות': [2, 5], 'היסטוריה': [2, 5], 'אזרחות': [2, 5], 'תנ״ך': [2, 5],
+  'מחשבת ישראל': [2, 5], 'גאוגרפיה': [2, 5], 'ערבית': [3, 5], 'צרפתית': [3, 5], 'ספרדית': [3, 5],
+};
+const unitsOf = (subject) => (BAGRUT_UNITS[subject] || []).map((n) => `${n} יח״ל`);
+const HINT_LEVELS = { 'תיכון': unitsOf };
 /** Search options: "מקצוע - הכל", "מקצוע - רמה" and "מקצוע - נושא". */
 export const OPTIONS = (() => {
   const out = [];
   for (const subject of TOPIC_SUBJECTS) {
     out.push({ key: `s:${subject}`, label: `${subject} - הכל`, subject, level: '', topic: '' });
     const hints = [...new Set(TOPICS.filter((t) => t.subject === subject).map((t) => t.hint))];
-    const levels = [...new Set(hints.flatMap((h) => HINT_LEVELS[h] || (LEVEL_SET.has(h) && h !== subject ? [h] : [])))]
+    const levels = [...new Set(hints.flatMap((h) => (HINT_LEVELS[h] ? HINT_LEVELS[h](subject) : LEVEL_SET.has(h) && h !== subject ? [h] : [])))]
       .sort((x, y) => LEVELS.indexOf(x) - LEVELS.indexOf(y));
     // A subject taught at one level only (e.g. engineering) doesn't need a "subject - level" row.
     if (levels.length > 1) levels.forEach((level) => out.push({ key: `l:${subject}:${level}`, label: `${subject} - ${level}`, subject, level, topic: '' }));
