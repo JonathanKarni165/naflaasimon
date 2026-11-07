@@ -1,3 +1,11 @@
+/* The shekel sign only, from Assistant: Secular One draws ₪ like the letters ש״ח joined together. */
+@font-face {
+  font-family: "Shekel";
+  src: url("./fonts/assistant-hebrew.woff2") format("woff2");
+  font-weight: 200 800;
+  font-display: swap;
+  unicode-range: U+20AA;
+}
 
 /* Layout: one mobile column; search card overlaps the hero; brass coin is the single accent moment. */
 :root {
@@ -16,8 +24,8 @@
   --hero-muted: #4F4644;
   --chip: #EEE9DE;
   --good: #2F6B45;
-  --display: "Secular One", "Assistant", "Arial Hebrew", sans-serif;
-  --body: "Assistant", "Arial Hebrew", "Segoe UI", system-ui, sans-serif;
+  --display: "Shekel", "Secular One", "Assistant", "Arial Hebrew", sans-serif;
+  --body: "Shekel", "Assistant", "Arial Hebrew", "Segoe UI", system-ui, sans-serif;
   --r: 14px;
   color-scheme: light;
 }
