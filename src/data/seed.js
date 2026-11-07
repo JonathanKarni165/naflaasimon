@@ -66,9 +66,9 @@ export const SEED_TUTORS = [
 ];
 // Topics the example tutors ticked in their profile (they come first when a student searches that topic).
 const SEED_TOPICS = {
-  t1: ['חדו״א', 'וקטורים', 'שאלון 581', 'שאלון 582', 'מבוא לסטטיסטיקה', 'הסתברות'],
-  t2: ['שאלון 471', 'שאלון 472', 'גאומטריה', 'בעיות מילוליות', 'טריגונומטריה'],
-  t3: ['חשיבה כמותית', 'מכניקה', 'חשמל ומגנטיות', 'מעגלים חשמליים'],
+  t1: ['שאלון 581', 'שאלון 582', 'חדו״א 1', 'מבוא לסטטיסטיקה'],
+  t2: ['שאלון 471', 'שאלון 472'],
+  t3: ['מבחן מימד', 'פיזיקה 1', 'מעגלים חשמליים'],
 };
 SEED_TUTORS.forEach((t) => { if (SEED_TOPICS[t.id]) t.topics = SEED_TOPICS[t.id]; });
 
