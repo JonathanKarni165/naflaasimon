@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useApp, useLoad, go } from '../state.jsx';
+import { useApp, useLoad, useMyTutor, go } from '../state.jsx';
 import { SUBJECTS, LEVELS, CITIES, GOALS, LESSON_COUNTS, labelOf } from '../data/constants.js';
 import { money, dateShort, dateLong, normalizePhone, isPhone } from '../lib/format.js';
 import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, StatusTag, InquiryChat, VIA, viaOf, TopicPicker, WeekGrid } from '../components/ui.jsx';
 
+// Tutor-only tabs are hidden from students; a student sees only their own inquiries and details.
+const TUTOR_TABS = ['panel', 'panel-inbox', 'panel-groups'];
 const TABS = [
   ['panel', 'הפרופיל שלי'],
   ['panel-inbox', 'פניות מתלמידים'],
@@ -35,24 +37,35 @@ export default function Panel() {
   return <PanelTabs />;
 }
 
-function PanelTabs() {
-  const { user, route, api, version } = useApp();
+function FreshBadge() {
+  const { user, api, version } = useApp();
   const [inbox] = useLoad(() => api.tutorInquiries().catch(() => []), [user.id, version]);
   const fresh = (inbox || []).filter((q) => q.status === 'new').length;
-  const tabs = TABS.filter(([k]) => k !== 'panel-admin' || user.isAdmin);
-  const tab = tabs.some(([k]) => k === route.name) ? route.name : 'panel';
+  return fresh ? <span className="badge"><bdi>{fresh}</bdi></span> : null;
+}
+
+function PanelTabs() {
+  const { user, route } = useApp();
+  const [mine, loading] = useMyTutor();
+  const isTutor = !!mine;
+  const tabs = TABS.filter(([k]) => (k !== 'panel-admin' || user.isAdmin) && (isTutor || !TUTOR_TABS.includes(k)));
+  // A student who opened "פתיחת פרופיל מורה" (#panel) gets the sign-up form, without the tutor tabs.
+  const becoming = !isTutor && route.name === 'panel';
+  const tab = tabs.some(([k]) => k === route.name) ? route.name : becoming ? 'panel' : isTutor ? 'panel' : 'panel-seats';
   // On phones the tab row scrolls sideways: keep the open tab in view.
   useEffect(() => { document.querySelector('.tabs [aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }, [tab]);
+  if (loading && mine == null) return <main className="wrap page-pad"><Loading /></main>;
   return (
     <main className="wrap page-pad">
       <div className="page-head"><h1>האזור האישי</h1><p className="muted-text">שלום {user.name}{user.isAdmin ? ' · מנהל/ת האתר' : ''}</p></div>
       <nav className="tabs" aria-label="פאנל">
-        {tabs.map(([k, label]) => <a key={k} href={'#' + k} aria-current={tab === k ? 'page' : undefined}>{label}{k === 'panel-inbox' && fresh ? <span className="badge"><bdi>{fresh}</bdi></span> : null}</a>)}
+        {tabs.map(([k, label]) => <a key={k} href={'#' + k} aria-current={tab === k ? 'page' : undefined}>{label}{k === 'panel-inbox' ? <FreshBadge /> : null}</a>)}
       </nav>
       {tab === 'panel' && <MyProfile />}
       {tab === 'panel-inbox' && <Inbox />}
       {tab === 'panel-groups' && <MyGroups />}
       {tab === 'panel-seats' && <MySeats />}
+      {tab === 'panel-seats' && !isTutor ? <p className="become-tutor muted-text">מלמדים בעצמכם? <a href="#panel">פתיחת פרופיל מורה</a></p> : null}
       {tab === 'panel-me' && <MyDetails />}
       {tab === 'panel-admin' && <AdminTutors />}
     </main>
