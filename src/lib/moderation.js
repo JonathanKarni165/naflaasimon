@@ -121,4 +121,6 @@ export const RULES = {
   saveGroup: (a) => [[a.title], [a.description], [a.location, NAME], [a.time, NAME]],
   joinGroup: (_id, a) => [[a?.name, NAME], [a?.note, PRIVATE]],
   addGroupMessage: (_id, text) => [[text]],
+  sendInquiryMessage: (_id, text) => [[text, PRIVATE]],
+  saveMyContact: (a) => [[a?.name, NAME]],
 };

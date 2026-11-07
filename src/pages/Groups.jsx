@@ -1,17 +1,30 @@
 import { useMemo, useState } from 'react';
 import { useApp, useLoad } from '../state.jsx';
 import { SUBJECTS } from '../data/constants.js';
-import { money, dateLong, relDays, dateShort } from '../lib/format.js';
+import { money, dateLong, relDays, dateShort, isPhone } from '../lib/format.js';
 import { GroupCard, Seg, SeatDots, Avatar, Verified, Stars, Loading, Empty } from '../components/ui.jsx';
 
-export function Groups() {
+export const isMarathon = (g) => Number(g.sessions) <= 1 || /מרתון/.test(g.title || '');
+
+export function Groups({ initialKind = 'any' }) {
   const { groups, filters } = useApp();
   const [subject, setSubject] = useState(filters.subject || '');
   const [mode, setMode] = useState('any');
+  const [kind, setKind] = useState(initialKind);
+  const [q, setQ] = useState('');
   const [onlyOpen, setOnlyOpen] = useState(true);
-  const list = useMemo(() => (groups || [])
-    .filter((g) => (!subject || g.subject === subject) && (mode === 'any' || g.mode === mode) && (!onlyOpen || g.seatsTaken < g.maxSeats))
-    .sort((a, b) => a.startDate.localeCompare(b.startDate)), [groups, subject, mode, onlyOpen]);
+  const list = useMemo(() => {
+    const words = q.trim().split(/\s+/).filter(Boolean);
+    return (groups || [])
+      .filter((g) => (!subject || g.subject === subject) && (mode === 'any' || g.mode === mode) && (!onlyOpen || g.seatsTaken < g.maxSeats))
+      .filter((g) => kind === 'any' || (kind === 'marathon') === isMarathon(g))
+      .filter((g) => {
+        if (!words.length) return true;
+        const hay = [g.title, g.description, g.subject, g.level, g.city, g.location, g.tutor?.name].filter(Boolean).join(' ');
+        return words.every((w) => hay.includes(w));
+      })
+      .sort((a, b) => a.startDate.localeCompare(b.startDate));
+  }, [groups, subject, mode, onlyOpen, kind, q]);
 
   const subjects = useMemo(() => [...new Set([...(groups || []).map((g) => g.subject).filter(Boolean)])].sort((a, b) => SUBJECTS.indexOf(a) - SUBJECTS.indexOf(b)), [groups]);
 
@@ -22,6 +35,10 @@ export function Groups() {
         <p className="muted-text">מורים מעלים קבוצה עם מטרה, תאריך ומחיר לתלמיד. שומרים מקום בלחיצה ושואלים את המורה ישירות.</p>
       </div>
       <div className="group-filters">
+        <label className="sr-only" htmlFor="g-q">חיפוש קבוצה או מרתון</label>
+        <input id="g-q" className="input" type="search" placeholder="חיפוש: 472, גאומטריה, פסיכומטרי, שם מורה…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <span className="sr-only" id="g-kind">סוג קבוצה</span>
+        <Seg label="g-kind" value={kind} onChange={setKind} options={[['any', 'הכול'], ['marathon', 'מרתונים'], ['course', 'קבוצות קבועות']]} />
         <div className="chips" role="group" aria-label="מקצוע">
           <button type="button" className="chip" aria-pressed={!subject} onClick={() => setSubject('')}>הכול</button>
           {subjects.map((s) => <button key={s} type="button" className="chip" aria-pressed={subject === s} onClick={() => setSubject(s)}>{s}</button>)}
@@ -34,7 +51,7 @@ export function Groups() {
       </div>
       {!groups ? <Loading /> : list.length === 0 ? (
         <Empty title="אין כרגע קבוצות שמתאימות">
-          <p>נסו מקצוע אחר, או בקשו מהמורה שלכם לפתוח קבוצה.</p>
+          <p>{kind === 'marathon' ? 'אין כרגע מרתון שמתאים. נסו מקצוע אחר, או בקשו מהמורה שלכם לפתוח מרתון.' : 'נסו מקצוע אחר, או בקשו מהמורה שלכם לפתוח קבוצה.'}</p>
         </Empty>
       ) : (
         <div className="groups groups-page">{list.map((g) => <GroupCard key={g.id} group={g} />)}</div>
@@ -69,13 +86,18 @@ export function Group({ id }) {
 
   const startJoin = () => {
     if (!requireLogin('כדי לשמור מקום בקבוצה צריך להתחבר. ככה המורה יודע מי נרשם.')) return;
-    setForm({ name: user.name, phone: '', note: '' }); setJoining(true);
+    setForm({ name: user.name, phone: user.phone || '', note: '' }); setJoining(true);
   };
   const join = async (e) => {
     e.preventDefault();
-    if (!/^0\d{1,2}-?\d{7}$/.test(form.phone.replace(/\s/g, ''))) { notify('בדקו את מספר הטלפון, למשל 050-1234567', true); return; }
+    if (!isPhone(form.phone)) { notify('בדקו את מספר הטלפון, למשל 050-1234567', true); return; }
     setBusy(true);
-    try { const st = await api.joinGroup(id, form); notify(st === 'pending' ? 'הבקשה נשלחה למורה. נעדכן אתכם כשיאשר.' : 'שמרנו לכם מקום! המורה יצור קשר לפני המפגש.'); setJoining(false); refreshSeats(); reload(); } catch (err) { notify(err.message, true); }
+    try {
+      const st = await api.joinGroup(id, form);
+      if (!user.phone && form.phone.trim()) api.saveMyContact({ name: user.name, phone: form.phone.trim() }).catch(() => {});
+      notify(st === 'pending' ? 'הבקשה נשלחה למורה. נעדכן אתכם כשיאשר.' : 'שמרנו לכם מקום! המורה יצור קשר לפני המפגש.');
+      setJoining(false); refreshSeats(); reload();
+    } catch (err) { notify(err.message, true); }
     setBusy(false);
   };
   const leave = async () => {
@@ -154,7 +176,7 @@ export function Group({ id }) {
                 <label className="field-label" htmlFor="j-name">שם התלמיד/ה</label>
                 <input id="j-name" className="input" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                 <label className="field-label" htmlFor="j-phone">טלפון לתיאום</label>
-                <input id="j-phone" className="input" required inputMode="tel" dir="ltr" placeholder="050-1234567" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                <input id="j-phone" className="input" required type="tel" autoComplete="tel" inputMode="tel" dir="ltr" placeholder="050-1234567" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
                 <label className="field-label" htmlFor="j-note">הערה למורה (לא חובה)</label>
                 <input id="j-note" className="input" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="כיתה, נושא שקשה לכם…" />
                 <button type="submit" className="btn btn-brand go" disabled={busy}>{busy ? 'שולחים…' : approval ? 'שליחת בקשה למורה' : 'שמירת מקום'}</button>

@@ -4,6 +4,7 @@ import { SEED_TUTORS, DEMO_USERS, buildSeedReviews, buildSeedGroups, buildSeedIn
 
 const KEY = 'naflaasimon-demo-v2';
 const SESSION_KEY = 'naflaasimon-demo-user';
+const CONTACTS_KEY = 'naflaasimon-demo-contacts'; // saved name/phone per account, kept across sign-outs
 let mem = null;
 const listeners = new Set();
 
@@ -16,6 +17,7 @@ function db() {
   try { const raw = localStorage.getItem(KEY); if (raw) mem = JSON.parse(raw); } catch { /* storage blocked */ }
   if (!mem) mem = fresh();
   mem.inquiries ||= [];
+  mem.inquiryMessages ||= [];
   return mem;
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(mem)); } catch { /* keep in memory */ } }
@@ -25,6 +27,12 @@ const clone = (v) => JSON.parse(JSON.stringify(v));
 
 let user = null;
 try { user = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch { /* none */ }
+function contacts() { try { return JSON.parse(localStorage.getItem(CONTACTS_KEY) || '{}'); } catch { return {}; } }
+function setUser(u) {
+  user = u;
+  try { if (u) localStorage.setItem(SESSION_KEY, JSON.stringify(u)); else localStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
+  listeners.forEach((cb) => cb(user));
+}
 
 function need() { if (!user) throw new Error('צריך להתחבר כדי לעשות את זה'); return user; }
 function canEditTutor(t) { return user && (user.isAdmin || t.ownerId === user.id); }
@@ -58,17 +66,21 @@ export const auth = {
   current: () => user,
   onChange(cb) { listeners.add(cb); return () => listeners.delete(cb); },
   async signInWithGoogle(demoUser) {
-    user = demoUser;
-    try { localStorage.setItem(SESSION_KEY, JSON.stringify(user)); } catch { /* ignore */ }
-    listeners.forEach((cb) => cb(user));
+    setUser({ phone: '', ...demoUser, ...(contacts()[demoUser.id] || {}) });
     return user;
   },
-  async signOut() {
-    user = null;
-    try { localStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
-    listeners.forEach((cb) => cb(null));
-  },
+  async signOut() { setUser(null); },
 };
+
+/** The signed-in person's saved contact details, filled in automatically on every form. */
+export async function saveMyContact({ name, phone }) {
+  const u = need();
+  const all = contacts();
+  all[u.id] = { name: (name || u.name).trim(), phone: (phone || '').trim() };
+  try { localStorage.setItem(CONTACTS_KEY, JSON.stringify(all)); } catch { /* ignore */ }
+  setUser({ ...u, ...all[u.id] });
+  return wait(user);
+}
 
 export async function listTutors() { return wait(db().tutors.map(publicTutor)); }
 export async function getTutor(id) { const t = db().tutors.find((x) => x.id === id); return wait(t ? publicTutor(t) : null); }
@@ -80,17 +92,44 @@ export async function getTutorForEdit(id) {
 }
 
 // Inquiries: a student asks a tutor through the site; the tutor answers from the panel.
-export async function sendInquiry({ tutorId, name, phone, subject, level, mode, message }) {
+export async function sendInquiry({ tutorId, name, phone, email, contactVia, subject, level, mode, message }) {
   const u = need(); const d = db();
   const t = d.tutors.find((x) => x.id === tutorId);
   if (!t) throw new Error('המורה לא נמצא');
   if (t.ownerId === u.id) throw new Error('אי אפשר לשלוח פנייה לעצמכם');
-  const inq = { id: uid('q'), tutorId, userId: u.id, name, phone, subject, level, mode, message, status: 'new', reply: '', createdAt: new Date().toISOString(), repliedAt: null };
+  const inq = { id: uid('q'), tutorId, userId: u.id, name, phone: phone || '', email: email || '', contactVia: contactVia || ['site'], subject, level, mode, message, status: 'new', reply: '', createdAt: new Date().toISOString(), repliedAt: null };
   d.inquiries.push(inq);
   t.contactCount = (t.contactCount || 0) + 1;
   save(); return wait(clone(inq));
 }
-const withTutor = (q) => { const t = db().tutors.find((x) => x.id === q.tutorId); return { ...clone(q), tutor: t ? publicTutor(t) : null }; };
+const withTutor = (q) => {
+  const d = db();
+  const t = d.tutors.find((x) => x.id === q.tutorId);
+  const msgs = d.inquiryMessages.filter((m) => m.inquiryId === q.id);
+  const last = msgs[msgs.length - 1];
+  return { ...clone(q), tutor: t ? publicTutor(t) : null, messageCount: msgs.length, lastFromTutor: last ? last.fromTutor : !!q.reply, lastAt: last?.createdAt || q.repliedAt || q.createdAt };
+};
+
+// Chat on an inquiry: the student and the tutor write back and forth without sharing a phone number.
+function inquiryFor(id) {
+  const d = db();
+  const q = d.inquiries.find((x) => x.id === id);
+  const t = q && d.tutors.find((x) => x.id === q.tutorId);
+  if (!q || !user || (q.userId !== user.id && !canEditTutor(t))) throw new Error('אין הרשאה לשיחה הזאת');
+  return q;
+}
+export async function listInquiryMessages(inquiryId) {
+  inquiryFor(inquiryId);
+  return wait(clone(db().inquiryMessages.filter((m) => m.inquiryId === inquiryId).sort((a, b) => a.createdAt.localeCompare(b.createdAt))));
+}
+export async function sendInquiryMessage(inquiryId, text, asTutor) {
+  const u = need(); const q = inquiryFor(inquiryId);
+  const fromTutor = !!asTutor && q.userId !== u.id;
+  const m = { id: uid('c'), inquiryId, senderId: u.id, fromTutor, text, createdAt: new Date().toISOString() };
+  db().inquiryMessages.push(m);
+  if (fromTutor && q.status === 'new') q.status = 'replied';
+  save(); return wait(clone(m));
+}
 export async function myInquiries() {
   if (!user) return [];
   return wait(db().inquiries.filter((q) => q.userId === user.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(withTutor));
@@ -134,7 +173,9 @@ export async function deleteTutor(id) {
   const gids = d.groups.filter((g) => g.tutorId === id).map((g) => g.id);
   d.groups = d.groups.filter((g) => g.tutorId !== id);
   d.seats = d.seats.filter((s) => !gids.includes(s.groupId));
+  const qids = d.inquiries.filter((q) => q.tutorId === id).map((q) => q.id);
   d.inquiries = d.inquiries.filter((q) => q.tutorId !== id);
+  d.inquiryMessages = d.inquiryMessages.filter((m) => !qids.includes(m.inquiryId));
   save(); return wait(true);
 }
 

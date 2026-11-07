@@ -141,11 +141,11 @@ export function buildSeedGroups() {
 export function buildSeedInquiries() {
   const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
   return [
-    { id: 'q1', tutorId: 't1', userId: 'seed-q1', name: 'אורי שגב', phone: '050-0000401', subject: 'מתמטיקה', level: '5 יח״ל', mode: 'frontal',
+    { id: 'q1', tutorId: 't1', userId: 'seed-q1', name: 'אורי שגב', phone: '050-0000401', email: '', contactVia: ['site', 'phone'], subject: 'מתמטיקה', level: '5 יח״ל', mode: 'frontal',
       message: 'היי דנה, אני בכיתה י״א ונבחן ב־581 בעוד חודשיים. קשה לי בעיקר עם חדו״א. יש לך זמן פנוי בימי שני?', status: 'new', reply: '', createdAt: ago(3), repliedAt: null },
-    { id: 'q2', tutorId: 't1', userId: 'seed-q2', name: 'מירב (אמא של נועם)', phone: '050-0000402', subject: 'מתמטיקה', level: '4 יח״ל', mode: 'online',
+    { id: 'q2', tutorId: 't1', userId: 'seed-q2', name: 'מירב (אמא של נועם)', phone: '', email: '', contactVia: ['site'], subject: 'מתמטיקה', level: '4 יח״ל', mode: 'online',
       message: 'שלום, הבן שלי צריך חיזוק בגאומטריה לפני המגן. אפשר שיעור ניסיון אונליין?', status: 'new', reply: '', createdAt: ago(20), repliedAt: null },
-    { id: 'q3', tutorId: 't1', userId: 'seed-q3', name: 'יעל דוד', phone: '050-0000403', subject: 'סטטיסטיקה', level: 'אקדמיה', mode: 'online',
+    { id: 'q3', tutorId: 't1', userId: 'seed-q3', name: 'יעל דוד', phone: '050-0000403', email: 'yael@example.com', contactVia: ['phone', 'email'], subject: 'סטטיסטיקה', level: 'אקדמיה', mode: 'online',
       message: 'סטודנטית שנה א׳ בפסיכולוגיה, צריכה עזרה בסטטיסטיקה לקראת המבחן.', status: 'replied',
       reply: 'היי יעל, בשמחה. אני פנויה ביום רביעי ב־19:00, אשלח לך הודעה בוואטסאפ לתיאום.', createdAt: ago(60), repliedAt: ago(50) },
   ];

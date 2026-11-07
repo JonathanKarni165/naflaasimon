@@ -38,3 +38,9 @@ export const initials = (name = '') => name.trim().split(/\s+/).slice(0, 2).map(
 
 const AVATAR_COLORS = ['#0F5C5B', '#8A5A12', '#6B4E9B', '#A1452F', '#2F5D8A', '#5C6B1F'];
 export const avatarColor = (id = '') => AVATAR_COLORS[[...String(id)].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_COLORS.length];
+
+const dft = new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' });
+export const dateTime = (iso) => (iso ? dft.format(new Date(iso)) : '');
+
+export const isPhone = (p) => /^0\d{8,9}$/.test(String(p || '').replace(/[\s-]/g, ''));
+export const isEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(e || '').trim());
