@@ -287,8 +287,8 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
         <span className="field-label" id="tf-lvl">רמות</span>
         <Chips multi label="tf-lvl" options={LEVELS} value={t.levels} onChange={(levels) => set({ levels })} />
         <Err k="levels" />
-        <label className="field-label" htmlFor="tf-topics">נושאים ספציפיים שאתם מלמדים <small className="muted-text">(לא חובה, עוזר לתלמידים למצוא אתכם)</small></label>
-        <TopicPicker id="tf-topics" adder subjects={t.subjects} placeholder="הקלידו נושא: וקטורים, שאלון 582, אינפי 1…"
+        <label className="field-label" htmlFor="tf-topics">שאלונים וקורסים שאתם מלמדים <small className="muted-text">(לא חובה, עוזר לתלמידים למצוא אתכם)</small></label>
+        <TopicPicker id="tf-topics" adder subjects={t.subjects} placeholder="הקלידו שאלון או קורס: 582, אינפי 1…"
           onPick={(o) => { if (o?.topic && !(t.topics || []).includes(o.topic)) set({ topics: [...(t.topics || []), o.topic] }); }} />
         {(t.topics || []).length ? (
           <div className="topic-tags">

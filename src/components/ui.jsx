@@ -362,8 +362,8 @@ function Hl({ text, q }) {
   return <>{text.slice(0, i)}<mark>{text.slice(i, i + t.length)}</mark>{text.slice(i + t.length)}</>;
 }
 
-/** "מה רוצים ללמוד?": one free-text field with hundreds of topics, e.g. "מתמטיקה - וקטורים". */
-export function TopicPicker({ id, value, onPick, placeholder = 'מקצוע או נושא, למשל וקטורים', subjects, autoFocus, adder }) {
+/** "מה רוצים ללמוד?": one free-text field over subjects, levels, exam codes and university courses, e.g. "מתמטיקה - אינפי 1". */
+export function TopicPicker({ id, value, onPick, placeholder = 'מקצוע או קורס, למשל 582 או אינפי', subjects, autoFocus, adder }) {
   const [text, setText] = useState(value || '');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
