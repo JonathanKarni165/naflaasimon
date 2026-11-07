@@ -59,7 +59,7 @@ export default function Home() {
           ) : null}
           <p className="lead">מורים פרטיים למתמטיקה ולשאר המקצועות. מחפשים לפי רמה ומיקום, משווים מחיר וביקורות, ופונים ישירות.</p>
           <figure className="hero-photo">
-            <img src="img/hero.jpg" alt="סטודנטית עם משקפיים לומדת ליד שולחן עם מחשב ועפרונות צבעוניים" width="1200" height="800" />
+            <img src="img/hero.jpg" fetchpriority="high" decoding="async" alt="סטודנטית עם משקפיים לומדת ליד שולחן עם מחשב ועפרונות צבעוניים" width="1200" height="800" />
             <div className="h-chip h-chip-tutor"><span className="dot" aria-hidden="true">✓</span><span><b>דנה, מורה למתמטיקה</b>מאומתת · 5 יח״ל</span></div>
             <div className="h-chip h-chip-aha"><b>״אה, עכשיו הבנתי!״</b><span>עידו, כיתה י״א</span></div>
             <svg className="h-coin" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46" fill="#F2CC4B" stroke="#3A3130" strokeWidth="4" /><circle cx="50" cy="50" r="33" fill="none" stroke="#3A3130" strokeOpacity=".3" strokeWidth="3" /><rect x="22" y="45" width="56" height="10" rx="5" fill="#3A3130" /></svg>
@@ -145,9 +145,9 @@ export default function Home() {
         <div className="wrap">
           <div className="sec-head"><h2 id="why-h">למה לסמוך עלינו</h2></div>
           <div className="why-list">
-            <div className="why-item"><div className="why-art"><img className="art" src="img/art-verified.svg" alt="" /></div><div><h3>מורים מאומתים</h3><p>מורה עם סימן ✓ עבר בדיקה של תעודת זהות ותארים או תעודות הוראה.</p></div></div>
-            <div className="why-item"><div className="why-art"><img className="art" src="img/art-reviews.svg" alt="" /></div><div><h3>דירוג שאי אפשר לנפח</h3><p>ביקורת אחת לכל חשבון Google, והדירוג מתחשב בכמות: חמישה כוכבים מביקורת אחת לא עוקפים 40 ביקורות טובות.</p></div></div>
-            <div className="why-item"><div className="why-art"><img className="art" src="img/art-phone.svg" alt="" /></div><div><h3>ישר למורה, בלי עמלה</h3><p>שולחים פנייה מהפרופיל, המורה עונה לכם באתר או בטלפון, ומשלמים לו ישירות.</p></div></div>
+            <div className="why-item"><div className="why-art"><img className="art" loading="lazy" decoding="async" src="img/art-verified.svg" alt="" /></div><div><h3>מורים מאומתים</h3><p>מורה עם סימן ✓ עבר בדיקה של תעודת זהות ותארים או תעודות הוראה.</p></div></div>
+            <div className="why-item"><div className="why-art"><img className="art" loading="lazy" decoding="async" src="img/art-reviews.svg" alt="" /></div><div><h3>דירוג שאי אפשר לנפח</h3><p>ביקורת אחת לכל חשבון Google, והדירוג מתחשב בכמות: חמישה כוכבים מביקורת אחת לא עוקפים 40 ביקורות טובות.</p></div></div>
+            <div className="why-item"><div className="why-art"><img className="art" loading="lazy" decoding="async" src="img/art-phone.svg" alt="" /></div><div><h3>ישר למורה, בלי עמלה</h3><p>שולחים פנייה מהפרופיל, המורה עונה לכם באתר או בטלפון, ומשלמים לו ישירות.</p></div></div>
           </div>
         </div>
       </section>
@@ -165,7 +165,7 @@ export default function Home() {
 
       <section className="band" id="teachers" aria-labelledby="teach-h">
         <div className="wrap">
-          <div className="band-art"><img className="art" src="img/art-teacher.svg" alt="" /></div>
+          <div className="band-art"><img className="art" loading="lazy" decoding="async" src="img/art-teacher.svg" alt="" /></div>
           <div style={{ display: 'grid', gap: 10 }}>
             <h2 id="teach-h">מלמדים? תנו לתלמידים למצוא אתכם</h2>
             <p>פותחים פרופיל בכמה דקות ומקבלים פניות ישירות מתלמידים ומהורים.</p>

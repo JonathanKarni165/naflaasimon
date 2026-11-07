@@ -24,8 +24,10 @@ const DEFAULT_FILTERS = { subject: '', topic: '', level: '', mode: 'any', city: 
 export function AppProvider({ children }) {
   const [route, setRoute] = useState(parseRoute(window.location.hash));
   const [user, setUser] = useState(api.auth.current());
-  const [tutors, setTutors] = useState(null);
-  const [groups, setGroups] = useState(null);
+  // The last list we saw is shown at once on the next visit, then refreshed in the background.
+  const [tutors, setTutors] = useState(() => readCache()?.tutors || null);
+  const [groups, setGroups] = useState(() => readCache()?.groups || null);
+  const [online, setOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine !== false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginReason, setLoginReason] = useState('');
   const [toast, setToast] = useState(null);
@@ -43,12 +45,32 @@ export function AppProvider({ children }) {
     try {
       const [t, g] = await Promise.all([api.listTutors(), api.listGroups()]);
       setTutors(t); setGroups(g); setVersion((v) => v + 1);
+      writeCache({ tutors: t, groups: g });
     } catch (e) {
+      // Offline with a saved list: keep showing it, the banner already says why nothing is new.
+      if (!navigator.onLine && readCache()) return;
       setToast({ text: 'לא הצלחנו לטעון נתונים: ' + e.message, bad: true });
       setTutors((t) => t || []); setGroups((g) => g || []);
     }
   }, []);
   useEffect(() => { reload(); }, [reload, user?.id]);
+  // Connection lost / back: show a banner, and refresh as soon as we're back online.
+  useEffect(() => {
+    const up = () => { setOnline(true); reload(); };
+    const down = () => setOnline(false);
+    window.addEventListener('online', up); window.addEventListener('offline', down);
+    return () => { window.removeEventListener('online', up); window.removeEventListener('offline', down); };
+  }, [reload]);
+  // Coming back to a tab left open for a while refreshes the data.
+  useEffect(() => {
+    let hiddenAt = 0;
+    const vis = () => {
+      if (document.hidden) hiddenAt = Date.now();
+      else if (hiddenAt && Date.now() - hiddenAt > 5 * 60 * 1000) reload();
+    };
+    document.addEventListener('visibilitychange', vis);
+    return () => document.removeEventListener('visibilitychange', vis);
+  }, [reload]);
   // Live: when anyone changes data, refresh (debounced so a burst of changes reloads once).
   useEffect(() => {
     if (!api.subscribe) return undefined;
@@ -72,24 +94,37 @@ export function AppProvider({ children }) {
   }, [user]);
 
   const value = useMemo(() => ({
-    api, route, user, tutors, groups, reload, version, notify, toast,
+    api, route, user, tutors, groups, reload, version, notify, toast, online,
     loginOpen, setLoginOpen, loginReason, requireLogin,
     filters, setFilters, resetFilters: () => setFilters(DEFAULT_FILTERS),
-  }), [route, user, tutors, groups, reload, version, notify, toast, loginOpen, loginReason, requireLogin, filters]);
+  }), [route, user, tutors, groups, reload, version, notify, toast, online, loginOpen, loginReason, requireLogin, filters]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
 /** Runs an async loader when deps change. Returns [data, loading, error, refresh]. */
+const LIST_CACHE = 'naflaasimon-cache-v1';
+function readCache() {
+  try { return JSON.parse(localStorage.getItem(LIST_CACHE) || 'null'); } catch { return null; }
+}
+function writeCache(v) {
+  try { localStorage.setItem(LIST_CACHE, JSON.stringify(v)); } catch { /* full or blocked: just don't cache */ }
+}
+
+// Results of page loads, kept for this visit: going back to a page shows it at once and refreshes it quietly.
+const LOAD_CACHE = new Map();
 export function useLoad(fn, deps) {
-  const [state, setState] = useState({ data: null, loading: true, error: null });
+  const key = String(fn) + JSON.stringify(deps);
+  const [state, setState] = useState(() => (LOAD_CACHE.has(key)
+    ? { data: LOAD_CACHE.get(key), loading: false, error: null } : { data: null, loading: true, error: null }));
   const [n, setN] = useState(0);
   useEffect(() => {
     let live = true;
-    setState((s) => ({ ...s, loading: true }));
+    if (LOAD_CACHE.has(key)) setState({ data: LOAD_CACHE.get(key), loading: false, error: null });
+    else setState((s) => ({ ...s, loading: true }));
     Promise.resolve().then(fn).then(
-      (data) => live && setState({ data, loading: false, error: null }),
-      (error) => live && setState({ data: null, loading: false, error }),
+      (data) => { LOAD_CACHE.set(key, data); if (live) setState({ data, loading: false, error: null }); },
+      (error) => live && setState((s) => (s.data != null && !navigator.onLine ? { ...s, loading: false } : { data: null, loading: false, error })),
     );
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
