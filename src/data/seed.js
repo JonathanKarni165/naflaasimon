@@ -71,6 +71,12 @@ const SEED_TOPICS = {
   t3: ['מבחן מימד', 'פיזיקה 1', 'מעגלים חשמליים'],
 };
 SEED_TUTORS.forEach((t) => { if (SEED_TOPICS[t.id]) t.topics = SEED_TOPICS[t.id]; });
+// Weekly free hours ("day-hour", day 0 = Sunday, hour = start of a 2-hour slot), varied per tutor.
+SEED_TUTORS.forEach((t, i) => {
+  const days = [[0, 1, 3], [1, 2, 4], [0, 2, 3], [0, 3, 4], [1, 3, 5]][i % 5];
+  const hours = [[16, 18], [14, 16, 18], [18, 20], [10, 12, 16], [16, 18, 20]][(i * 3) % 5];
+  t.availability = days.flatMap((d) => hours.filter((h) => !(d === 5 && h > 12)).map((h) => `${d}-${h}`)).concat(i % 2 ? ['5-10'] : []);
+});
 
 
 // [tutorId, review count, rough average]

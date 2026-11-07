@@ -105,3 +105,21 @@ begin
     alter publication supabase_realtime add table public.inquiry_messages;
   end if;
 end $$;
+
+-- 5. Weekly free hours on the tutor profile ("day-hour": day 0 = Sunday, hour = start of a 2-hour slot).
+alter table public.tutors add column if not exists availability text[] not null default '{}';
+alter table public.tutors drop constraint if exists tutors_availability;
+alter table public.tutors add constraint tutors_availability
+  check (cardinality(availability) <= 49 and array_to_string(availability, ',') ~ '^([0-6]-(8|10|12|14|16|18|20)(,|$))*$');
+
+-- 6. Inquiry template: how many lessons, the goal, and the time slots the student picked.
+alter table public.inquiries add column if not exists lessons text;
+alter table public.inquiries drop constraint if exists inquiries_lessons;
+alter table public.inquiries add constraint inquiries_lessons check (lessons is null or lessons in ('1', '2-5', '6-10', 'ongoing'));
+alter table public.inquiries add column if not exists goal text;
+alter table public.inquiries drop constraint if exists inquiries_goal;
+alter table public.inquiries add constraint inquiries_goal check (goal is null or goal in ('exam', 'practice', 'project', 'gaps', 'other'));
+alter table public.inquiries add column if not exists slots text[] not null default '{}';
+alter table public.inquiries drop constraint if exists inquiries_slots;
+alter table public.inquiries add constraint inquiries_slots
+  check (cardinality(slots) <= 49 and array_to_string(slots, ',') ~ '^([0-6]-(8|10|12|14|16|18|20)(,|$))*$');

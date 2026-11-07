@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useApp, useLoad } from '../state.jsx';
 import { bayesScore, globalMean } from '../lib/ranking.js';
 import { money, dateShort, rating1, reviewsLabel } from '../lib/format.js';
-import { Avatar, Stars, StarRow, Verified, InquiryBox, GroupCard, ConfirmButton, Loading, Empty, placeLabel } from '../components/ui.jsx';
+import { Avatar, Stars, StarRow, Verified, InquiryBox, GroupCard, WeekGrid, ConfirmButton, Loading, Empty, placeLabel } from '../components/ui.jsx';
 
 export default function Tutor({ id }) {
   const { api, tutors, groups, user, version, reload } = useApp();
@@ -74,6 +74,16 @@ export default function Tutor({ id }) {
               ))}
               {reviews && !reviews.length ? <p className="muted-text">עדיין אין ביקורות. למדתם עם {tutor.name.split(' ')[0]}? היו הראשונים לכתוב.</p> : null}
             </div>
+          </section>
+
+          <section className="p-sec" aria-labelledby="free-h">
+            <h2 id="free-h">שעות פנויות</h2>
+            {tutor.availability?.length ? (
+              <>
+                <WeekGrid mode="view" value={tutor.availability} label={`השעות הפנויות של ${tutor.name}`} />
+                <p className="muted-text small">השעות המסומנות פנויות בדרך כלל. בפנייה תוכלו לבחור את השעות שנוחות לכם.</p>
+              </>
+            ) : <p className="muted-text">{tutor.name.split(' ')[0]} עוד לא סימנ/ה שעות פנויות. אפשר לכתוב בפנייה מתי נוח לכם.</p>}
           </section>
         </div>
 

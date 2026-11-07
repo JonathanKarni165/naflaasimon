@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useApp, useLoad, go } from '../state.jsx';
-import { SUBJECTS, LEVELS, CITIES } from '../data/constants.js';
+import { SUBJECTS, LEVELS, CITIES, GOALS, LESSON_COUNTS, labelOf } from '../data/constants.js';
 import { money, dateShort, dateLong, normalizePhone, isPhone } from '../lib/format.js';
-import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, StatusTag, InquiryChat, VIA, viaOf, TopicPicker } from '../components/ui.jsx';
+import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, StatusTag, InquiryChat, VIA, viaOf, TopicPicker, WeekGrid } from '../components/ui.jsx';
 
 const TABS = [
   ['panel', 'הפרופיל שלי'],
@@ -161,6 +161,7 @@ function InquiryItem({ q, onChange, showTutor }) {
         <span className="muted-text inq-date">{dateShort(q.createdAt)}</span>
       </div>
       <p className="t-meta">{[q.subject, q.level, q.mode != null ? MODE_LABEL[q.mode] : ''].filter(Boolean).join(' · ')}{showTutor && q.tutor ? ` · אל ${q.tutor.name}` : ''}</p>
+      {q.goal || q.lessons ? <p className="inq-tags">{q.goal ? <span className="tag">{labelOf(GOALS, q.goal)}</span> : null}{q.lessons ? <span className="tag">{labelOf(LESSON_COUNTS, q.lessons)}</span> : null}</p> : null}
       <p className="via-line">מעדיף/ה: {VIA.filter(([v]) => via.includes(v)).map(([, l]) => l).join(' · ')}</p>
       <InquiryChat q={q} asTutor />
       <div className="inq-actions">
@@ -204,7 +205,7 @@ function MyDetails() {
 
 const EMPTY_TUTOR = {
   name: '', photo: '', headline: '', about: '', subjects: ['מתמטיקה'], levels: [], topics: [], city: '', area: '',
-  teachesFrontal: true, priceFrontal: '', teachesOnline: true, priceOnline: '', experienceYears: '', phone: '', verified: false,
+  teachesFrontal: true, priceFrontal: '', teachesOnline: true, priceOnline: '', experienceYears: '', phone: '', verified: false, availability: [],
 };
 
 export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
@@ -319,6 +320,12 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
           </div>
           <Err k="mode" />
         </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>שעות פנויות</legend>
+        <p className="muted-text small">סמנו את השעות שבהן אתם פנויים בדרך כלל. התלמידים יראו את הטבלה בפרופיל ויבחרו מתוכה כשהם פונים אליכם.</p>
+        <WeekGrid mode="edit" value={t.availability || []} onChange={(availability) => set({ availability })} label="שעות פנויות במהלך השבוע" />
       </fieldset>
 
       <div className="form-actions sticky-actions">

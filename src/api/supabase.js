@@ -63,7 +63,7 @@ function check({ data, error }) {
 
 const tutorFromRow = (r, stats = {}) => ({
   id: r.id, ownerId: r.owner_id, name: r.name, photo: r.photo, headline: r.headline, about: r.about,
-  subjects: r.subjects || [], levels: r.levels || [], topics: r.topics || [], city: r.city, area: r.area, lat: r.lat, lng: r.lng,
+  subjects: r.subjects || [], levels: r.levels || [], topics: r.topics || [], availability: r.availability || [], city: r.city, area: r.area, lat: r.lat, lng: r.lng,
   teachesOnline: r.teaches_online, teachesFrontal: r.teaches_frontal, priceOnline: r.price_online, priceFrontal: r.price_frontal,
   experienceYears: r.experience_years, verified: r.verified, contactCount: r.contact_count, createdAt: r.created_at,
   ratingCount: stats.rating_count || 0, ratingAvg: stats.rating_avg || 0,
@@ -73,7 +73,7 @@ const tutorToRow = (t) => {
   return {
     name: t.name, photo: t.photo || null, headline: t.headline || null, about: t.about || null,
     subjects: t.subjects || [], levels: t.levels || [], city: t.city || null, area: t.area || null,
-    ...((t.topics || []).length ? { topics: t.topics } : {}), // column added by supabase/contact.sql
+    topics: t.topics || [], availability: t.availability || [], // columns from supabase/contact.sql
     lat: c?.lat ?? null, lng: c?.lng ?? null,
     teaches_online: !!t.teachesOnline, teaches_frontal: !!t.teachesFrontal,
     price_online: t.teachesOnline && t.priceOnline !== '' ? Number(t.priceOnline) || null : null,
@@ -113,7 +113,8 @@ export async function getTutorForEdit(id) {
 }
 const inquiryFromRow = (q) => ({
   id: q.id, tutorId: q.tutor_id, userId: q.user_id, name: q.name, phone: q.phone || '', email: q.email || '',
-  contactVia: q.contact_via || (q.phone ? ['phone'] : ['site']), subject: q.subject, level: q.level,
+  contactVia: q.contact_via || (q.phone ? ['phone'] : ['site']), lessons: q.lessons || '', goal: q.goal || '', slots: q.slots || [],
+  subject: q.subject, level: q.level,
   mode: q.mode, message: q.message, status: q.status, reply: q.reply || '', createdAt: q.created_at, repliedAt: q.replied_at,
 });
 async function attachTutors(list) {
@@ -129,11 +130,12 @@ async function attachTutors(list) {
     return { ...q, tutor: map[q.tutorId] || null, messageCount: ms.length, lastFromTutor: last ? last.from_tutor : !!q.reply, lastAt: last?.created_at || q.repliedAt || q.createdAt };
   });
 }
-export async function sendInquiry({ tutorId, name, phone, email, contactVia, subject, level, mode, message }) {
+export async function sendInquiry({ tutorId, name, phone, email, contactVia, subject, level, mode, lessons, goal, slots, message }) {
   const u = need();
   const row = check(await sb.from('inquiries').insert({
     tutor_id: tutorId, user_id: u.id, name, phone: phone || null, email: email || null, contact_via: contactVia || ['site'],
     subject: subject || null, level: level || null, mode: mode ?? null, message,
+    ...(lessons ? { lessons } : {}), ...(goal ? { goal } : {}), ...((slots || []).length ? { slots } : {}),
   }).select().single());
   return inquiryFromRow(row);
 }

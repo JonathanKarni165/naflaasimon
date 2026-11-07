@@ -34,3 +34,17 @@ export const cityByName = (name) => CITIES.find((c) => c.name === name);
 
 // Bayesian prior: how many "virtual" reviews at the site average each tutor starts with.
 export const PRIOR_WEIGHT = 5;
+
+// Weekly availability grid: two-hour blocks per day. A cell key is "<day>-<hour>", e.g. "0-16" = Sunday 16:00–18:00.
+export const WEEK_DAYS = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
+export const WEEK_DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+export const DAY_SLOTS = [8, 10, 12, 14, 16, 18, 20];
+export const slotLabel = (key) => {
+  const [d, h] = String(key).split('-').map(Number);
+  return `${WEEK_DAY_NAMES[d] ?? ''} ${String(h).padStart(2, '0')}:00–${String(h + 2).padStart(2, '0')}:00`;
+};
+
+// Structured inquiry ("תבנית פנייה").
+export const LESSON_COUNTS = [['1', 'שיעור אחד'], ['2-5', '2–5 שיעורים'], ['6-10', '6–10 שיעורים'], ['ongoing', 'קבוע לאורך זמן']];
+export const GOALS = [['exam', 'הכנה למבחן'], ['practice', 'תרגול שוטף'], ['project', 'עזרה בעבודה'], ['gaps', 'השלמת פערים'], ['other', 'אחר']];
+export const labelOf = (list, v) => (list.find(([k]) => k === v) || [, ''])[1];
