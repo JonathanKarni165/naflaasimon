@@ -483,3 +483,13 @@ footer .linkish { color: inherit; font-weight: 600; }
 
 /* No connection */
 .offline-bar { background: #A33A2C; color: #fff; text-align: center; font-size: 14px; font-weight: 700; padding: 8px 16px; position: sticky; top: 0; z-index: 40; }
+
+/* Reviews: short scroll box on the profile, full list in a window */
+.reviews-box { max-height: 340px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--line); border-radius: 12px; padding: 0 14px; background: var(--surface); }
+.reviews-box .review:last-child { border-bottom: 0; }
+.more-reviews { justify-self: start; }
+.modal-wide { max-width: min(640px, calc(100vw - 32px)); }
+.reviews-modal { justify-items: stretch; text-align: start; max-height: min(80vh, 760px); grid-template-rows: auto 1fr; padding-bottom: 8px; }
+.reviews-modal h2 { padding-inline-end: 32px; }
+.reviews-all { overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+.become-tutor { margin-top: 18px; }

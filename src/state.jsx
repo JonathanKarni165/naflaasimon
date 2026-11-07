@@ -131,3 +131,9 @@ export function useLoad(fn, deps) {
   }, [...deps, n]);
   return [state.data, state.loading, state.error, () => setN((x) => x + 1)];
 }
+
+/** The signed-in user's tutor profile (null for students). Shared by the menu, the header and the panel. */
+export function useMyTutor() {
+  const { api, user, version } = useApp();
+  return useLoad(() => (user ? api.getMyTutor() : null), [user?.id || '', version]);
+}

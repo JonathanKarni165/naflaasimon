@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useApp, go } from '../state.jsx';
+import { useApp, useMyTutor, go } from '../state.jsx';
 import { money, rating1, reviewsLabel, initials, avatarColor, km, relDays, dateLong, dateTime, isPhone, isEmail } from '../lib/format.js';
 import { CITIES, WEEK_DAYS, WEEK_DAY_NAMES, DAY_SLOTS, LESSON_COUNTS, GOALS, slotLabel, labelOf } from '../data/constants.js';
 import { searchOptions, optionLabel } from '../data/topics.js';
@@ -585,6 +585,8 @@ const ICONS = {
 
 export function UserMenu() {
   const { user, api } = useApp();
+  const [mine] = useMyTutor();
+  const isTutor = !!mine;
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -600,9 +602,13 @@ export function UserMenu() {
       {open ? (
         <div className="user-pop">
           <b>{user.name}</b>{user.isAdmin ? <span className="tag brass">מנהל</span> : null}
-          <a href="#panel" onClick={() => setOpen(false)}>פאנל מורה</a>
-          <a href="#panel-groups" onClick={() => setOpen(false)}>קבוצות הלמידה שלי</a>
-          <a href="#panel-inbox" onClick={() => setOpen(false)}>פניות מתלמידים</a>
+          {isTutor ? (
+            <>
+              <a href="#panel" onClick={() => setOpen(false)}>פאנל מורה</a>
+              <a href="#panel-groups" onClick={() => setOpen(false)}>קבוצות הלמידה שלי</a>
+              <a href="#panel-inbox" onClick={() => setOpen(false)}>פניות מתלמידים</a>
+            </>
+          ) : null}
           <a href="#panel-seats" onClick={() => setOpen(false)}>הפניות וההרשמות שלי</a>
           <a href="#panel-me" onClick={() => setOpen(false)}>הפרטים שלי</a>
           {user.isAdmin ? <a href="#panel-admin" onClick={() => setOpen(false)}>ניהול מורים</a> : null}
@@ -622,6 +628,8 @@ export function OfflineBar() {
 
 export function Header() {
   const { user, setLoginOpen, route, api } = useApp();
+  const [mine] = useMyTutor();
+  const isTutor = !!(user && mine);
   const cur = (n) => (route.name === n || route.name.startsWith(n + '-') ? 'page' : undefined);
   return (
     <>
@@ -637,7 +645,7 @@ export function Header() {
           </nav>
           <div className="top-actions">
             {user ? <UserMenu /> : <button type="button" className="btn btn-ghost" onClick={() => setLoginOpen(true)}>כניסה</button>}
-            <a className="btn btn-brass hide-sm" href="#panel">פתיחת פרופיל מורה</a>
+            {isTutor ? null : <a className="btn btn-brass hide-sm" href="#panel">פתיחת פרופיל מורה</a>}
           </div>
         </div>
       </header>

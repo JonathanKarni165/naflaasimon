@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, useLoad } from '../state.jsx';
 import { bayesScore, globalMean } from '../lib/ranking.js';
 import { money, dateShort, rating1, reviewsLabel } from '../lib/format.js';
@@ -62,18 +62,7 @@ export default function Tutor({ id }) {
             <h2 id="rev-h">ביקורות</h2>
             <RatingSummary tutor={tutor} reviews={reviews || []} weighted={weighted} />
             <ReviewForm tutor={tutor} reviews={reviews || []} onDone={after} />
-            <div className="reviews">
-              {(reviews || []).map((r) => (
-                <article key={r.id} className="review">
-                  <div className="rv-top"><b>{r.userName}</b><StarRow value={r.rating} size={15} /><span className="muted-text">{dateShort(r.createdAt)}</span></div>
-                  {r.text ? <p>{r.text}</p> : null}
-                  {user && (user.id === r.userId || user.isAdmin) ? (
-                    <ConfirmButton className="linkish small" confirmText="למחוק את הביקורת?" onConfirm={async () => { await api.deleteReview(r.id); after(); }}>מחיקה</ConfirmButton>
-                  ) : null}
-                </article>
-              ))}
-              {reviews && !reviews.length ? <p className="muted-text">עדיין אין ביקורות. למדתם עם {tutor.name.split(' ')[0]}? היו הראשונים לכתוב.</p> : null}
-            </div>
+            <ReviewList tutor={tutor} reviews={reviews || []} after={after} loaded={!!reviews} />
           </section>
 
           <section className="p-sec" aria-labelledby="free-h">
@@ -170,5 +159,50 @@ function ReviewForm({ tutor, reviews, onDone }) {
       </div>
       <p className="hint">הביקורת תופיע בשם {user?.name}.</p>
     </form>
+  );
+}
+
+const SHOWN_REVIEWS = 8;
+function ReviewItem({ r, after }) {
+  const { api, user } = useApp();
+  return (
+    <article className="review">
+      <div className="rv-top"><b>{r.userName}</b><StarRow value={r.rating} size={15} /><span className="muted-text">{dateShort(r.createdAt)}</span></div>
+      {r.text ? <p>{r.text}</p> : null}
+      {user && (user.id === r.userId || user.isAdmin) ? (
+        <ConfirmButton className="linkish small" confirmText="למחוק את הביקורת?" onConfirm={async () => { await api.deleteReview(r.id); after(); }}>מחיקה</ConfirmButton>
+      ) : null}
+    </article>
+  );
+}
+
+/** A few reviews in a short scrolling box; the rest open in a window, so the page stays short. */
+function ReviewList({ tutor, reviews, after, loaded }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const d = ref.current; if (!d) return;
+    if (open && !d.open) d.showModal();
+    if (!open && d.open) d.close();
+  }, [open]);
+  if (loaded && !reviews.length) return <p className="muted-text">עדיין אין ביקורות. למדתם עם {tutor.name.split(' ')[0]}? היו הראשונים לכתוב.</p>;
+  return (
+    <>
+      <div className="reviews reviews-box" tabIndex={0} aria-label="ביקורות אחרונות">
+        {reviews.slice(0, SHOWN_REVIEWS).map((r) => <ReviewItem key={r.id} r={r} after={after} />)}
+      </div>
+      {reviews.length > SHOWN_REVIEWS ? (
+        <button type="button" className="btn btn-line more-reviews" onClick={() => setOpen(true)}>לכל {reviews.length} הביקורות</button>
+      ) : null}
+      <dialog ref={ref} className="modal modal-wide" onClose={() => setOpen(false)} onClick={(e) => { if (e.target === ref.current) setOpen(false); }}>
+        <div className="modal-body reviews-modal">
+          <button type="button" className="modal-x" onClick={() => setOpen(false)} aria-label="סגירה">×</button>
+          <h2>הביקורות על {tutor.name}</h2>
+          <div className="reviews reviews-all">
+            {open ? reviews.map((r) => <ReviewItem key={r.id} r={r} after={after} />) : null}
+          </div>
+        </div>
+      </dialog>
+    </>
   );
 }
