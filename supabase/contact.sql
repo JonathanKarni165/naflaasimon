@@ -1,4 +1,4 @@
--- נפל האסימון: saved contact details + chat between student and tutor.
+-- נפל האסימון: saved contact details, tutor topics, and chat between student and tutor.
 -- Run AFTER schema.sql (and moderation.sql if you use it). Safe to run more than once.
 
 -- 1. Saved details on the account. profiles is readable only by its owner and admins
@@ -26,7 +26,13 @@ alter table public.inquiries drop constraint if exists inquiries_contact_via;
 alter table public.inquiries add constraint inquiries_contact_via
   check (cardinality(contact_via) between 1 and 3 and contact_via <@ array['site', 'phone', 'email']);
 
--- 3. Chat on an inquiry. Only the student who sent it and the tutor (or an admin) see it.
+-- 3. Specific topics a tutor teaches (from the site's topic list, e.g. "וקטורים", "שאלון 582").
+alter table public.tutors add column if not exists topics text[] not null default '{}';
+alter table public.tutors drop constraint if exists tutors_topics_count;
+alter table public.tutors add constraint tutors_topics_count check (cardinality(topics) <= 80);
+create index if not exists tutors_topics on public.tutors using gin (topics);
+
+-- 4. Chat on an inquiry. Only the student who sent it and the tutor (or an admin) see it.
 create table if not exists public.inquiry_messages (
   id uuid primary key default gen_random_uuid(),
   inquiry_id uuid not null references public.inquiries(id) on delete cascade,

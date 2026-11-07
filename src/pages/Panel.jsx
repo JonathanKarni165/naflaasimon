@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useApp, useLoad, go } from '../state.jsx';
 import { SUBJECTS, LEVELS, CITIES } from '../data/constants.js';
 import { money, dateShort, dateLong, normalizePhone, isPhone } from '../lib/format.js';
-import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, StatusTag, InquiryChat, VIA, viaOf } from '../components/ui.jsx';
+import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, StatusTag, InquiryChat, VIA, viaOf, TopicPicker } from '../components/ui.jsx';
 
 const TABS = [
   ['panel', 'הפרופיל שלי'],
@@ -203,7 +203,7 @@ function MyDetails() {
 }
 
 const EMPTY_TUTOR = {
-  name: '', photo: '', headline: '', about: '', subjects: ['מתמטיקה'], levels: [], city: '', area: '',
+  name: '', photo: '', headline: '', about: '', subjects: ['מתמטיקה'], levels: [], topics: [], city: '', area: '',
   teachesFrontal: true, priceFrontal: '', teachesOnline: true, priceOnline: '', experienceYears: '', phone: '', verified: false,
 };
 
@@ -287,6 +287,14 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
         <span className="field-label" id="tf-lvl">רמות</span>
         <Chips multi label="tf-lvl" options={LEVELS} value={t.levels} onChange={(levels) => set({ levels })} />
         <Err k="levels" />
+        <label className="field-label" htmlFor="tf-topics">נושאים ספציפיים שאתם מלמדים <small className="muted-text">(לא חובה, עוזר לתלמידים למצוא אתכם)</small></label>
+        <TopicPicker id="tf-topics" adder subjects={t.subjects} placeholder="הקלידו נושא: וקטורים, שאלון 582, אינפי 1…"
+          onPick={(o) => { if (o?.topic && !(t.topics || []).includes(o.topic)) set({ topics: [...(t.topics || []), o.topic] }); }} />
+        {(t.topics || []).length ? (
+          <div className="topic-tags">
+            {t.topics.map((x) => <button key={x} type="button" className="tag topic-tag" onClick={() => set({ topics: t.topics.filter((y) => y !== x) })} aria-label={`הסרת ${x}`}>{x} ×</button>)}
+          </div>
+        ) : null}
       </fieldset>
 
       <fieldset>

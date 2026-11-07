@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '../state.jsx';
-import { SUBJECTS, LEVELS, CITIES, cityByName } from '../data/constants.js';
-import { filterTutors, sortTutors } from '../lib/ranking.js';
-import { TutorRow, Seg, Loading, Empty, WherePicker, resolveWhere } from '../components/ui.jsx';
+import { LEVELS, CITIES, cityByName } from '../data/constants.js';
+import { filterTutors, sortTutors, topicFirst } from '../lib/ranking.js';
+import { optionLabel } from '../data/topics.js';
+import { TutorRow, Seg, Loading, Empty, WherePicker, resolveWhere, TopicPicker } from '../components/ui.jsx';
 
 const SORTS = [
   ['best', 'מומלצים'],
@@ -19,7 +20,7 @@ export default function Search() {
 
   const results = useMemo(() => {
     if (!tutors) return null;
-    return sortTutors(filterTutors(tutors, f), f.sort, { origin: f.origin, mode: f.mode });
+    return topicFirst(sortTutors(filterTutors(tutors, f), f.sort, { origin: f.origin, mode: f.mode }), f.topic);
   }, [tutors, f]);
 
   const [whereText, setWhereText] = useState(f.mode === 'online' ? 'online' : f.city === 'המיקום שלי' ? '' : f.city || f.place || '');
@@ -43,12 +44,18 @@ export default function Search() {
   };
 
   const needOrigin = f.sort === 'near' && !f.origin;
-  const activeCount = [f.subject, f.level, f.mode !== 'any', f.maxPrice, f.maxKm, f.q, f.place].filter(Boolean).length;
+  const activeCount = [f.level, f.mode !== 'any', f.maxPrice, f.maxKm, f.q, f.place].filter(Boolean).length;
 
   return (
     <main className="wrap page-pad">
       <div className="page-head">
-        <h1>מורים פרטיים{f.subject ? ` ל${f.subject}` : ''}{f.level ? `, ${f.level}` : ''}</h1>
+        <h1>מורים פרטיים{f.subject ? ` ל${f.subject}` : ''}{f.topic ? `: ${f.topic}` : f.level ? `, ${f.level}` : ''}</h1>
+        <div className="topic-search">
+          <label className="field-label" htmlFor="topic">מה רוצים ללמוד?</label>
+          <TopicPicker id="topic" value={optionLabel(f)} onPick={(o) => set(o
+            ? { subject: o.subject, topic: o.topic, level: o.topic ? (o.level || f.level) : o.level }
+            : { subject: '', topic: '', level: '' })} />
+        </div>
         <p className="muted-text">{results ? `${results.length} מורים` : ''}{f.city && f.origin ? ` · מרחקים מ${f.city === 'המיקום שלי' ? 'המיקום שלכם' : f.city}` : ''}</p>
         <p className="marathon-link">מחפשים מרתון לפני בגרות או קבוצה? <a href="#groups-marathons">לחיפוש מרתונים</a></p>
       </div>
@@ -58,15 +65,8 @@ export default function Search() {
           <div className="filters-inner">
             <div className="filters-top"><h2>סינון</h2><button type="button" className="linkish" onClick={() => { resetFilters(); setWhereText(''); }}>ניקוי</button></div>
 
-            <label className="field-label" htmlFor="q">חיפוש חופשי</label>
-            <input id="q" className="input" type="search" placeholder="שם מורה, נושא, עיר…" value={f.q} onChange={(e) => set({ q: e.target.value })} />
-
-            <label className="field-label" htmlFor="f-subject">מקצוע</label>
-            <select id="f-subject" className="select" value={f.subject} onChange={(e) => set({ subject: e.target.value })}>
-              <option value="">כל המקצועות</option>
-              {SUBJECTS.map((s) => <option key={s}>{s}</option>)}
-              <option>פסיכומטרי</option>
-            </select>
+            <label className="field-label" htmlFor="q">חיפוש לפי שם או מילה</label>
+            <input id="q" className="input" type="search" placeholder="שם מורה, עיר, מילה מהפרופיל…" value={f.q} onChange={(e) => set({ q: e.target.value })} />
 
             <label className="field-label" htmlFor="f-level">רמה</label>
             <select id="f-level" className="select" value={f.level} onChange={(e) => set({ level: e.target.value })}>
@@ -128,7 +128,7 @@ export default function Search() {
               <button type="button" className="btn btn-brand" onClick={() => { resetFilters(); setWhereText(''); }}>ניקוי הסינון</button>
             </Empty>
           ) : (
-            <div className="t-rows">{results.map((t) => <TutorRow key={t.id} tutor={t} sort={f.sort} />)}</div>
+            <div className="t-rows">{results.map((t) => <TutorRow key={t.id} tutor={t} sort={f.sort} topic={f.topic} />)}</div>
           )}
         </section>
       </div>

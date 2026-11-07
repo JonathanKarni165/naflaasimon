@@ -64,6 +64,14 @@ export const SEED_TUTORS = [
     subjects: ['מתמטיקה', 'פיזיקה'], levels: ['4 יח״ל', '5 יח״ל'], priceFrontal: 120, priceOnline: 100, experienceYears: 2, phone: '050-0000114', contactCount: 30,
     about: 'מתמטיקה ופיזיקה 5 יח״ל. שיעור ראשון של חצי שעה בלי תשלום כדי לראות שיש התאמה.' }),
 ];
+// Topics the example tutors ticked in their profile (they come first when a student searches that topic).
+const SEED_TOPICS = {
+  t1: ['חדו״א', 'וקטורים', 'שאלון 581', 'שאלון 582', 'סטטיסטיקה תיאורית', 'הסתברות'],
+  t2: ['שאלון 471', 'שאלון 472', 'גאומטריה אוקלידית', 'בעיות מילוליות', 'טריגונומטריה'],
+  t3: ['חשיבה כמותית', 'קינמטיקה', 'חוקי ניוטון', 'מעגלים חשמליים', 'מבוא להנדסת חשמל'],
+};
+SEED_TUTORS.forEach((t) => { if (SEED_TOPICS[t.id]) t.topics = SEED_TOPICS[t.id]; });
+
 
 // [tutorId, review count, rough average]
 const REVIEW_PLAN = [

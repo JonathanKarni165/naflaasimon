@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useApp, go } from '../state.jsx';
 import { money, rating1, reviewsLabel, initials, avatarColor, km, relDays, dateLong, dateTime, isPhone, isEmail } from '../lib/format.js';
 import { CITIES } from '../data/constants.js';
+import { searchOptions, optionLabel } from '../data/topics.js';
+import { topicMatch } from '../lib/ranking.js';
 
 export function Coin({ size = 30 }) {
   return (
@@ -63,7 +65,7 @@ export function placeLabel(t) {
 }
 
 /** Tutor row: medium photo, caption, what they teach, rating. Used on home + search. */
-export function TutorRow({ tutor, sort }) {
+export function TutorRow({ tutor, sort, topic }) {
   const href = `#tutor-${tutor.id}`;
   const levels = (tutor.levels || []).slice(0, 4);
   return (
@@ -74,6 +76,7 @@ export function TutorRow({ tutor, sort }) {
           <a className="t-name" href={href}>{tutor.name}</a> <Verified tutor={tutor} />
         </div>
         <p className="t-caption">{tutor.headline}</p>
+        {topic && topicMatch(tutor, topic) ? <p className="t-topic">✓ מלמד/ת {topic}</p> : null}
         <p className="t-teaches">
           <span className="t-label">מלמד/ת:</span> {(tutor.subjects || []).join(', ')}
           {levels.length ? <span className="t-levels"> · {levels.join(', ')}</span> : null}
@@ -347,6 +350,54 @@ export function InquiryBox({ tutor }) {
       ) : null}
       <button type="button" className={'btn go ' + (last ? 'btn-line' : 'btn-brand')} onClick={start}>{last ? 'פנייה חדשה' : 'שליחת פנייה למורה'}</button>
       {!user ? <p className="hint">כניסה מהירה עם Google, בלי סיסמה. אפשר לדבר עם המורה בצ׳אט באתר, בלי למסור טלפון.</p> : null}
+    </div>
+  );
+}
+
+/** Marks the typed text inside a suggestion. */
+function Hl({ text, q }) {
+  const t = (q || '').trim();
+  const i = t ? text.indexOf(t) : -1;
+  if (i < 0) return text;
+  return <>{text.slice(0, i)}<mark>{text.slice(i, i + t.length)}</mark>{text.slice(i + t.length)}</>;
+}
+
+/** "מה רוצים ללמוד?": one free-text field with hundreds of topics, e.g. "מתמטיקה - וקטורים". */
+export function TopicPicker({ id, value, onPick, placeholder = 'מקצוע או נושא: וקטורים, 582, אינפי, חומצות…', subjects, autoFocus, adder }) {
+  const [text, setText] = useState(value || '');
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(-1);
+  const ref = useRef(null);
+  useEffect(() => { setText(value || ''); }, [value]);
+  useEffect(() => {
+    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setText(value || ''); } };
+    document.addEventListener('mousedown', close); return () => document.removeEventListener('mousedown', close);
+  }, [value]);
+  const picked = text === value && !!value;
+  // adder: pick topics one after another (tutor profile), so only topic rows and the field empties after each pick.
+  const opts = (picked ? [] : searchOptions(text, adder ? 40 : 14)).filter((o) => (!subjects || subjects.includes(o.subject)) && (!adder || o.topic)).slice(0, 14);
+  const pick = (o) => { onPick(o); setText(o && !adder ? optionLabel(o) : ''); setOpen(false); setActive(-1); };
+  const key = (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setActive((a) => Math.min(opts.length - 1, a + 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(0, a - 1)); }
+    else if (e.key === 'Enter' && open && opts.length) { e.preventDefault(); pick(opts[Math.max(0, active)]); }
+    else if (e.key === 'Escape') { setOpen(false); setText(value || ''); }
+  };
+  return (
+    <div className="combo topic-combo" ref={ref}>
+      <input id={id} className="input combo-input" role="combobox" aria-expanded={open && opts.length > 0} aria-controls={id + '-list'} aria-autocomplete="list"
+        autoComplete="off" enterKeyHint="search" placeholder={placeholder} value={text} autoFocus={autoFocus}
+        onChange={(e) => { setText(e.target.value); setOpen(true); setActive(-1); }}
+        onFocus={(e) => { setOpen(true); if (picked) e.target.select(); }} onClick={() => setOpen(true)} onKeyDown={key} />
+      {text ? <button type="button" className="combo-btn" aria-label="ניקוי" onClick={() => { setText(''); if (value) onPick(null); }}>×</button> : null}
+      {open && opts.length ? (
+        <ul className="combo-list" id={id + '-list'} role="listbox">
+          {opts.map((o, i) => (
+            <li key={o.key} role="option" aria-selected={i === active} className={i === active ? 'on' : ''}
+              onMouseDown={(e) => { e.preventDefault(); pick(o); }}><Hl text={o.label} q={text} /></li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }

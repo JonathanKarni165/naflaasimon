@@ -63,7 +63,7 @@ function check({ data, error }) {
 
 const tutorFromRow = (r, stats = {}) => ({
   id: r.id, ownerId: r.owner_id, name: r.name, photo: r.photo, headline: r.headline, about: r.about,
-  subjects: r.subjects || [], levels: r.levels || [], city: r.city, area: r.area, lat: r.lat, lng: r.lng,
+  subjects: r.subjects || [], levels: r.levels || [], topics: r.topics || [], city: r.city, area: r.area, lat: r.lat, lng: r.lng,
   teachesOnline: r.teaches_online, teachesFrontal: r.teaches_frontal, priceOnline: r.price_online, priceFrontal: r.price_frontal,
   experienceYears: r.experience_years, verified: r.verified, contactCount: r.contact_count, createdAt: r.created_at,
   ratingCount: stats.rating_count || 0, ratingAvg: stats.rating_avg || 0,
@@ -73,6 +73,7 @@ const tutorToRow = (t) => {
   return {
     name: t.name, photo: t.photo || null, headline: t.headline || null, about: t.about || null,
     subjects: t.subjects || [], levels: t.levels || [], city: t.city || null, area: t.area || null,
+    ...((t.topics || []).length ? { topics: t.topics } : {}), // column added by supabase/contact.sql
     lat: c?.lat ?? null, lng: c?.lng ?? null,
     teaches_online: !!t.teachesOnline, teaches_frontal: !!t.teachesFrontal,
     price_online: t.teachesOnline && t.priceOnline !== '' ? Number(t.priceOnline) || null : null,
