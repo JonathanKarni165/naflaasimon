@@ -2,7 +2,7 @@
 // Same interface as api/supabase.js, so the UI does not know which one it talks to.
 import { SEED_TUTORS, DEMO_USERS, buildSeedReviews, buildSeedGroups, buildSeedInquiries } from '../data/seed.js';
 
-const KEY = 'naflaasimon-demo-v2';
+const KEY = 'naflaasimon-demo-v3'; // v3: example tutors have topics
 const SESSION_KEY = 'naflaasimon-demo-user';
 const CONTACTS_KEY = 'naflaasimon-demo-contacts'; // saved name/phone per account, kept across sign-outs
 let mem = null;

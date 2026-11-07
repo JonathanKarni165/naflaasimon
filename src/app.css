@@ -447,3 +447,16 @@ footer .linkish { color: inherit; font-weight: 600; }
 @keyframes cv-spark { 0%, 62% { opacity: 0 } 70% { opacity: 1 } 100% { opacity: 0 } }
 @media (prefers-reduced-motion: reduce) { .coin-veil { display: none; } .loading .coin { animation: none; } }
 .ai-main .status { justify-self: start; width: auto; }
+
+/* Topic search ("מה רוצים ללמוד?") */
+.topic-search { margin-top: 14px; max-width: 640px; display: grid; gap: 6px; }
+.topic-search .field-label { margin: 0; }
+.topic-combo .combo-input { font-size: 17px; }
+.topic-combo .combo-btn { font-size: 22px; font-weight: 700; color: var(--muted); }
+.topic-combo .combo-list { max-height: 360px; }
+.combo-list mark { background: var(--brass-soft); color: inherit; font-weight: 800; border-radius: 3px; padding: 0 1px; box-shadow: inset 0 -2px 0 var(--brass); }
+.combo-list li.on mark, .combo-list li:hover mark { background: transparent; }
+.t-topic { margin: 0; font-size: 14px; font-weight: 800; color: var(--purple-ink); }
+.topic-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.topic-tag { border: 0; cursor: pointer; font: inherit; font-size: 14px; }
+.subjects .chips { margin-top: 10px; }

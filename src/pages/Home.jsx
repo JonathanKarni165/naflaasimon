@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { useApp, go } from '../state.jsx';
 import { SUBJECTS, LEVELS } from '../data/constants.js';
 import { filterTutors, sortTutors, globalMean } from '../lib/ranking.js';
-import { TutorRow, GroupCard, Avatar, Loading, WherePicker, resolveWhere } from '../components/ui.jsx';
+import { TutorRow, GroupCard, Avatar, Loading, WherePicker, resolveWhere, TopicPicker } from '../components/ui.jsx';
+import { optionLabel } from '../data/topics.js';
 
 const TRACKS = [
   ['5 יח״ל', 'בגרות מוגברת', 'שאלונים 581, 582'],
@@ -17,6 +18,7 @@ export default function Home() {
   const { tutors, groups, filters, setFilters } = useApp();
   const [subject, setSubject] = useState(filters.subject || 'מתמטיקה');
   const [level, setLevel] = useState(filters.level || '');
+  const [topic, setTopic] = useState(filters.topic || '');
   const [where, setWhere] = useState(filters.mode === 'online' ? 'online' : filters.city || filters.place || '');
   const [kind, setKind] = useState('private');
 
@@ -37,12 +39,12 @@ export default function Home() {
 
   const submit = (e) => {
     e.preventDefault();
-    if (kind === 'group') { setFilters((f) => ({ ...f, subject, level })); go('groups'); return; }
+    if (kind === 'group') { setFilters((f) => ({ ...f, subject, level, topic })); go('groups'); return; }
     const w = resolveWhere(where);
-    setFilters((f) => ({ ...f, subject, level, ...w, sort: w.origin ? 'near' : 'best' }));
+    setFilters((f) => ({ ...f, subject, level, topic, ...w, sort: w.origin ? 'near' : 'best' }));
     go('search');
   };
-  const track = (lvl) => { setFilters((f) => ({ ...f, subject: lvl === 'פסיכומטרי' ? '' : 'מתמטיקה', level: lvl, sort: 'best' })); go('search'); };
+  const track = (lvl) => { setFilters((f) => ({ ...f, subject: lvl === 'פסיכומטרי' ? '' : 'מתמטיקה', topic: '', level: lvl, sort: 'best' })); go('search'); };
 
   return (
     <main id="top">
@@ -68,10 +70,12 @@ export default function Home() {
       <div className="wrap search">
         <form className="card" onSubmit={submit} aria-label="חיפוש מורה">
           <div className="subjects">
-            <span className="field-label" id="subj-label">מה לומדים?</span>
-            <div className="chips" role="group" aria-labelledby="subj-label">
+            <label className="field-label" htmlFor="home-topic">מה רוצים ללמוד?</label>
+            <TopicPicker id="home-topic" value={optionLabel({ subject, level, topic })}
+              onPick={(o) => { setSubject(o?.subject || ''); setTopic(o?.topic || ''); setLevel(o ? (o.topic ? (o.level || level) : o.level) : ''); }} />
+            <div className="chips" role="group" aria-label="מקצועות נפוצים">
               {SUBJECTS.slice(0, 8).map((s) => (
-                <button key={s} type="button" className="chip" aria-pressed={subject === s} onClick={() => setSubject(subject === s ? '' : s)}>{s}</button>
+                <button key={s} type="button" className="chip" aria-pressed={subject === s && !topic} onClick={() => { setSubject(subject === s && !topic ? '' : s); setTopic(''); }}>{s}</button>
               ))}
             </div>
           </div>

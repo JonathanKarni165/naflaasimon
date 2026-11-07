@@ -40,6 +40,18 @@ export function priceFor(t, mode) {
   return all.length ? Math.min(...all) : null;
 }
 
+/** Does this tutor say they teach the topic (ticked in the profile, or written in the headline/about)? */
+export function topicMatch(t, topic) {
+  if (!topic) return false;
+  return (t.topics || []).includes(topic) || `${t.headline || ''} ${t.about || ''}`.includes(topic);
+}
+
+/** Tutors who teach the chosen topic come first; the chosen sort order is kept inside each part. */
+export function topicFirst(list, topic) {
+  if (!topic) return list;
+  return [...list.filter((t) => topicMatch(t, topic)), ...list.filter((t) => !topicMatch(t, topic))];
+}
+
 export function filterTutors(tutors, f) {
   const q = (f.q || '').trim();
   return tutors.filter((t) => {
@@ -49,7 +61,7 @@ export function filterTutors(tutors, f) {
     if (f.mode === 'frontal' && !t.teachesFrontal) return false;
     if (f.maxPrice) { const p = priceFor(t, f.mode); if (p == null || p > f.maxPrice) return false; }
     if (f.place && !`${t.city || ''} ${t.area || ''}`.includes(f.place.trim())) return false;
-    if (q && !`${t.name} ${t.headline || ''} ${t.city || ''} ${(t.subjects || []).join(' ')}`.includes(q)) return false;
+    if (q && !`${t.name} ${t.headline || ''} ${t.about || ''} ${t.city || ''} ${(t.subjects || []).join(' ')} ${(t.topics || []).join(' ')}`.includes(q)) return false;
     if (f.maxKm && f.origin && f.mode !== 'online') {
       const d = distanceKm(f.origin, tutorPoint(t));
       if (d == null || d > f.maxKm) return false;
