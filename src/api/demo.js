@@ -2,7 +2,7 @@
 // Same interface as api/supabase.js, so the UI does not know which one it talks to.
 import { SEED_TUTORS, DEMO_USERS, buildSeedReviews, buildSeedGroups, buildSeedInquiries } from '../data/seed.js';
 
-const KEY = 'naflaasimon-demo-v4'; // v4: example tutors' courses
+const KEY = 'naflaasimon-demo-v5'; // v5: weekly free hours, inquiry template
 const SESSION_KEY = 'naflaasimon-demo-user';
 const CONTACTS_KEY = 'naflaasimon-demo-contacts'; // saved name/phone per account, kept across sign-outs
 let mem = null;
@@ -92,12 +92,12 @@ export async function getTutorForEdit(id) {
 }
 
 // Inquiries: a student asks a tutor through the site; the tutor answers from the panel.
-export async function sendInquiry({ tutorId, name, phone, email, contactVia, subject, level, mode, message }) {
+export async function sendInquiry({ tutorId, name, phone, email, contactVia, subject, level, mode, lessons, goal, slots, message }) {
   const u = need(); const d = db();
   const t = d.tutors.find((x) => x.id === tutorId);
   if (!t) throw new Error('המורה לא נמצא');
   if (t.ownerId === u.id) throw new Error('אי אפשר לשלוח פנייה לעצמכם');
-  const inq = { id: uid('q'), tutorId, userId: u.id, name, phone: phone || '', email: email || '', contactVia: contactVia || ['site'], subject, level, mode, message, status: 'new', reply: '', createdAt: new Date().toISOString(), repliedAt: null };
+  const inq = { id: uid('q'), tutorId, userId: u.id, name, phone: phone || '', email: email || '', contactVia: contactVia || ['site'], lessons: lessons || '', goal: goal || '', slots: slots || [], subject, level, mode, message, status: 'new', reply: '', createdAt: new Date().toISOString(), repliedAt: null };
   d.inquiries.push(inq);
   t.contactCount = (t.contactCount || 0) + 1;
   save(); return wait(clone(inq));

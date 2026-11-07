@@ -460,3 +460,23 @@ footer .linkish { color: inherit; font-weight: 600; }
 .topic-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .topic-tag { border: 0; cursor: pointer; font: inherit; font-size: 14px; }
 .subjects .chips { margin-top: 10px; }
+
+/* Inquiry template + weekly free hours */
+.inq-step { font-weight: 700; margin: 6px 0 2px; padding-top: 10px; border-top: 1px solid var(--line); }
+.inq-step:first-child { border-top: 0; padding-top: 0; }
+.inq-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
+.week-grid { display: grid; gap: 3px; width: 100%; max-width: 520px; justify-self: start; margin-inline-start: 0; font-size: 13px; }
+.wg-row { display: grid; grid-template-columns: 52px repeat(7, minmax(0, 1fr)); gap: 3px; align-items: stretch; }
+.wg-head span { text-align: center; font-weight: 700; color: var(--muted); }
+.wg-hour { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; align-self: center; direction: ltr; text-align: right; }
+.wg-cell { display: block; min-height: 28px; border-radius: 6px; background: var(--chip); border: 1px solid transparent; padding: 0; }
+.wg-cell.on { background: var(--good); }
+.wg-edit .wg-cell, .wg-pick .wg-cell { cursor: pointer; min-height: 34px; }
+.wg-edit .wg-cell:hover:not(.on) { border-color: var(--good); }
+.wg-pick .wg-cell.free { background: color-mix(in srgb, var(--good) 22%, var(--surface)); }
+.wg-pick .wg-cell.free:hover:not(.on) { border-color: var(--good); }
+.wg-pick .wg-cell.on { background: var(--good); }
+.wg-pick .wg-cell.off { background: repeating-linear-gradient(135deg, var(--chip) 0 4px, transparent 4px 8px); cursor: not-allowed; opacity: .6; }
+.wg-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin-top: 6px; }
+.wg-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-inline-end: 5px; background: var(--good); }
+.wg-legend i.free { background: color-mix(in srgb, var(--good) 22%, var(--surface)); }

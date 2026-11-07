@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useApp, go } from '../state.jsx';
 import { money, rating1, reviewsLabel, initials, avatarColor, km, relDays, dateLong, dateTime, isPhone, isEmail } from '../lib/format.js';
-import { CITIES } from '../data/constants.js';
+import { CITIES, WEEK_DAYS, WEEK_DAY_NAMES, DAY_SLOTS, LESSON_COUNTS, GOALS, slotLabel, labelOf } from '../data/constants.js';
 import { searchOptions, optionLabel } from '../data/topics.js';
 import { topicMatch } from '../lib/ranking.js';
 
@@ -237,6 +237,18 @@ export function InquiryChat({ q, asTutor }) {
   );
 }
 
+/** The inquiry text the tutor reads, built from the template answers. */
+export function buildInquiryText(tutor, f) {
+  const lines = [`היי ${tutor.name.split(' ')[0]}, אשמח לשיעורים${f.subject ? ` ב${f.subject}` : ''}${f.level ? ` (${f.level})` : ''}.`];
+  if (f.lessons) lines.push(`כמה שיעורים: ${labelOf(LESSON_COUNTS, f.lessons)}`);
+  if (f.goal) lines.push(`מטרה: ${labelOf(GOALS, f.goal)}`);
+  if (f.mode) lines.push(`איך: ${f.mode === 'online' ? 'אונליין' : 'פרונטלי'}`);
+  if (f.slots?.length) lines.push(`זמנים נוחים: ${[...f.slots].sort(slotSort).map(slotLabel).join(', ')}`);
+  if (f.note?.trim()) lines.push('', f.note.trim());
+  return lines.join('\n').slice(0, 1000);
+}
+const slotSort = (a, b) => { const [d1, h1] = a.split('-').map(Number); const [d2, h2] = b.split('-').map(Number); return d1 - d2 || h1 - h2; };
+
 /** Contact a tutor through the site. The tutor's phone is never shown; the request lands in their panel. */
 export function InquiryBox({ tutor }) {
   const { user, api, requireLogin, notify, version } = useApp();
@@ -248,8 +260,8 @@ export function InquiryBox({ tutor }) {
   const blank = () => ({
     name: user?.name || '', phone: user?.phone || '', email: user?.email || '', save: true,
     via: user?.phone ? ['site', 'phone'] : ['site'],
-    level: '', mode: both ? '' : tutor.teachesOnline ? 'online' : 'frontal',
-    message: `היי ${tutor.name.split(' ')[0]}, ראיתי את הפרופיל שלך בנפל האסימון ואשמח לשמוע על שיעורים.`,
+    subject: (tutor.subjects || [])[0] || '', level: '', lessons: '', goal: '', slots: [],
+    mode: both ? '' : tutor.teachesOnline ? 'online' : 'frontal', note: '',
   });
   const [f, setF] = useState(blank);
   useEffect(() => {
@@ -272,13 +284,15 @@ export function InquiryBox({ tutor }) {
     if (f.via.includes('phone') && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל 050-1234567', true); setEditDetails(true); return; }
     if (f.via.includes('email') && !isEmail(f.email)) { notify('בדקו את כתובת המייל', true); setEditDetails(true); return; }
     if (f.phone.trim() && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל 050-1234567', true); setEditDetails(true); return; }
-    if (!f.message.trim()) { notify('כתבו כמה מילים למורה', true); return; }
+    if (!f.lessons) { notify('בחרו בערך כמה שיעורים', true); return; }
+    if (!f.goal) { notify('בחרו מה המטרה', true); return; }
     setBusy(true);
     try {
       const q = await api.sendInquiry({
-        tutorId: tutor.id, name: f.name.trim(), level: f.level, mode: f.mode, contactVia: f.via,
+        tutorId: tutor.id, name: f.name.trim(), subject: f.subject, level: f.level, mode: f.mode, contactVia: f.via,
+        lessons: f.lessons, goal: f.goal, slots: f.slots,
         phone: f.via.includes('phone') ? f.phone.trim() : '', email: f.via.includes('email') ? f.email.trim() : '',
-        subject: (tutor.subjects || [])[0] || '', message: f.message.trim(),
+        message: buildInquiryText(tutor, f),
       });
       if (f.save && (f.name.trim() !== user.name || f.phone.trim() !== (user.phone || ''))) {
         await api.saveMyContact({ name: f.name.trim(), phone: f.phone.trim() }).catch(() => {});
@@ -293,6 +307,44 @@ export function InquiryBox({ tutor }) {
   if (open) {
     return (
       <form className="inq-form" onSubmit={submit}>
+        <p className="inq-step">ספרו למורה מה אתם צריכים</p>
+        {(tutor.subjects || []).length > 1 ? (
+          <>
+            <span className="field-label" id="iq-subj">מקצוע</span>
+            <div className="chips wrap-chips" role="group" aria-labelledby="iq-subj">
+              {tutor.subjects.map((x) => <button key={x} type="button" className="chip" aria-pressed={f.subject === x} onClick={() => setF({ ...f, subject: x })}>{x}</button>)}
+            </div>
+          </>
+        ) : null}
+        {(tutor.levels || []).length > 1 ? (
+          <>
+            <label className="field-label" htmlFor="iq-level">רמה</label>
+            <select id="iq-level" className="select" value={f.level} onChange={(e) => setF({ ...f, level: e.target.value })}>
+              <option value="">לא בטוח/ה</option>
+              {tutor.levels.map((l) => <option key={l}>{l}</option>)}
+            </select>
+          </>
+        ) : null}
+        <span className="field-label" id="iq-lessons">כמה שיעורים בערך?</span>
+        <div className="chips wrap-chips" role="group" aria-labelledby="iq-lessons">
+          {LESSON_COUNTS.map(([v, l]) => <button key={v} type="button" className="chip" aria-pressed={f.lessons === v} onClick={() => setF({ ...f, lessons: v })}>{l}</button>)}
+        </div>
+        <span className="field-label" id="iq-goal">מה המטרה?</span>
+        <div className="chips wrap-chips" role="group" aria-labelledby="iq-goal">
+          {GOALS.map(([v, l]) => <button key={v} type="button" className="chip" aria-pressed={f.goal === v} onClick={() => setF({ ...f, goal: v })}>{l}</button>)}
+        </div>
+        {both ? (
+          <>
+            <span className="field-label" id="iq-mode">איך תרצו ללמוד?</span>
+            <Seg label="iq-mode" value={f.mode} onChange={(mode) => setF({ ...f, mode })} options={[['frontal', 'פרונטלי'], ['online', 'אונליין'], ['', 'לא משנה']]} />
+          </>
+        ) : null}
+        <span className="field-label">מתי נוח לכם? <small className="muted-text">(לא חובה{(tutor.availability || []).length ? ', אפשר לבחור רק שעות שהמורה פנוי/ה' : ''})</small></span>
+        <WeekGrid mode="pick" value={f.slots} allowed={tutor.availability} onChange={(slots) => setF({ ...f, slots })} label="בחירת זמנים נוחים" />
+        {(tutor.availability || []).length ? <p className="wg-legend"><span><i className="free" />המורה פנוי/ה</span><span><i />בחרתם</span></p> : null}
+        <label className="field-label" htmlFor="iq-note">משהו נוסף למורה? <small className="muted-text">(לא חובה)</small></label>
+        <textarea id="iq-note" className="input" rows={3} maxLength={600} value={f.note} placeholder="למשל: המבחן ב־15 לחודש, קשה לי בעיקר עם חדו״א" onChange={(e) => setF({ ...f, note: e.target.value })} />
+        <p className="inq-step">איך המורה יחזור אליכם</p>
         {!editDetails ? (
           <div className="my-details">
             <div><b>{f.name}</b><span className="muted-text"><bdi>{f.phone}</bdi>{f.email ? <> · <bdi>{f.email}</bdi></> : null}</span></div>
@@ -309,27 +361,10 @@ export function InquiryBox({ tutor }) {
             <label className="check-line"><input type="checkbox" checked={f.save} onChange={(e) => setF({ ...f, save: e.target.checked })} /> לשמור את השם והטלפון בחשבון שלי לפעם הבאה</label>
           </>
         )}
-        <span className="field-label" id="iq-via">איך נוח שהמורה יחזור אליכם?</span>
+        <span className="field-label" id="iq-via">דרך קשר</span>
         <div className="chips wrap-chips" role="group" aria-labelledby="iq-via">
           {VIA.map(([v, label]) => <button key={v} type="button" className="chip" aria-pressed={f.via.includes(v)} onClick={() => toggleVia(v)}>{label}</button>)}
         </div>
-        {(tutor.levels || []).length > 1 ? (
-          <>
-            <label className="field-label" htmlFor="iq-level">רמה</label>
-            <select id="iq-level" className="select" value={f.level} onChange={(e) => setF({ ...f, level: e.target.value })}>
-              <option value="">לא בטוח/ה</option>
-              {tutor.levels.map((l) => <option key={l}>{l}</option>)}
-            </select>
-          </>
-        ) : null}
-        {both ? (
-          <>
-            <span className="field-label" id="iq-mode">איך תרצו ללמוד?</span>
-            <Seg label="iq-mode" value={f.mode} onChange={(mode) => setF({ ...f, mode })} options={[['frontal', 'פרונטלי'], ['online', 'אונליין'], ['', 'לא משנה']]} />
-          </>
-        ) : null}
-        <label className="field-label" htmlFor="iq-msg">הודעה למורה</label>
-        <textarea id="iq-msg" className="input" rows={4} maxLength={1000} value={f.message} onChange={(e) => setF({ ...f, message: e.target.value })} />
         <button type="submit" className="btn btn-brand go" disabled={busy}>{busy ? 'שולחים…' : 'שליחת הפנייה'}</button>
         <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>ביטול</button>
         <p className="hint">{f.via.includes('phone') || f.via.includes('email')
@@ -400,6 +435,39 @@ export function TopicPicker({ id, value, onPick, placeholder = 'מקצוע או 
           ))}
         </ul>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * Weekly grid of two-hour blocks. mode "edit": tutor toggles free cells. mode "pick": student picks among
+ * `allowed` cells (all cells when allowed is empty). mode "view": read only.
+ */
+export function WeekGrid({ value = [], onChange, mode = 'view', allowed, label = 'שעות פנויות' }) {
+  const on = new Set(value);
+  const ok = (k) => mode === 'edit' || !allowed || !allowed.length || allowed.includes(k);
+  const toggle = (k) => onChange(on.has(k) ? value.filter((x) => x !== k) : [...value, k]);
+  return (
+    <div className={'week-grid wg-' + mode} role="table" aria-label={label}>
+      <div className="wg-row wg-head" role="row">
+        <span role="columnheader" />
+        {WEEK_DAYS.map((d, i) => <span key={d} role="columnheader" title={WEEK_DAY_NAMES[i]}>{d}</span>)}
+      </div>
+      {DAY_SLOTS.map((h) => (
+        <div key={h} className="wg-row" role="row">
+          <span className="wg-hour" role="rowheader">{String(h).padStart(2, '0')}–{String(h + 2).padStart(2, '0')}</span>
+          {WEEK_DAYS.map((d, day) => {
+            const k = `${day}-${h}`;
+            const cls = 'wg-cell' + (on.has(k) ? ' on' : '') + (ok(k) ? '' : ' off') + (mode === 'pick' && allowed?.includes(k) ? ' free' : '');
+            const name = `${WEEK_DAY_NAMES[day]} ${h}:00`;
+            if (mode === 'view') return <span key={k} role="cell" className={cls} aria-label={`${name}: ${on.has(k) ? 'פנוי' : 'לא פנוי'}`} />;
+            return (
+              <button key={k} type="button" role="cell" className={cls} disabled={!ok(k)} aria-pressed={on.has(k)} aria-label={name}
+                onClick={() => toggle(k)} />
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }
