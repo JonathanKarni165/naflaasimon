@@ -480,3 +480,6 @@ footer .linkish { color: inherit; font-weight: 600; }
 .wg-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin-top: 6px; }
 .wg-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-inline-end: 5px; background: var(--good); }
 .wg-legend i.free { background: color-mix(in srgb, var(--good) 22%, var(--surface)); }
+
+/* No connection */
+.offline-bar { background: #A33A2C; color: #fff; text-align: center; font-size: 14px; font-weight: 700; padding: 8px 16px; position: sticky; top: 0; z-index: 40; }

@@ -613,6 +613,13 @@ export function UserMenu() {
   );
 }
 
+/** Shown while there is no internet connection. */
+export function OfflineBar() {
+  const { online } = useApp();
+  if (online) return null;
+  return <div className="offline-bar" role="status">אין חיבור לאינטרנט. מוצג המידע האחרון שנטען, ונעדכן כשהחיבור יחזור.</div>;
+}
+
 export function Header() {
   const { user, setLoginOpen, route, api } = useApp();
   const cur = (n) => (route.name === n || route.name.startsWith(n + '-') ? 'page' : undefined);
