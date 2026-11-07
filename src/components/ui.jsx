@@ -559,7 +559,6 @@ export function Header() {
           <nav className="links" aria-label="ראשי">
             <a href="#search" aria-current={cur('search')}>חיפוש מורים</a>
             <a href="#groups" aria-current={cur('groups')}>קבוצות למידה</a>
-            <a href="#panel" aria-current={cur('panel')}>פאנל מורה</a>
           </nav>
           <div className="top-actions">
             {user ? <UserMenu /> : <button type="button" className="btn btn-ghost" onClick={() => setLoginOpen(true)}>כניסה</button>}
@@ -574,7 +573,7 @@ export function Header() {
 
 export function BottomNav() {
   const { route } = useApp();
-  const items = [['', 'home', 'בית'], ['search', 'search', 'חיפוש'], ['groups', 'groups', 'קבוצות'], ['panel', 'panel', 'פאנל מורה']];
+  const items = [['', 'home', 'בית'], ['search', 'search', 'חיפוש'], ['groups', 'groups', 'קבוצות']];
   const active = (n) => (n === '' ? route.name === 'home' : route.name === n || route.name.startsWith(n + '-') || (n === 'search' && route.name === 'tutor') || (n === 'groups' && route.name === 'group'));
   return (
     <nav className="bottom-nav" aria-label="ניווט מהיר">
