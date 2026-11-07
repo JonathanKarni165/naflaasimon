@@ -15,7 +15,8 @@ function Router() {
   switch (route.name) {
     case 'search': return <Search />;
     case 'tutor': return <Tutor id={route.id} />;
-    case 'groups': return <Groups />;
+    case 'groups': return <Groups key="all" />;
+    case 'groups-marathons': return <Groups key="marathons" initialKind="marathon" />;
     case 'group': return <Group id={route.id} />;
     case 'about': return <About />;
     default:

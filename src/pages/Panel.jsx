@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useApp, useLoad, go } from '../state.jsx';
 import { SUBJECTS, LEVELS, CITIES } from '../data/constants.js';
-import { money, dateShort, dateLong, normalizePhone } from '../lib/format.js';
-import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, StatusTag } from '../components/ui.jsx';
+import { money, dateShort, dateLong, normalizePhone, isPhone } from '../lib/format.js';
+import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, StatusTag, InquiryChat, VIA, viaOf } from '../components/ui.jsx';
 
 const TABS = [
   ['panel', 'הפרופיל שלי'],
   ['panel-inbox', 'פניות מתלמידים'],
   ['panel-groups', 'קבוצות למידה'],
   ['panel-seats', 'הפניות וההרשמות שלי'],
+  ['panel-me', 'הפרטים שלי'],
   ['panel-admin', 'ניהול מורים'],
 ];
 
@@ -40,6 +41,8 @@ function PanelTabs() {
   const fresh = (inbox || []).filter((q) => q.status === 'new').length;
   const tabs = TABS.filter(([k]) => k !== 'panel-admin' || user.isAdmin);
   const tab = tabs.some(([k]) => k === route.name) ? route.name : 'panel';
+  // On phones the tab row scrolls sideways: keep the open tab in view.
+  useEffect(() => { document.querySelector('.tabs [aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }, [tab]);
   return (
     <main className="wrap page-pad">
       <div className="page-head"><h1>האזור האישי</h1><p className="muted-text">שלום {user.name}{user.isAdmin ? ' · מנהל/ת האתר' : ''}</p></div>
@@ -50,6 +53,7 @@ function PanelTabs() {
       {tab === 'panel-inbox' && <Inbox />}
       {tab === 'panel-groups' && <MyGroups />}
       {tab === 'panel-seats' && <MySeats />}
+      {tab === 'panel-me' && <MyDetails />}
       {tab === 'panel-admin' && <AdminTutors />}
     </main>
   );
@@ -125,7 +129,7 @@ function Inbox() {
   const n = (st) => all.filter((q) => q.status === st).length;
   return (
     <div className="inbox">
-      <p className="muted-text">תלמידים שולחים לכם פנייה מהפרופיל. הטלפון שלכם לא מוצג באתר: אתם רואים את הפרטים שלהם ובוחרים אם לחזור אליהם.</p>
+      <p className="muted-text">תלמידים שולחים לכם פנייה מהפרופיל. הטלפון שלכם לא מוצג באתר. עונים בצ׳אט כאן, או בטלפון ובמייל אם התלמיד בחר לשתף אותם.</p>
       <div className="chips wrap-chips" role="group" aria-label="סינון פניות">
         {[['open', `פתוחות (${n('new') + n('replied')})`], ['new', `חדשות (${n('new')})`], ['booked', `נקבע שיעור (${n('booked')})`], ['declined', `לא מתאים (${n('declined')})`], ['all', `הכול (${all.length})`]].map(([k, l]) => (
           <button key={k} type="button" className="chip" aria-pressed={filter === k} onClick={() => setFilter(k)}>{l}</button>
@@ -145,9 +149,10 @@ function Inbox() {
 }
 
 function InquiryItem({ q, onChange, showTutor }) {
-  const [replying, setReplying] = useState(false);
-  const [text, setText] = useState(q.reply || '');
-  const wa = `https://wa.me/${normalizePhone(q.phone)}?text=${encodeURIComponent(`היי ${q.name.split(' ')[0]}, כאן ${q.tutor?.name || ''} מנפל האסימון. קיבלתי את הפנייה שלך.`)}`;
+  const via = viaOf(q);
+  const first = q.name.split(' ')[0];
+  const wa = q.phone ? `https://wa.me/${normalizePhone(q.phone)}?text=${encodeURIComponent(`היי ${first}, כאן ${q.tutor?.name || ''} מנפל האסימון. קיבלתי את הפנייה שלך.`)}` : '';
+  const mail = q.email ? `mailto:${q.email}?subject=${encodeURIComponent('הפנייה שלך בנפל האסימון')}` : '';
   return (
     <article className={'inq' + (q.status === 'new' ? ' is-new' : '')}>
       <div className="inq-top">
@@ -156,24 +161,44 @@ function InquiryItem({ q, onChange, showTutor }) {
         <span className="muted-text inq-date">{dateShort(q.createdAt)}</span>
       </div>
       <p className="t-meta">{[q.subject, q.level, q.mode != null ? MODE_LABEL[q.mode] : ''].filter(Boolean).join(' · ')}{showTutor && q.tutor ? ` · אל ${q.tutor.name}` : ''}</p>
-      <p className="inq-msg">{q.message}</p>
-      {q.reply && !replying ? <div className="inq-answer"><small>התשובה שלכם{q.repliedAt ? ` · ${dateShort(q.repliedAt)}` : ''}</small><p>{q.reply}</p></div> : null}
-      {replying ? (
-        <form className="inq-reply-form" onSubmit={(e) => { e.preventDefault(); if (!text.trim()) return; onChange({ reply: text.trim() }, 'התשובה נשלחה לתלמיד'); setReplying(false); }}>
-          <label className="sr-only" htmlFor={'rp-' + q.id}>תשובה</label>
-          <textarea id={'rp-' + q.id} className="input" rows={3} maxLength={1000} value={text} onChange={(e) => setText(e.target.value)} placeholder="למשל: היי, אני פנוי ביום שני ב־18:00. נתאם בוואטסאפ?" />
-          <div className="form-actions"><button type="submit" className="btn btn-brand btn-sm">שליחת תשובה</button><button type="button" className="btn btn-ghost btn-sm" onClick={() => setReplying(false)}>ביטול</button></div>
-        </form>
-      ) : null}
+      <p className="via-line">מעדיף/ה: {VIA.filter(([v]) => via.includes(v)).map(([, l]) => l).join(' · ')}</p>
+      <InquiryChat q={q} asTutor />
       <div className="inq-actions">
-        {!replying ? <button type="button" className="btn btn-brand btn-sm" onClick={() => setReplying(true)}>{q.reply ? 'עריכת התשובה' : 'תשובה באתר'}</button> : null}
-        <a className="btn btn-wa btn-sm" href={wa} target="_blank" rel="noreferrer">וואטסאפ</a>
-        <a className="btn btn-line btn-sm" href={`tel:${q.phone.replace(/[^\d+]/g, '')}`}><bdi>{q.phone}</bdi></a>
+        {wa ? <a className="btn btn-wa btn-sm" href={wa} target="_blank" rel="noreferrer">וואטסאפ</a> : null}
+        {q.phone ? <a className="btn btn-line btn-sm" href={`tel:${q.phone.replace(/[^\d+]/g, '')}`}><bdi>{q.phone}</bdi></a> : null}
+        {mail ? <a className="btn btn-line btn-sm" href={mail}><bdi>{q.email}</bdi></a> : null}
         {q.status !== 'booked' ? <button type="button" className="btn btn-line btn-sm" onClick={() => onChange({ status: 'booked' }, 'סומן: נקבע שיעור')}>נקבע שיעור ✓</button> : null}
         {q.status !== 'declined' ? <button type="button" className="linkish small" onClick={() => onChange({ status: 'declined' }, 'הפנייה סומנה כלא מתאימה')}>לא מתאים</button>
-          : <button type="button" className="linkish small" onClick={() => onChange({ status: q.reply ? 'replied' : 'new' }, 'הפנייה הוחזרה לפתוחות')}>החזרה לפתוחות</button>}
+          : <button type="button" className="linkish small" onClick={() => onChange({ status: q.messageCount || q.reply ? 'replied' : 'new' }, 'הפנייה הוחזרה לפתוחות')}>החזרה לפתוחות</button>}
       </div>
     </article>
+  );
+}
+
+/** Saved contact details: filled in automatically when contacting a tutor or joining a group. */
+function MyDetails() {
+  const { api, user, notify } = useApp();
+  const [f, setF] = useState({ name: user.name || '', phone: user.phone || '' });
+  const [busy, setBusy] = useState(false);
+  const save = async (e) => {
+    e.preventDefault();
+    if (!f.name.trim()) { notify('כתבו שם', true); return; }
+    if (f.phone.trim() && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל 050-1234567', true); return; }
+    setBusy(true);
+    try { await api.saveMyContact({ name: f.name.trim(), phone: f.phone.trim() }); notify('הפרטים נשמרו'); } catch (err) { notify(err.message, true); }
+    setBusy(false);
+  };
+  return (
+    <form className="details-form" onSubmit={save}>
+      <p className="muted-text">הפרטים האלה ימולאו לבד כשתפנו למורה או תירשמו לקבוצה. הם לא מוצגים באתר. מורה רואה את הטלפון שלכם רק אם בחרתם לשתף אותו בפנייה.</p>
+      <label className="field-label" htmlFor="me-name">שם</label>
+      <input id="me-name" className="input" autoComplete="name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+      <label className="field-label" htmlFor="me-phone">טלפון</label>
+      <input id="me-phone" className="input" type="tel" autoComplete="tel" inputMode="tel" dir="ltr" placeholder="050-1234567" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+      <span className="field-label">מייל</span>
+      <p className="me-email"><bdi>{user.email || 'לא ידוע'}</bdi> <small className="muted-text">מחשבון Google</small></p>
+      <div className="form-actions"><button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'שומרים…' : 'שמירת הפרטים'}</button></div>
+    </form>
   );
 }
 
@@ -485,9 +510,8 @@ function MySeats() {
                   <StatusTag status={q.status} />
                   <span className="muted-text inq-date">{dateShort(q.createdAt)}</span>
                 </div>
-                <p className="inq-msg muted-text">{q.message}</p>
-                {q.reply ? <div className="inq-answer"><small>תשובת המורה{q.repliedAt ? ` · ${dateShort(q.repliedAt)}` : ''}</small><p>{q.reply}</p></div>
-                  : q.status === 'new' ? <p className="hint">המורה עוד לא ענה. הוא יכול גם לחזור אליכם ישירות לטלפון.</p> : null}
+                {q.status === 'new' && !q.messageCount ? <p className="hint">המורה עוד לא ענה. בינתיים אפשר להוסיף הודעה.</p> : null}
+                <InquiryChat q={q} />
               </article>
             ))}
           </div>

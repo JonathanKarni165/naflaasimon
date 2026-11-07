@@ -50,6 +50,7 @@ export default function Search() {
       <div className="page-head">
         <h1>מורים פרטיים{f.subject ? ` ל${f.subject}` : ''}{f.level ? `, ${f.level}` : ''}</h1>
         <p className="muted-text">{results ? `${results.length} מורים` : ''}{f.city && f.origin ? ` · מרחקים מ${f.city === 'המיקום שלי' ? 'המיקום שלכם' : f.city}` : ''}</p>
+        <p className="marathon-link">מחפשים מרתון לפני בגרות או קבוצה? <a href="#groups-marathons">לחיפוש מרתונים</a></p>
       </div>
 
       <div className="search-layout">

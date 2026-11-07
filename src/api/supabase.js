@@ -16,9 +16,11 @@ const listeners = new Set();
 async function loadProfile(session) {
   if (!session?.user) return null;
   const u = session.user;
-  const { data } = await sb.from('profiles').select('name, is_admin, avatar').eq('id', u.id).maybeSingle();
+  let { data, error } = await sb.from('profiles').select('name, is_admin, avatar, phone').eq('id', u.id).maybeSingle();
+  // Before supabase/contact.sql has run there is no phone column yet.
+  if (error) ({ data } = await sb.from('profiles').select('name, is_admin, avatar').eq('id', u.id).maybeSingle());
   return {
-    id: u.id, email: u.email,
+    id: u.id, email: u.email, phone: data?.phone || '',
     name: data?.name || u.user_metadata?.full_name || u.email,
     avatar: data?.avatar || u.user_metadata?.avatar_url || null,
     isAdmin: !!data?.is_admin,
@@ -109,7 +111,8 @@ export async function getTutorForEdit(id) {
   return withPhone(tutorFromRow(r));
 }
 const inquiryFromRow = (q) => ({
-  id: q.id, tutorId: q.tutor_id, userId: q.user_id, name: q.name, phone: q.phone, subject: q.subject, level: q.level,
+  id: q.id, tutorId: q.tutor_id, userId: q.user_id, name: q.name, phone: q.phone || '', email: q.email || '',
+  contactVia: q.contact_via || (q.phone ? ['phone'] : ['site']), subject: q.subject, level: q.level,
   mode: q.mode, message: q.message, status: q.status, reply: q.reply || '', createdAt: q.created_at, repliedAt: q.replied_at,
 });
 async function attachTutors(list) {
@@ -117,12 +120,41 @@ async function attachTutors(list) {
   if (!ids.length) return list;
   const rows = check(await sb.from('tutors').select('*').in('id', ids));
   const map = Object.fromEntries(rows.map((r) => [r.id, tutorFromRow(r)]));
-  return list.map((q) => ({ ...q, tutor: map[q.tutorId] || null }));
+  const { data: msgs } = await sb.from('inquiry_messages').select('inquiry_id, from_tutor, created_at').in('inquiry_id', list.map((q) => q.id)).order('created_at');
+  const byQ = {};
+  (msgs || []).forEach((m) => { (byQ[m.inquiry_id] ||= []).push(m); });
+  return list.map((q) => {
+    const ms = byQ[q.id] || []; const last = ms[ms.length - 1];
+    return { ...q, tutor: map[q.tutorId] || null, messageCount: ms.length, lastFromTutor: last ? last.from_tutor : !!q.reply, lastAt: last?.created_at || q.repliedAt || q.createdAt };
+  });
 }
-export async function sendInquiry({ tutorId, name, phone, subject, level, mode, message }) {
+export async function sendInquiry({ tutorId, name, phone, email, contactVia, subject, level, mode, message }) {
   const u = need();
-  const row = check(await sb.from('inquiries').insert({ tutor_id: tutorId, user_id: u.id, name, phone, subject: subject || null, level: level || null, mode: mode ?? null, message }).select().single());
+  const row = check(await sb.from('inquiries').insert({
+    tutor_id: tutorId, user_id: u.id, name, phone: phone || null, email: email || null, contact_via: contactVia || ['site'],
+    subject: subject || null, level: level || null, mode: mode ?? null, message,
+  }).select().single());
   return inquiryFromRow(row);
+}
+
+/** The signed-in person's saved contact details (private: only they and admins can read their profile row). */
+export async function saveMyContact({ name, phone }) {
+  const u = need();
+  const patch = { name: (name || u.name).trim(), phone: (phone || '').trim() || null };
+  check(await sb.from('profiles').update(patch).eq('id', u.id));
+  user = { ...u, name: patch.name, phone: patch.phone || '' };
+  listeners.forEach((cb) => cb(user));
+  return user;
+}
+
+// Chat on an inquiry: row level security lets only the student and the tutor read or write it.
+const chatFromRow = (m) => ({ id: m.id, inquiryId: m.inquiry_id, senderId: m.sender_id, fromTutor: m.from_tutor, text: m.text, createdAt: m.created_at });
+export async function listInquiryMessages(inquiryId) {
+  return check(await sb.from('inquiry_messages').select('*').eq('inquiry_id', inquiryId).order('created_at')).map(chatFromRow);
+}
+export async function sendInquiryMessage(inquiryId, text, asTutor) {
+  const u = need();
+  return chatFromRow(check(await sb.from('inquiry_messages').insert({ inquiry_id: inquiryId, sender_id: u.id, from_tutor: !!asTutor, text }).select().single()));
 }
 export async function myInquiries() {
   if (!user) return [];
@@ -245,7 +277,7 @@ export async function addGroupMessage(groupId, text) {
 export function resetDemo() {}
 
 // Live updates: any change anyone makes (new group, seat, inquiry, review…) reaches every open page.
-const LIVE_TABLES = ['tutors', 'groups', 'group_seats', 'group_messages', 'reviews', 'inquiries'];
+const LIVE_TABLES = ['tutors', 'groups', 'group_seats', 'group_messages', 'reviews', 'inquiries', 'inquiry_messages'];
 export function subscribe(onChange) {
   const ch = sb.channel('site-changes');
   LIVE_TABLES.forEach((table) => ch.on('postgres_changes', { event: '*', schema: 'public', table }, () => onChange(table)));

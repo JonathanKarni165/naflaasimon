@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useApp, go } from '../state.jsx';
-import { money, rating1, reviewsLabel, initials, avatarColor, km, relDays, dateLong, dateShort } from '../lib/format.js';
+import { money, rating1, reviewsLabel, initials, avatarColor, km, relDays, dateLong, dateTime, isPhone, isEmail } from '../lib/format.js';
 import { CITIES } from '../data/constants.js';
 
 export function Coin({ size = 30 }) {
@@ -173,15 +173,79 @@ export function StatusTag({ status, map = INQ_STATUS }) {
   return <span className={'status ' + cls}>{label}</span>;
 }
 
+export const VIA = [['site', 'צ׳אט באתר'], ['phone', 'טלפון / וואטסאפ'], ['email', 'מייל']];
+export const viaOf = (q) => (q.contactVia && q.contactVia.length ? q.contactVia : q.phone ? ['phone'] : ['site']);
+
+/** Two-way chat on one inquiry. The first bubble is the inquiry itself. */
+export function InquiryChat({ q, asTutor }) {
+  const { api, notify, version, reload } = useApp();
+  const [msgs, setMsgs] = useState(null);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const listRef = useRef(null);
+  useEffect(() => {
+    let live = true;
+    api.listInquiryMessages(q.id).then((m) => live && setMsgs(m), () => live && setMsgs([]));
+    return () => { live = false; };
+  }, [api, q.id, version]);
+  useEffect(() => { const el = listRef.current; if (el) el.scrollTop = el.scrollHeight; }, [msgs]);
+
+  const tutorName = q.tutor?.name || 'המורה';
+  const items = [
+    { id: 'first', fromTutor: false, text: q.message, createdAt: q.createdAt },
+    ...(q.reply ? [{ id: 'reply', fromTutor: true, text: q.reply, createdAt: q.repliedAt || q.createdAt }] : []),
+    ...(msgs || []),
+  ];
+  const send = async (e) => {
+    e.preventDefault();
+    const t = text.trim();
+    if (!t || busy) return;
+    setBusy(true);
+    try {
+      const m = await api.sendInquiryMessage(q.id, t, asTutor);
+      setMsgs((list) => [...(list || []), m]); setText('');
+      reload(); // status (new → answered) and the inbox badge update everywhere
+    } catch (err) { notify(err.message, true); }
+    setBusy(false);
+  };
+  const other = asTutor ? q.name.split(' ')[0] : tutorName.split(' ')[0];
+  return (
+    <div className="chat">
+      <ol className="chat-list" ref={listRef}>
+        {items.map((m) => {
+          const mine = m.fromTutor === !!asTutor;
+          return (
+            <li key={m.id} className={'msg ' + (mine ? 'mine' : 'theirs')}>
+              <span className="msg-who">{mine ? 'אתם' : m.fromTutor ? tutorName : q.name}</span>
+              <p>{m.text}</p>
+              <time dateTime={m.createdAt}>{dateTime(m.createdAt)}</time>
+            </li>
+          );
+        })}
+      </ol>
+      <form className="chat-form" onSubmit={send}>
+        <label className="sr-only" htmlFor={'chat-' + q.id}>הודעה ל{other}</label>
+        <textarea id={'chat-' + q.id} className="input" rows={1} maxLength={1000} value={text} placeholder={`הודעה ל${other}…`}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) send(e); }} />
+        <button type="submit" className="btn btn-brand btn-sm" disabled={busy || !text.trim()}>שליחה</button>
+      </form>
+    </div>
+  );
+}
+
 /** Contact a tutor through the site. The tutor's phone is never shown; the request lands in their panel. */
 export function InquiryBox({ tutor }) {
   const { user, api, requireLogin, notify, version } = useApp();
   const [mine, setMine] = useState([]);
   const [open, setOpen] = useState(false);
+  const [editDetails, setEditDetails] = useState(false);
   const [busy, setBusy] = useState(false);
   const both = tutor.teachesFrontal && tutor.teachesOnline;
   const blank = () => ({
-    name: user?.name || '', phone: '', level: '', mode: both ? '' : tutor.teachesOnline ? 'online' : 'frontal',
+    name: user?.name || '', phone: user?.phone || '', email: user?.email || '', save: true,
+    via: user?.phone ? ['site', 'phone'] : ['site'],
+    level: '', mode: both ? '' : tutor.teachesOnline ? 'online' : 'frontal',
     message: `היי ${tutor.name.split(' ')[0]}, ראיתי את הפרופיל שלך בנפל האסימון ואשמח לשמוע על שיעורים.`,
   });
   const [f, setF] = useState(blank);
@@ -196,17 +260,28 @@ export function InquiryBox({ tutor }) {
 
   const start = () => {
     if (!requireLogin('כדי לשלוח פנייה למורה צריך להתחבר. ככה המורה יודע שמדובר באדם אמיתי, ואתם רואים את התשובה באזור האישי.')) return;
-    setF(blank()); setOpen(true);
+    setF(blank()); setEditDetails(!user?.phone); setOpen(true);
   };
+  const toggleVia = (v) => setF((x) => ({ ...x, via: x.via.includes(v) ? x.via.filter((y) => y !== v) : [...x.via, v] }));
   const submit = async (e) => {
     e.preventDefault();
-    if (!/^0\d{1,2}-?\d{7}$/.test(f.phone.replace(/\s/g, ''))) { notify('בדקו את מספר הטלפון, למשל 050-1234567', true); return; }
+    if (!f.via.length) { notify('בחרו לפחות דרך אחת שבה המורה יחזור אליכם', true); return; }
+    if (f.via.includes('phone') && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל 050-1234567', true); setEditDetails(true); return; }
+    if (f.via.includes('email') && !isEmail(f.email)) { notify('בדקו את כתובת המייל', true); setEditDetails(true); return; }
+    if (f.phone.trim() && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל 050-1234567', true); setEditDetails(true); return; }
     if (!f.message.trim()) { notify('כתבו כמה מילים למורה', true); return; }
     setBusy(true);
     try {
-      const q = await api.sendInquiry({ tutorId: tutor.id, ...f, subject: (tutor.subjects || [])[0] || '', message: f.message.trim() });
-      setMine((m) => [{ ...q, tutor }, ...m]); setOpen(false);
-      notify('הפנייה נשלחה! התשובה תופיע אצלכם ב״הפניות שלי״.');
+      const q = await api.sendInquiry({
+        tutorId: tutor.id, name: f.name.trim(), level: f.level, mode: f.mode, contactVia: f.via,
+        phone: f.via.includes('phone') ? f.phone.trim() : '', email: f.via.includes('email') ? f.email.trim() : '',
+        subject: (tutor.subjects || [])[0] || '', message: f.message.trim(),
+      });
+      if (f.save && (f.name.trim() !== user.name || f.phone.trim() !== (user.phone || ''))) {
+        await api.saveMyContact({ name: f.name.trim(), phone: f.phone.trim() }).catch(() => {});
+      }
+      setMine((m) => [{ ...q, tutor, messageCount: 0 }, ...m]); setOpen(false);
+      notify('הפנייה נשלחה! אפשר להמשיך לדבר עם המורה כאן או ב״הפניות שלי״.');
     } catch (err) { notify(err.message, true); }
     setBusy(false);
   };
@@ -215,10 +290,26 @@ export function InquiryBox({ tutor }) {
   if (open) {
     return (
       <form className="inq-form" onSubmit={submit}>
-        <label className="field-label" htmlFor="iq-name">שם</label>
-        <input id="iq-name" className="input" required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
-        <label className="field-label" htmlFor="iq-phone">טלפון לחזרה אליכם</label>
-        <input id="iq-phone" className="input" required inputMode="tel" dir="ltr" placeholder="050-1234567" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+        {!editDetails ? (
+          <div className="my-details">
+            <div><b>{f.name}</b><span className="muted-text"><bdi>{f.phone}</bdi>{f.email ? <> · <bdi>{f.email}</bdi></> : null}</span></div>
+            <button type="button" className="linkish small" onClick={() => setEditDetails(true)}>שינוי</button>
+          </div>
+        ) : (
+          <>
+            <label className="field-label" htmlFor="iq-name">שם</label>
+            <input id="iq-name" className="input" required autoComplete="name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+            <label className="field-label" htmlFor="iq-phone">טלפון {f.via.includes('phone') ? '' : <small className="muted-text">(לא חובה)</small>}</label>
+            <input id="iq-phone" className="input" type="tel" autoComplete="tel" inputMode="tel" dir="ltr" placeholder="050-1234567" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+            <label className="field-label" htmlFor="iq-email">מייל</label>
+            <input id="iq-email" className="input" type="email" autoComplete="email" dir="ltr" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+            <label className="check-line"><input type="checkbox" checked={f.save} onChange={(e) => setF({ ...f, save: e.target.checked })} /> לשמור את השם והטלפון בחשבון שלי לפעם הבאה</label>
+          </>
+        )}
+        <span className="field-label" id="iq-via">איך נוח שהמורה יחזור אליכם?</span>
+        <div className="chips wrap-chips" role="group" aria-labelledby="iq-via">
+          {VIA.map(([v, label]) => <button key={v} type="button" className="chip" aria-pressed={f.via.includes(v)} onClick={() => toggleVia(v)}>{label}</button>)}
+        </div>
         {(tutor.levels || []).length > 1 ? (
           <>
             <label className="field-label" htmlFor="iq-level">רמה</label>
@@ -238,7 +329,9 @@ export function InquiryBox({ tutor }) {
         <textarea id="iq-msg" className="input" rows={4} maxLength={1000} value={f.message} onChange={(e) => setF({ ...f, message: e.target.value })} />
         <button type="submit" className="btn btn-brand go" disabled={busy}>{busy ? 'שולחים…' : 'שליחת הפנייה'}</button>
         <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>ביטול</button>
-        <p className="hint">המורה יראה את השם, הטלפון וההודעה שלכם, ויחזור אליכם.</p>
+        <p className="hint">{f.via.includes('phone') || f.via.includes('email')
+          ? `המורה יראה את השם${f.via.includes('phone') ? ', הטלפון' : ''}${f.via.includes('email') ? ', המייל' : ''} וההודעה שלכם.`
+          : 'המורה יראה רק את השם וההודעה שלכם, ויענה בצ׳אט כאן באתר.'}</p>
       </form>
     );
   }
@@ -246,14 +339,14 @@ export function InquiryBox({ tutor }) {
     <div className="inq-box">
       {last ? (
         <div className="inq-sent">
-          <div className="inq-sent-top"><b>שלחתם פנייה</b><StatusTag status={last.status} /></div>
-          <p className="hint">{dateShort(last.createdAt)} · {last.status === 'new' ? 'המורה עוד לא ענה. בדרך כלל עונים תוך יום.' : 'המורה ענה לכם:'}</p>
-          {last.reply ? <p className="inq-reply">{last.reply}</p> : null}
+          <div className="inq-sent-top"><b>השיחה שלכם עם {tutor.name.split(' ')[0]}</b><StatusTag status={last.status} /></div>
+          {last.status === 'new' && !last.messageCount ? <p className="hint">המורה עוד לא ענה. בדרך כלל עונים תוך יום.</p> : null}
+          <InquiryChat q={{ ...last, tutor }} />
           <a className="linkish small" href="#panel-seats">לכל הפניות שלי</a>
         </div>
       ) : null}
-      <button type="button" className={'btn go ' + (last ? 'btn-line' : 'btn-brand')} onClick={start}>{last ? 'פנייה נוספת' : 'שליחת פנייה למורה'}</button>
-      {!user ? <p className="hint">כניסה מהירה עם Google, בלי סיסמה. הפנייה מגיעה ישר לאזור האישי של המורה.</p> : null}
+      <button type="button" className={'btn go ' + (last ? 'btn-line' : 'btn-brand')} onClick={start}>{last ? 'פנייה חדשה' : 'שליחת פנייה למורה'}</button>
+      {!user ? <p className="hint">כניסה מהירה עם Google, בלי סיסמה. אפשר לדבר עם המורה בצ׳אט באתר, בלי למסור טלפון.</p> : null}
     </div>
   );
 }
@@ -275,7 +368,10 @@ export function WherePicker({ id, value, onChange, placeholder = 'עיר או ש
   const [active, setActive] = useState(-1);
   const ref = useRef(null);
   const shown = value === 'online' ? 'אונליין' : value;
-  const q = (shown || '').trim();
+  const typed = (shown || '').trim();
+  // A value that was picked from the list (e.g. "חיפה") must not hide the other cities: show them all.
+  const picked = WHERE_FIXED.some(([, l]) => l === typed) || CITIES.some((c) => c.name === typed);
+  const q = picked ? '' : typed;
   const opts = [
     ...WHERE_FIXED.filter(([, l]) => !q || l.includes(q)),
     ...CITIES.filter((c) => !q || c.name.includes(q)).map((c) => [c.name, c.name]),
@@ -296,7 +392,7 @@ export function WherePicker({ id, value, onChange, placeholder = 'עיר או ש
       <input id={id} className="input combo-input" role="combobox" aria-expanded={open} aria-controls={id + '-list'} aria-autocomplete="list"
         autoComplete="off" placeholder={placeholder} value={shown}
         onChange={(e) => { onChange(e.target.value); setOpen(true); setActive(-1); }}
-        onFocus={() => setOpen(true)} onKeyDown={key} />
+        onFocus={(e) => { setOpen(true); if (picked) e.target.select(); }} onClick={() => setOpen(true)} onKeyDown={key} />
       <button type="button" className="combo-btn" tabIndex={-1} aria-label="הצגת האפשרויות" onClick={() => setOpen((o) => !o)}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
       </button>
@@ -387,6 +483,7 @@ export function UserMenu() {
           <a href="#panel-groups" onClick={() => setOpen(false)}>קבוצות הלמידה שלי</a>
           <a href="#panel-inbox" onClick={() => setOpen(false)}>פניות מתלמידים</a>
           <a href="#panel-seats" onClick={() => setOpen(false)}>הפניות וההרשמות שלי</a>
+          <a href="#panel-me" onClick={() => setOpen(false)}>הפרטים שלי</a>
           {user.isAdmin ? <a href="#panel-admin" onClick={() => setOpen(false)}>ניהול מורים</a> : null}
           <button type="button" onClick={() => { setOpen(false); api.auth.signOut(); }}>התנתקות</button>
         </div>
@@ -443,7 +540,7 @@ export function Footer() {
     <footer>
       <div className="wrap">
         <nav aria-label="קישורים">
-          <a href="#search">חיפוש מורים</a><a href="#groups">קבוצות למידה</a><a href="#panel">למורים</a><a href="#about">אודות ותנאי שימוש</a>
+          <a href="#search">חיפוש מורים</a><a href="#groups">קבוצות למידה</a><a href="#groups-marathons">מרתונים</a><a href="#panel">למורים</a><a href="#about">אודות ותנאי שימוש</a>
         </nav>
         <p>© 2026 נפל האסימון · מורים פרטיים למתמטיקה ועוד
           {api.mode === 'demo' ? <> · <button type="button" className="linkish" onClick={() => { api.resetDemo(); reload(); notify('נתוני ההדגמה אופסו'); }}>איפוס נתוני ההדגמה</button></> : null}
