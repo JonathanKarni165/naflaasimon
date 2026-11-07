@@ -72,6 +72,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .chip { flex: none; border: 1.5px solid var(--line); background: var(--chip); color: var(--ink); border-radius: 999px; padding: 8px 14px; font-weight: 600; cursor: pointer; }
 .chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
 .row2 { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; }
+.row1 { display: grid; gap: 12px; }
 .card > * { min-width: 0; }
 .select { width: 100%; appearance: none; border: 1.5px solid var(--line); background: var(--surface); border-radius: 12px; padding: 12px 14px; font-weight: 600; }
 .seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--chip); border-radius: 12px; padding: 4px; gap: 4px; }
@@ -140,7 +141,7 @@ footer a { text-decoration: none; }
   .slot { width: 96px; height: 138px; top: 40px; }
   .card { grid-template-columns: 1.4fr 1fr 1fr auto; align-items: end; padding: 22px; }
   .card .subjects { grid-column: 1 / -1; }
-  .row2 { grid-column: span 2; }
+  .row2, .row1 { grid-column: span 2; }
   .go { width: auto; padding-inline: 28px; }
   .tracks { grid-template-columns: repeat(3, minmax(0,1fr)); }
   .tutors { grid-template-columns: repeat(3, minmax(0,1fr)); }
@@ -236,7 +237,7 @@ section.block { padding-block: 64px 0; }
   .hero-grid { column-gap: 80px; }
   .hero-art { max-width: 360px; justify-self: end; }
   .card { grid-template-columns: 1.2fr 1fr auto; padding: 24px 28px; column-gap: 20px; }
-  .row2 { grid-column: auto; }
+  .row2, .row1 { grid-column: auto; }
   .sec-head h2 { font-size: 36px; }
   .sec-head { margin-bottom: 24px; align-items: end; }
   section.block { padding-block: 112px 0; }
