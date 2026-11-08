@@ -2,7 +2,8 @@
 // Called by the database (supabase/notify.sql) right after a row is added to public.inquiries.
 // Mail goes through Resend when RESEND_API_KEY is set (needs a verified domain), otherwise through
 // Gmail SMTP with GMAIL_USER + GMAIL_APP_PASSWORD (an app password, not the account password).
-// Secrets: NOTIFY_SECRET (same value as in private.notify_settings), SITE_URL, and one of the two mail setups.
+// Each inquiry is mailed at most once and only within 10 minutes of being sent (inquiries.notified_at),
+// so the public URL can't be used to spam anyone. Secrets: GMAIL_USER + GMAIL_APP_PASSWORD (or RESEND_API_KEY).
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
 
@@ -29,13 +30,16 @@ async function send(to: string, subject: string, html: string, text: string) {
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('method', { status: 405 });
-  if (!env('NOTIFY_SECRET') || req.headers.get('x-notify-secret') !== env('NOTIFY_SECRET')) return new Response('forbidden', { status: 403 });
   const { inquiry_id } = await req.json().catch(() => ({}));
   if (!inquiry_id) return new Response('missing inquiry_id', { status: 400 });
 
   const db = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), { auth: { persistSession: false } });
-  const { data: q, error } = await db.from('inquiries').select('id, name, subject, level, message, contact_via, phone, email, tutor_id, tutors(name, owner_id)').eq('id', inquiry_id).single();
-  if (error || !q) return new Response('not found', { status: 404 });
+  // Claim the inquiry: only a fresh one that wasn't mailed yet. Two calls can't both win.
+  const since = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  const { data: q, error } = await db.from('inquiries').update({ notified_at: new Date().toISOString() })
+    .eq('id', inquiry_id).is('notified_at', null).gt('created_at', since)
+    .select('id, name, subject, level, message, contact_via, phone, email, tutor_id, tutors(name, owner_id)').maybeSingle();
+  if (error || !q) return new Response('nothing to send', { status: 200 });
   const owner = (q as any).tutors?.owner_id;
   if (!owner) return new Response('tutor has no account', { status: 200 });
   const { data: u } = await db.auth.admin.getUserById(owner);
