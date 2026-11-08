@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "moderation-sql": "node scripts/build-moderation-sql.mjs",
-    "test": "node scripts/test-moderation.mjs"
+    "test": "node scripts/test-moderation.mjs",
+    "seed-sql": "node scripts/build-seed-sql.mjs"
   },
   "keywords": [],
   "author": "",

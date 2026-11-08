@@ -2,6 +2,12 @@
    teal accent (--purple* names kept from the mock-up), 2px ink borders, Secular One + Assistant. */
 :root { --danger: #A1352B; --danger-soft: #F8E1DD; --wa: #1F7A4D; }
 body { margin: 0; background: var(--bg); color: var(--ink); }
+/* Phones: nothing may push the page sideways (a too-wide row made the whole screen pan and look cut off).
+   clip, unlike hidden, keeps the sticky top bar working. */
+html, body { overflow-x: clip; max-width: 100%; }
+img, svg, video { max-width: 100%; }
+.t-row > *, .f2 > *, .f3 > * { min-width: 0; }
+.facts dd, .p-about { overflow-wrap: break-word; }
 .page { min-height: 100vh; display: flex; flex-direction: column; }
 /* The page is a column flexbox and .wrap centers itself with auto margins, which turns off stretching:
    without an explicit width a wide row (tabs, chips) could push the page sideways on phones. */
@@ -34,7 +40,7 @@ img { max-width: 100%; }
 .user-menu { position: relative; }
 .user-btn { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 2px solid var(--ink); border-radius: 999px; padding: 3px 12px 3px 3px; cursor: pointer; font-weight: 700; }
 .user-btn img, .acct-av { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 14px; flex: none; object-fit: cover; }
-.user-pop { position: absolute; inset-inline-end: 0; top: calc(100% + 8px); background: var(--surface); border: 2px solid var(--ink); border-radius: 14px; padding: 12px; display: grid; gap: 4px; min-width: 210px; z-index: 30; }
+.user-pop { position: absolute; inset-inline-end: 0; top: calc(100% + 8px); background: var(--surface); border: 2px solid var(--ink); border-radius: 14px; padding: 12px; display: grid; gap: 4px; min-width: 210px; max-width: calc(100vw - 32px); z-index: 30; }
 .user-pop b { font-size: 15px; }
 .user-pop .tag { justify-self: start; }
 .user-pop a, .user-pop button { text-decoration: none; padding: 8px 6px; border-radius: 8px; background: none; border: 0; text-align: start; cursor: pointer; font-weight: 600; }
@@ -108,7 +114,7 @@ textarea.input { resize: vertical; line-height: 1.6; }
 .marathon-link { margin: 4px 0 0; font-size: 15px; font-weight: 600; }
 .sort-note { color: var(--muted); font-size: 14px; margin: 8px 0 14px; }
 .inline-pick { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
-.inline-pick .select { flex: 1; min-width: 180px; }
+.inline-pick .select { flex: 1; min-width: min(180px, 100%); }
 .only-sm { display: inline-flex; }
 .t-rows { display: grid; gap: 12px; }
 .t-row { background: var(--surface); border: 2px solid var(--line); border-radius: 18px; padding: 14px; display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 14px; transition: border-color .15s ease; }
@@ -225,7 +231,7 @@ textarea.input { resize: vertical; line-height: 1.6; }
 /* Groups page */
 .group-filters { display: grid; gap: 12px; margin-bottom: 20px; }
 .gf-row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
-.gf-row .seg { min-width: 260px; }
+.gf-row .seg { min-width: min(260px, 100%); }
 .groups-page { grid-template-columns: 1fr; }
 @media (min-width: 760px) { .groups-page { grid-template-columns: repeat(2, minmax(0,1fr)); } }
 @media (min-width: 1024px) { .groups-page { grid-template-columns: repeat(3, minmax(0,1fr)) !important; } }
@@ -459,6 +465,9 @@ footer .linkish { color: inherit; font-weight: 600; }
 .t-topic { margin: 0; font-size: 14px; font-weight: 800; color: var(--purple-ink); }
 .topic-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .topic-tag { border: 0; cursor: pointer; font: inherit; font-size: 14px; }
+.subtopic-group { margin: 6px 0 12px; padding: 10px 12px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); }
+.subtopic-title { display: block; font-weight: 700; font-size: 15px; margin-bottom: 6px; }
+.subtopic-group .chip { font-size: 14px; }
 .subjects .chips { margin-top: 10px; }
 
 /* Inquiry template + weekly free hours */

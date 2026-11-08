@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useApp, useLoad, useMyTutor, go } from '../state.jsx';
 import { SUBJECTS, LEVELS, CITIES, GOALS, LESSON_COUNTS, labelOf } from '../data/constants.js';
 import { money, dateShort, dateLong, normalizePhone, isPhone } from '../lib/format.js';
-import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, StatusTag, InquiryChat, VIA, viaOf, TopicPicker, WeekGrid } from '../components/ui.jsx';
+import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, StatusTag, InquiryChat, VIA, viaOf, WeekGrid } from '../components/ui.jsx';
+import { subtopicsOf } from '../data/topics.js';
 
 // Tutor-only tabs are hidden from students; a student sees only their own inquiries and details.
 const TUTOR_TABS = ['panel', 'panel-inbox', 'panel-groups'];
@@ -296,18 +297,32 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
       <fieldset>
         <legend>מה מלמדים</legend>
         <span className="field-label" id="tf-subj">מקצועות</span>
-        <Chips multi label="tf-subj" options={[...SUBJECTS, 'פסיכומטרי']} value={t.subjects} onChange={(subjects) => set({ subjects })} />
+        <Chips multi label="tf-subj" options={[...SUBJECTS, 'פסיכומטרי']} value={t.subjects}
+          onChange={(subjects) => {
+            // Removing a subject also removes the sub-topics that belong only to it.
+            const keep = new Set(subjects.flatMap(subtopicsOf));
+            set({ subjects, topics: (t.topics || []).filter((x) => keep.has(x) || !(t.subjects || []).some((s) => subtopicsOf(s).includes(x))) });
+          }} />
         <Err k="subjects" />
         <span className="field-label" id="tf-lvl">רמות</span>
         <Chips multi label="tf-lvl" options={LEVELS} value={t.levels} onChange={(levels) => set({ levels })} />
         <Err k="levels" />
-        <label className="field-label" htmlFor="tf-topics">שאלונים וקורסים שאתם מלמדים <small className="muted-text">(לא חובה, עוזר לתלמידים למצוא אתכם)</small></label>
-        <TopicPicker id="tf-topics" adder subjects={t.subjects} placeholder="הקלידו שאלון או קורס: 582, אינפי 1…"
-          onPick={(o) => { if (o?.topic && !(t.topics || []).includes(o.topic)) set({ topics: [...(t.topics || []), o.topic] }); }} />
-        {(t.topics || []).length ? (
-          <div className="topic-tags">
-            {t.topics.map((x) => <button key={x} type="button" className="tag topic-tag" onClick={() => set({ topics: t.topics.filter((y) => y !== x) })} aria-label={`הסרת ${x}`}>{x} ×</button>)}
-          </div>
+        {(t.subjects || []).length ? (
+          <>
+            <span className="field-label">תתי נושאים <small className="muted-text">(לא חובה: סמנו מה אתם מלמדים בכל מקצוע, כך תלמידים ימצאו אתכם)</small></span>
+            {t.subjects.map((s) => {
+              const opts = subtopicsOf(s);
+              if (!opts.length) return null;
+              const idL = `tf-sub-${SUBJECTS.indexOf(s)}`;
+              return (
+                <div key={s} className="subtopic-group">
+                  <span className="subtopic-title" id={idL}>{s}</span>
+                  <Chips multi label={idL} options={opts} value={(t.topics || []).filter((x) => opts.includes(x))}
+                    onChange={(mine) => set({ topics: [...(t.topics || []).filter((x) => !opts.includes(x)), ...mine] })} />
+                </div>
+              );
+            })}
+          </>
         ) : null}
       </fieldset>
 
