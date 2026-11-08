@@ -3,6 +3,7 @@ import { useApp, useLoad } from '../state.jsx';
 import { bayesScore, globalMean } from '../lib/ranking.js';
 import { money, dateShort, rating1, reviewsLabel } from '../lib/format.js';
 import { Avatar, Stars, StarRow, Verified, InquiryBox, GroupCard, WeekGrid, ConfirmButton, Loading, Empty, placeLabel } from '../components/ui.jsx';
+import { topicsBySubject } from '../data/topics.js';
 
 export default function Tutor({ id }) {
   const { api, tutors, groups, user, version, reload } = useApp();
@@ -46,7 +47,9 @@ export default function Tutor({ id }) {
             <dl className="facts">
               <div><dt>מקצועות</dt><dd className="t-tags">{(tutor.subjects || []).map((s) => <span key={s} className="tag brass">{s}</span>)}</dd></div>
               <div><dt>רמות</dt><dd className="t-tags">{(tutor.levels || []).map((l) => <span key={l} className="tag">{l}</span>)}</dd></div>
-              {(tutor.topics || []).length ? <div><dt>קורסים</dt><dd className="t-tags">{tutor.topics.map((x) => <span key={x} className="tag">{x}</span>)}</dd></div> : null}
+              {topicsBySubject(tutor.subjects, tutor.topics).map(([s, list]) => (
+                <div key={s}><dt>{s}</dt><dd className="t-tags">{list.map((x) => <span key={x} className="tag">{x}</span>)}</dd></div>
+              ))}
               <div><dt>מיקום</dt><dd>{placeLabel(tutor) || 'לא צוין'}</dd></div>
             </dl>
           </section>

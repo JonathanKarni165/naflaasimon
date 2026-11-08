@@ -129,3 +129,47 @@ export function searchOptions(text, limit = 14) {
 export const optionLabel = ({ subject, level, topic }) => (!subject ? '' : topic ? `${subject} - ${topic}` : `${subject} - ${level || 'הכל'}`);
 
 export const topicByName = (name) => TOPICS.find((t) => t.name === name);
+
+// Sub-topics a tutor ticks under each subject they teach (מקצוע ← תת נושא), e.g. מתמטיקה ← אלגברה לינארית 1.
+// Broad chapters per subject come first, then the exam codes and courses from RAW above.
+// These chapters are for tutor profiles only; the search suggestions stay subjects, exams and courses.
+const CHAPTERS = {
+  'מתמטיקה': 'חשבון, שברים ואחוזים, אלגברה, גאומטריה, טריגונומטריה, הסתברות, סטטיסטיקה, סדרות, חדו״א, וקטורים, מספרים מרוכבים, גדילה ודעיכה',
+  'פיזיקה': 'מכניקה, חשמל ומגנטיות, קרינה וחומר, אופטיקה וגלים, מעבדה',
+  'כימיה': 'מבנה וקישור, סטויכיומטריה, חומצות ובסיסים, חמצון חיזור, כימיה אורגנית, אנרגיה וקצב תגובה, מעבדה',
+  'ביולוגיה': 'התא, גוף האדם, גנטיקה, אקולוגיה, מעבדה',
+  'מדעי המחשב': 'יסודות התכנות, Java, Python, C#, מבני נתונים, תכנות מונחה עצמים',
+  'אנגלית': 'אוצר מילים ודקדוק, הבנת הנקרא (Unseen), כתיבה, שיחה (Oral), ספרות (Literature)',
+  'לשון': 'תחביר, מורפולוגיה, הבנת הנקרא, כתיבה',
+  'ספרות': 'שירה, סיפור קצר, רומן, דרמה',
+  'היסטוריה': 'לאומיות וציונות, השואה, הקמת המדינה, העת החדשה',
+  'אזרחות': 'עקרונות הדמוקרטיה, מוסדות השלטון, זכויות האדם, מדינת ישראל כמדינה יהודית ודמוקרטית',
+  'תנ״ך': 'תורה, נביאים, כתובים',
+  'ערבית': 'דקדוק, הבנת הנקרא, שיחה (ערבית מדוברת), תרגום',
+  'סטטיסטיקה': 'סטטיסטיקה תיאורית, הסתברות, התפלגויות, בדיקת השערות, רגרסיה, SPSS',
+  'כלכלה': 'מיקרו כלכלה, מאקרו כלכלה',
+  'חשבונאות': 'דוחות כספיים',
+  'גאוגרפיה': 'גאוגרפיה פיזית, גאוגרפיה של האדם, ארץ ישראל',
+  'מחשבת ישראל': 'פילוסופיה יהודית, הגות בעת החדשה',
+  'צרפתית': 'דקדוק, שיחה, הבנת הנקרא',
+  'ספרדית': 'דקדוק, שיחה, הבנת הנקרא',
+  'פסיכומטרי': 'חשיבה כמותית, חשיבה מילולית, אנגלית, כתיבת חיבור',
+  'פסיכולוגיה': 'סטטיסטיקה לפסיכולוגים',
+};
+const split = (s) => String(s || '').split(',').map((x) => x.trim()).filter(Boolean);
+
+/** Sub-topics of a subject, chapters first, then exam codes and courses (no repeats). */
+export const subtopicsOf = (subject) => [...new Set([...split(CHAPTERS[subject]), ...TOPICS.filter((t) => t.subject === subject).map((t) => t.name)])];
+
+/** A tutor's sub-topics grouped under the subjects they teach: [[subject, [topic…]]…]; topics outside every subject go under "אחר". */
+export function topicsBySubject(subjects = [], topics = []) {
+  const left = new Set(topics);
+  const out = [];
+  for (const s of subjects) {
+    const own = subtopicsOf(s).filter((x) => topics.includes(x));
+    own.forEach((x) => left.delete(x));
+    if (own.length) out.push([s, own]);
+  }
+  if (left.size) out.push(['אחר', [...left]]);
+  return out;
+}
