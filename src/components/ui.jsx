@@ -254,8 +254,11 @@ export function InquiryBox({ tutor }) {
   const { user, api, requireLogin, notify, version } = useApp();
   const [mine, setMine] = useState([]);
   const [open, setOpen] = useState(false);
+  const [step, setStep] = useState(0);
+  const [sent, setSent] = useState(false);
   const [editDetails, setEditDetails] = useState(false);
   const [busy, setBusy] = useState(false);
+  const dlg = useRef(null);
   const both = tutor.teachesFrontal && tutor.teachesOnline;
   const blank = () => ({
     name: user?.name || '', phone: user?.phone || '', email: user?.email || '', save: true,
@@ -270,12 +273,17 @@ export function InquiryBox({ tutor }) {
     api.myInquiries().then((list) => live && setMine(list.filter((q) => q.tutorId === tutor.id)), () => {});
     return () => { live = false; };
   }, [user?.id, tutor.id, version, api]);
+  useEffect(() => {
+    const d = dlg.current; if (!d) return;
+    if (open && !d.open) d.showModal();
+    if (!open && d.open) d.close();
+  }, [open]);
 
   if (user && user.id === tutor.ownerId) return <p className="hint">זה הפרופיל שלכם. פניות מתלמידים מגיעות ל<a href="#panel-inbox">תיבת הפניות בפאנל</a>.</p>;
 
   const start = () => {
     if (!requireLogin('כדי לשלוח פנייה למורה צריך להתחבר. ככה המורה יודע שמדובר באדם אמיתי, ואתם רואים את התשובה באזור האישי.')) return;
-    setF(blank()); setEditDetails(!user?.phone); setOpen(true);
+    setF(blank()); setEditDetails(!user?.name); setStep(0); setSent(false); setOpen(true);
   };
   const toggleVia = (v) => setF((x) => ({ ...x, via: x.via.includes(v) ? x.via.filter((y) => y !== v) : [...x.via, v] }));
   const submit = async (e) => {
@@ -284,8 +292,7 @@ export function InquiryBox({ tutor }) {
     if (f.via.includes('phone') && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל 050-1234567', true); setEditDetails(true); return; }
     if (f.via.includes('email') && !isEmail(f.email)) { notify('בדקו את כתובת המייל', true); setEditDetails(true); return; }
     if (f.phone.trim() && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל 050-1234567', true); setEditDetails(true); return; }
-    if (!f.lessons) { notify('בחרו בערך כמה שיעורים', true); return; }
-    if (!f.goal) { notify('בחרו מה המטרה', true); return; }
+    if (!f.lessons || !f.goal) { setStep(0); notify('בחרו כמה שיעורים ומה המטרה', true); return; }
     setBusy(true);
     try {
       const q = await api.sendInquiry({
@@ -297,82 +304,130 @@ export function InquiryBox({ tutor }) {
       if (f.save && (f.name.trim() !== user.name || f.phone.trim() !== (user.phone || ''))) {
         await api.saveMyContact({ name: f.name.trim(), phone: f.phone.trim() }).catch(() => {});
       }
-      setMine((m) => [{ ...q, tutor, messageCount: 0 }, ...m]); setOpen(false);
-      notify('הפנייה נשלחה! אפשר להמשיך לדבר עם המורה כאן או ב״הפניות שלי״.');
+      setMine((m) => [{ ...q, tutor, messageCount: 0 }, ...m]); setSent(true);
     } catch (err) { notify(err.message, true); }
     setBusy(false);
   };
   const last = mine[0];
 
-  if (open) {
-    return (
-      <form className="inq-form" onSubmit={submit}>
-        <p className="inq-step">ספרו למורה מה אתם צריכים</p>
-        {(tutor.subjects || []).length > 1 ? (
-          <>
-            <span className="field-label" id="iq-subj">מקצוע</span>
-            <div className="chips wrap-chips" role="group" aria-labelledby="iq-subj">
-              {tutor.subjects.map((x) => <button key={x} type="button" className="chip" aria-pressed={f.subject === x} onClick={() => setF({ ...f, subject: x })}>{x}</button>)}
-            </div>
-          </>
-        ) : null}
-        {(tutor.levels || []).length > 1 ? (
-          <>
-            <label className="field-label" htmlFor="iq-level">רמה</label>
-            <select id="iq-level" className="select" value={f.level} onChange={(e) => setF({ ...f, level: e.target.value })}>
-              <option value="">לא בטוח/ה</option>
-              {tutor.levels.map((l) => <option key={l}>{l}</option>)}
-            </select>
-          </>
-        ) : null}
-        <span className="field-label" id="iq-lessons">כמה שיעורים בערך?</span>
-        <div className="chips wrap-chips" role="group" aria-labelledby="iq-lessons">
-          {LESSON_COUNTS.map(([v, l]) => <button key={v} type="button" className="chip" aria-pressed={f.lessons === v} onClick={() => setF({ ...f, lessons: v })}>{l}</button>)}
-        </div>
-        <span className="field-label" id="iq-goal">מה המטרה?</span>
-        <div className="chips wrap-chips" role="group" aria-labelledby="iq-goal">
-          {GOALS.map(([v, l]) => <button key={v} type="button" className="chip" aria-pressed={f.goal === v} onClick={() => setF({ ...f, goal: v })}>{l}</button>)}
-        </div>
-        {both ? (
-          <>
-            <span className="field-label" id="iq-mode">איך תרצו ללמוד?</span>
-            <Seg label="iq-mode" value={f.mode} onChange={(mode) => setF({ ...f, mode })} options={[['frontal', 'פרונטלי'], ['online', 'אונליין'], ['', 'לא משנה']]} />
-          </>
-        ) : null}
-        <span className="field-label">מתי נוח לכם? <small className="muted-text">(לא חובה{(tutor.availability || []).length ? ', אפשר לבחור רק שעות שהמורה פנוי/ה' : ''})</small></span>
-        <WeekGrid mode="pick" value={f.slots} allowed={tutor.availability} onChange={(slots) => setF({ ...f, slots })} label="בחירת זמנים נוחים" />
-        {(tutor.availability || []).length ? <p className="wg-legend"><span><i className="free" />המורה פנוי/ה</span><span><i />בחרתם</span></p> : null}
-        <label className="field-label" htmlFor="iq-note">משהו נוסף למורה? <small className="muted-text">(לא חובה)</small></label>
-        <textarea id="iq-note" className="input" rows={3} maxLength={600} value={f.note} placeholder="למשל: המבחן ב־15 לחודש, קשה לי בעיקר עם חדו״א" onChange={(e) => setF({ ...f, note: e.target.value })} />
-        <p className="inq-step">איך המורה יחזור אליכם</p>
-        {!editDetails ? (
-          <div className="my-details">
-            <div><b>{f.name}</b><span className="muted-text"><bdi>{f.phone}</bdi>{f.email ? <> · <bdi>{f.email}</bdi></> : null}</span></div>
-            <button type="button" className="linkish small" onClick={() => setEditDetails(true)}>שינוי</button>
+  const STEPS = ['מה צריך', 'מתי ואיך', 'פרטים ושליחה'];
+  const canNext = step === 0 ? !!(f.lessons && f.goal) : true;
+  const next = () => {
+    if (step === 0 && !f.lessons) { notify('בחרו בערך כמה שיעורים', true); return; }
+    if (step === 0 && !f.goal) { notify('בחרו מה המטרה', true); return; }
+    setStep(step + 1);
+  };
+  const close = () => { setOpen(false); setSent(false); };
+  const wizard = (
+    <dialog ref={dlg} className="modal inq-modal" onClose={close} onClick={(e) => { if (e.target === dlg.current) close(); }} aria-labelledby="iq-title">
+      <form className="modal-body inq-wiz" onSubmit={step < 2 ? (e) => { e.preventDefault(); next(); } : submit}>
+        <button type="button" className="modal-x" onClick={close} aria-label="סגירה">×</button>
+        {sent ? (
+          <div className="inq-done">
+            <Coin size={48} />
+            <h2 id="iq-title">הפנייה נשלחה ל{tutor.name.split(' ')[0]}</h2>
+            <p className="muted-text">המורה קיבל/ה אותה בפאנל{f.via.includes('phone') || f.via.includes('email') ? ' יחד עם פרטי הקשר שבחרתם' : ''}. התשובה תופיע כאן בפרופיל וב״הפניות שלי״.</p>
+            <button type="button" className="btn btn-brand go" onClick={close}>סגירה</button>
           </div>
         ) : (
           <>
-            <label className="field-label" htmlFor="iq-name">שם</label>
-            <input id="iq-name" className="input" required autoComplete="name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
-            <label className="field-label" htmlFor="iq-phone">טלפון {f.via.includes('phone') ? '' : <small className="muted-text">(לא חובה)</small>}</label>
-            <input id="iq-phone" className="input" type="tel" autoComplete="tel" inputMode="tel" dir="ltr" placeholder="050-1234567" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
-            <label className="field-label" htmlFor="iq-email">מייל</label>
-            <input id="iq-email" className="input" type="email" autoComplete="email" dir="ltr" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
-            <label className="check-line"><input type="checkbox" checked={f.save} onChange={(e) => setF({ ...f, save: e.target.checked })} /> לשמור את השם והטלפון בחשבון שלי לפעם הבאה</label>
+            <div className="wiz-head">
+              <h2 id="iq-title">פנייה ל{tutor.name}</h2>
+              <ol className="wiz-steps" aria-label="שלבים">
+                {STEPS.map((x, i) => <li key={x} className={i === step ? 'on' : i < step ? 'done' : ''} aria-current={i === step ? 'step' : undefined}><span>{i + 1}</span>{x}</li>)}
+              </ol>
+            </div>
+            <div className="wiz-body">
+              {step === 0 ? (
+                <>
+                  {(tutor.subjects || []).length > 1 ? (
+                    <>
+                      <span className="field-label" id="iq-subj">מקצוע</span>
+                      <div className="chips wrap-chips" role="group" aria-labelledby="iq-subj">
+                        {tutor.subjects.map((x) => <button key={x} type="button" className="chip" aria-pressed={f.subject === x} onClick={() => setF({ ...f, subject: x })}>{x}</button>)}
+                      </div>
+                    </>
+                  ) : null}
+                  {(tutor.levels || []).length > 1 ? (
+                    <>
+                      <span className="field-label" id="iq-level">רמה</span>
+                      <div className="chips wrap-chips" role="group" aria-labelledby="iq-level">
+                        {tutor.levels.map((l) => <button key={l} type="button" className="chip" aria-pressed={f.level === l} onClick={() => setF({ ...f, level: f.level === l ? '' : l })}>{l}</button>)}
+                      </div>
+                    </>
+                  ) : null}
+                  <span className="field-label" id="iq-lessons">כמה שיעורים בערך?</span>
+                  <div className="chips wrap-chips" role="group" aria-labelledby="iq-lessons">
+                    {LESSON_COUNTS.map(([v, l]) => <button key={v} type="button" className="chip" aria-pressed={f.lessons === v} onClick={() => setF({ ...f, lessons: v })}>{l}</button>)}
+                  </div>
+                  <span className="field-label" id="iq-goal">מה המטרה?</span>
+                  <div className="chips wrap-chips" role="group" aria-labelledby="iq-goal">
+                    {GOALS.map(([v, l]) => <button key={v} type="button" className="chip" aria-pressed={f.goal === v} onClick={() => setF({ ...f, goal: v })}>{l}</button>)}
+                  </div>
+                </>
+              ) : null}
+              {step === 1 ? (
+                <>
+                  {both ? (
+                    <>
+                      <span className="field-label" id="iq-mode">איך תרצו ללמוד?</span>
+                      <Seg label="iq-mode" value={f.mode} onChange={(mode) => setF({ ...f, mode })} options={[['frontal', 'פרונטלי'], ['online', 'אונליין'], ['', 'לא משנה']]} />
+                    </>
+                  ) : null}
+                  <span className="field-label">מתי נוח לכם? <small className="muted-text">(לא חובה)</small></span>
+                  <WeekGrid mode="pick" value={f.slots} allowed={tutor.availability} onChange={(slots) => setF({ ...f, slots })} label="בחירת זמנים נוחים" />
+                  {(tutor.availability || []).length ? <p className="wg-legend"><span><i className="free" />המורה פנוי/ה</span><span><i />בחרתם</span></p> : null}
+                  <label className="field-label" htmlFor="iq-note">משהו נוסף? <small className="muted-text">(לא חובה)</small></label>
+                  <textarea id="iq-note" className="input" rows={2} maxLength={600} value={f.note} placeholder="למשל: המבחן ב־15 לחודש" onChange={(e) => setF({ ...f, note: e.target.value })} />
+                </>
+              ) : null}
+              {step === 2 ? (
+                <>
+                  <span className="field-label" id="iq-via">איך המורה יחזור אליכם?</span>
+                  <div className="chips wrap-chips" role="group" aria-labelledby="iq-via">
+                    {VIA.map(([v, label]) => <button key={v} type="button" className="chip" aria-pressed={f.via.includes(v)} onClick={() => toggleVia(v)}>{label}</button>)}
+                  </div>
+                  {!editDetails ? (
+                    <div className="my-details">
+                      <div><b>{f.name}</b><span className="muted-text"><bdi>{[f.via.includes('phone') && f.phone, f.via.includes('email') && f.email].filter(Boolean).join(' · ') || 'בלי טלפון ומייל, רק צ׳אט באתר'}</bdi></span></div>
+                      <button type="button" className="linkish small" onClick={() => setEditDetails(true)}>שינוי</button>
+                    </div>
+                  ) : (
+                    <>
+                      <label className="field-label" htmlFor="iq-name">שם</label>
+                      <input id="iq-name" className="input" required autoComplete="name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+                      {f.via.includes('phone') ? (
+                        <>
+                          <label className="field-label" htmlFor="iq-phone">טלפון</label>
+                          <input id="iq-phone" className="input" type="tel" autoComplete="tel" inputMode="tel" dir="ltr" placeholder="050-1234567" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+                        </>
+                      ) : null}
+                      {f.via.includes('email') ? (
+                        <>
+                          <label className="field-label" htmlFor="iq-email">מייל</label>
+                          <input id="iq-email" className="input" type="email" autoComplete="email" dir="ltr" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+                        </>
+                      ) : null}
+                      <label className="check-line"><input type="checkbox" checked={f.save} onChange={(e) => setF({ ...f, save: e.target.checked })} /> לשמור את הפרטים לפעם הבאה</label>
+                    </>
+                  )}
+                  <span className="field-label">כך המורה יקבל את הפנייה</span>
+                  <pre className="inq-preview">{buildInquiryText(tutor, f)}</pre>
+                </>
+              ) : null}
+            </div>
+            <div className="wiz-actions">
+              {step < 2
+                ? <button type="submit" className="btn btn-brand" disabled={!canNext}>המשך</button>
+                : <button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'שולחים…' : 'שליחת הפנייה'}</button>}
+              {step > 0 ? <button type="button" className="btn btn-ghost" onClick={() => setStep(step - 1)}>חזרה</button> : null}
+            </div>
           </>
         )}
-        <span className="field-label" id="iq-via">דרך קשר</span>
-        <div className="chips wrap-chips" role="group" aria-labelledby="iq-via">
-          {VIA.map(([v, label]) => <button key={v} type="button" className="chip" aria-pressed={f.via.includes(v)} onClick={() => toggleVia(v)}>{label}</button>)}
-        </div>
-        <button type="submit" className="btn btn-brand go" disabled={busy}>{busy ? 'שולחים…' : 'שליחת הפנייה'}</button>
-        <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>ביטול</button>
-        <p className="hint">{f.via.includes('phone') || f.via.includes('email')
-          ? `המורה יראה את השם${f.via.includes('phone') ? ', הטלפון' : ''}${f.via.includes('email') ? ', המייל' : ''} וההודעה שלכם.`
-          : 'המורה יראה רק את השם וההודעה שלכם, ויענה בצ׳אט כאן באתר.'}</p>
       </form>
-    );
-  }
+    </dialog>
+  );
+
   return (
     <div className="inq-box">
       {last ? (
@@ -385,6 +440,7 @@ export function InquiryBox({ tutor }) {
       ) : null}
       <button type="button" className={'btn go ' + (last ? 'btn-line' : 'btn-brand')} onClick={start}>{last ? 'פנייה חדשה' : 'שליחת פנייה למורה'}</button>
       {!user ? <p className="hint">כניסה מהירה עם Google, בלי סיסמה. אפשר לדבר עם המורה בצ׳אט באתר, בלי למסור טלפון.</p> : null}
+      {wizard}
     </div>
   );
 }
