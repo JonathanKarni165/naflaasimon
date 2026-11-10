@@ -755,35 +755,85 @@ export function Loading() {
   return <div className="loading" aria-live="polite"><Coin size={34} /><span>טוען…</span></div>;
 }
 
-/** Page change: a short coin-drop, like an asimon falling into the payphone slot (≈0.7s). */
+/**
+ * Page change animation, only on the important moves: opening the site, a tutor profile,
+ * a group page, and entering the personal area. Moving between lists stays instant.
+ * The coin drop is the main one; now and then a different short coin animation plays.
+ */
+const IMPORTANT = (name) => name === 'tutor' || name === 'group' || name.startsWith('panel');
+const VARIANTS = [['drop', 55], ['flip', 15], ['roll', 15], ['stack', 15]];
+function pickVariant(last) {
+  if (last !== 'drop') return 'drop'; // never two extras in a row
+  let r = Math.random() * 100;
+  for (const [v, w] of VARIANTS) { if ((r -= w) < 0) return v; }
+  return 'drop';
+}
+const coinFace = (cx, cy, r) => (
+  <>
+    <circle cx={cx} cy={cy} r={r} fill="#DFC166" stroke="#3A3130" strokeWidth="3" />
+    <circle cx={cx} cy={cy} r={r * 0.73} fill="none" stroke="#1A1406" strokeOpacity=".25" strokeWidth="2.4" />
+    <rect x={cx - r * 0.62} y={cy - 3} width={r * 1.24} height="6" rx="3" fill="#1A1406" fillOpacity=".55" />
+  </>
+);
+
 export function CoinTransition() {
   const { route } = useApp();
-  const [n, setN] = useState(0);
+  const [show, setShow] = useState(null); // { n, variant }
   const prev = useRef(null);
+  const last = useRef('flip'); // so the very first one is the coin drop
   useEffect(() => {
     const key = route.name.startsWith('panel') ? 'panel' : route.name + (route.id || '');
-    if (prev.current !== key) setN((x) => Math.abs(x) + 1);
+    const first = prev.current === null;
+    const changed = prev.current !== key;
     prev.current = key;
+    if (!changed || !(first || IMPORTANT(route.name))) return;
+    const variant = first ? 'drop' : pickVariant(last.current);
+    last.current = variant;
+    setShow((s) => ({ n: (s?.n || 0) + 1, variant }));
   }, [route]);
   useEffect(() => {
-    if (n <= 0) return undefined;
-    const t = setTimeout(() => setN((x) => (x === n ? -x : x)), 760);
+    if (!show) return undefined;
+    const t = setTimeout(() => setShow((s) => (s && s.n === show.n ? null : s)), 760);
     return () => clearTimeout(t);
-  }, [n]);
-  if (n <= 0) return null;
+  }, [show]);
+  if (!show) return null;
+  const { variant } = show;
   return (
-    <div className="coin-veil" key={n} aria-hidden="true">
+    <div className={'coin-veil cv-' + variant} key={show.n} aria-hidden="true">
       <svg className="cv-svg" viewBox="0 0 120 150" width="120" height="150">
-        <g className="cv-coin">
-          <circle cx="60" cy="40" r="26" fill="#DFC166" stroke="#3A3130" strokeWidth="3" />
-          <circle cx="60" cy="40" r="19" fill="none" stroke="#1A1406" strokeOpacity=".25" strokeWidth="2.4" />
-          <rect x="44" y="37" width="32" height="6" rx="3" fill="#1A1406" fillOpacity=".55" />
-        </g>
-        <rect className="cv-slot" x="22" y="112" width="76" height="12" rx="6" fill="#3A3130" />
-        <rect x="0" y="118" width="120" height="32" fill="var(--bg)" />
-        <g className="cv-spark" stroke="#DFC166" strokeWidth="4" strokeLinecap="round">
-          <path d="M14 100l-8-8M106 100l8-8M60 92v-12" />
-        </g>
+        {variant === 'drop' ? (
+          <>
+            <g className="cv-coin">{coinFace(60, 40, 26)}</g>
+            <rect className="cv-slot" x="22" y="112" width="76" height="12" rx="6" fill="#3A3130" />
+            <rect x="0" y="118" width="120" height="32" fill="var(--bg)" />
+            <g className="cv-spark" stroke="#DFC166" strokeWidth="4" strokeLinecap="round"><path d="M14 100l-8-8M106 100l8-8M60 92v-12" /></g>
+          </>
+        ) : null}
+        {variant === 'flip' ? (
+          <>
+            <ellipse className="cv-shadow" cx="60" cy="128" rx="24" ry="5" fill="#3A3130" fillOpacity=".18" />
+            <g className="cv-flip">{coinFace(60, 96, 26)}</g>
+            <g className="cv-spark" stroke="#DFC166" strokeWidth="4" strokeLinecap="round"><path d="M22 60l-8-6M98 60l8-6M60 40v-12" /></g>
+          </>
+        ) : null}
+        {variant === 'roll' ? (
+          <>
+            <rect x="8" y="124" width="104" height="4" rx="2" fill="#3A3130" />
+            <g className="cv-roll">{coinFace(60, 100, 22)}</g>
+          </>
+        ) : null}
+        {variant === 'stack' ? (
+          <>
+            <ellipse cx="60" cy="132" rx="30" ry="5" fill="#3A3130" fillOpacity=".15" />
+            {[0, 1, 2].map((i) => (
+              <g key={i} className={'cv-stack cv-stack-' + i}>
+                <ellipse cx="60" cy={122 - i * 14} rx="28" ry="9" fill="#C9A94E" stroke="#3A3130" strokeWidth="3" />
+                <ellipse cx="60" cy={117 - i * 14} rx="28" ry="9" fill="#DFC166" stroke="#3A3130" strokeWidth="3" />
+                <rect x="44" y={115 - i * 14} width="32" height="4" rx="2" fill="#1A1406" fillOpacity=".5" />
+              </g>
+            ))}
+          </>
+        ) : null}
       </svg>
     </div>
   );
