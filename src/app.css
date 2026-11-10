@@ -523,3 +523,5 @@ footer .linkish { color: inherit; font-weight: 600; }
   .inq-wiz { border-radius: 20px 20px 0 0; max-height: 92dvh; border-bottom: 0; }
   .wiz-steps { font-size: 12px; }
 }
+.inq-note { min-height: 104px; }
+.inq-count { text-align: end; margin-top: -4px; font-size: 13px; }
