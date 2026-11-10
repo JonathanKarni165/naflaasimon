@@ -310,7 +310,7 @@ export function InquiryBox({ tutor }) {
   };
   const last = mine[0];
 
-  const STEPS = ['מה צריך', 'מתי ואיך', 'פרטים ושליחה'];
+  const STEPS = ['מה צריך', 'מתי ואיך', 'הודעה ושליחה'];
   const canNext = step === 0 ? !!(f.lessons && f.goal) : true;
   const next = () => {
     if (step === 0 && !f.lessons) { notify('בחרו בערך כמה שיעורים', true); return; }
@@ -377,12 +377,15 @@ export function InquiryBox({ tutor }) {
                   <span className="field-label">מתי נוח לכם? <small className="muted-text">(לא חובה)</small></span>
                   <WeekGrid mode="pick" value={f.slots} allowed={tutor.availability} onChange={(slots) => setF({ ...f, slots })} label="בחירת זמנים נוחים" />
                   {(tutor.availability || []).length ? <p className="wg-legend"><span><i className="free" />המורה פנוי/ה</span><span><i />בחרתם</span></p> : null}
-                  <label className="field-label" htmlFor="iq-note">משהו נוסף? <small className="muted-text">(לא חובה)</small></label>
-                  <textarea id="iq-note" className="input" rows={2} maxLength={600} value={f.note} placeholder="למשל: המבחן ב־15 לחודש" onChange={(e) => setF({ ...f, note: e.target.value })} />
                 </>
               ) : null}
               {step === 2 ? (
                 <>
+                  <label className="field-label" htmlFor="iq-note">הודעה אישית למורה <small className="muted-text">(לא חובה)</small></label>
+                  <textarea id="iq-note" className="input inq-note" rows={4} maxLength={600} value={f.note}
+                    placeholder="ספרו למורה במילים שלכם: מה קשה לכם, מתי המבחן, שאלות על השיעורים…"
+                    onChange={(e) => setF({ ...f, note: e.target.value })} />
+                  <p className="hint inq-count"><bdi dir="ltr">{f.note.length}/600</bdi></p>
                   <span className="field-label" id="iq-via">איך המורה יחזור אליכם?</span>
                   <div className="chips wrap-chips" role="group" aria-labelledby="iq-via">
                     {VIA.map(([v, label]) => <button key={v} type="button" className="chip" aria-pressed={f.via.includes(v)} onClick={() => toggleVia(v)}>{label}</button>)}
