@@ -523,3 +523,24 @@ footer .linkish { color: inherit; font-weight: 600; }
   .inq-wiz { border-radius: 20px 20px 0 0; max-height: 92dvh; border-bottom: 0; }
   .wiz-steps { font-size: 12px; }
 }
+
+/* More coin transitions (the drop above stays the main one) */
+.cv-flip { animation: cv-flip .62s cubic-bezier(.3,.7,.4,1) forwards; transform-box: fill-box; transform-origin: center; }
+@keyframes cv-flip {
+  0% { transform: translateY(0) scaleX(1) }
+  20% { transform: translateY(-40px) scaleX(.1) }
+  40% { transform: translateY(-62px) scaleX(1) }
+  60% { transform: translateY(-40px) scaleX(.1) }
+  85% { transform: translateY(0) scaleX(1) }
+  92% { transform: translateY(-6px) scaleX(1) }
+  100% { transform: translateY(0) scaleX(1) }
+}
+.cv-flip ~ .cv-spark, .cv-flip + .cv-spark { animation: cv-spark .76s ease forwards; }
+.cv-shadow { animation: cv-shadow .62s ease forwards; transform-box: fill-box; transform-origin: center; }
+@keyframes cv-shadow { 0%, 85%, 100% { transform: scaleX(1) } 40% { transform: scaleX(.5) } }
+.cv-roll { animation: cv-roll .64s cubic-bezier(.2,.7,.3,1) forwards; transform-box: fill-box; transform-origin: center; }
+@keyframes cv-roll { 0% { transform: translateX(70px) rotate(0) } 80% { transform: translateX(-4px) rotate(-400deg) } 100% { transform: translateX(0) rotate(-380deg) } }
+.cv-stack { opacity: 0; animation: cv-stack .3s cubic-bezier(.3,1.6,.5,1) forwards; transform-box: fill-box; transform-origin: center bottom; }
+.cv-stack-1 { animation-delay: .14s; }
+.cv-stack-2 { animation-delay: .28s; }
+@keyframes cv-stack { 0% { opacity: 0; transform: translateY(-40px) scale(.9) } 100% { opacity: 1; transform: translateY(0) scale(1) } }
