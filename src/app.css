@@ -443,14 +443,14 @@ footer .linkish { color: inherit; font-weight: 600; }
 .loading { display: grid; justify-items: center; gap: 8px; }
 .loading .coin { animation: coin-spin 1s linear infinite; }
 @keyframes coin-spin { 0% { transform: rotateY(0) } 100% { transform: rotateY(360deg) } }
-.coin-veil { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: var(--bg); pointer-events: none; animation: veil .76s ease forwards; }
-.cv-coin { animation: cv-drop .56s cubic-bezier(.5,0,.75,.35) forwards; transform-box: fill-box; transform-origin: center; }
-.cv-slot { animation: cv-slot .76s ease forwards; transform-box: fill-box; transform-origin: center; }
-.cv-spark { opacity: 0; animation: cv-spark .76s ease forwards; }
-@keyframes veil { 0%, 62% { opacity: 1 } 100% { opacity: 0 } }
-@keyframes cv-drop { 0% { transform: translateY(-34px) rotate(-40deg) } 55% { transform: translateY(48px) rotate(0) } 100% { transform: translateY(118px) rotate(20deg) } }
-@keyframes cv-slot { 0%, 60% { transform: scaleX(1) } 70% { transform: scaleX(1.08) } 80%, 100% { transform: scaleX(1) } }
-@keyframes cv-spark { 0%, 62% { opacity: 0 } 70% { opacity: 1 } 100% { opacity: 0 } }
+.coin-veil { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgb(243 240 233 / .82); pointer-events: none; animation: veil .52s ease forwards; }
+.cv-coin { animation: cv-drop .4s cubic-bezier(.5,0,.75,.35) forwards; transform-box: fill-box; transform-origin: center; }
+.cv-slot { animation: cv-slot .52s ease forwards; transform-box: fill-box; transform-origin: center; }
+.cv-spark { opacity: 0; animation: cv-spark .52s ease forwards; }
+@keyframes veil { 0% { opacity: 0 } 12%, 70% { opacity: 1 } 100% { opacity: 0 } }
+@keyframes cv-drop { 0% { transform: translateY(-20px) } 100% { transform: translateY(118px) } }
+@keyframes cv-slot { 0%, 72% { transform: scaleX(1) } 80% { transform: scaleX(1.06) } 90%, 100% { transform: scaleX(1) } }
+@keyframes cv-spark { 0%, 74% { opacity: 0 } 82% { opacity: .8 } 100% { opacity: 0 } }
 @media (prefers-reduced-motion: reduce) { .coin-veil { display: none; } .loading .coin { animation: none; } }
 .ai-main .status { justify-self: start; width: auto; }
 
@@ -523,24 +523,3 @@ footer .linkish { color: inherit; font-weight: 600; }
   .inq-wiz { border-radius: 20px 20px 0 0; max-height: 92dvh; border-bottom: 0; }
   .wiz-steps { font-size: 12px; }
 }
-
-/* More coin transitions (the drop above stays the main one) */
-.cv-flip { animation: cv-flip .62s cubic-bezier(.3,.7,.4,1) forwards; transform-box: fill-box; transform-origin: center; }
-@keyframes cv-flip {
-  0% { transform: translateY(0) scaleX(1) }
-  20% { transform: translateY(-40px) scaleX(.1) }
-  40% { transform: translateY(-62px) scaleX(1) }
-  60% { transform: translateY(-40px) scaleX(.1) }
-  85% { transform: translateY(0) scaleX(1) }
-  92% { transform: translateY(-6px) scaleX(1) }
-  100% { transform: translateY(0) scaleX(1) }
-}
-.cv-flip ~ .cv-spark, .cv-flip + .cv-spark { animation: cv-spark .76s ease forwards; }
-.cv-shadow { animation: cv-shadow .62s ease forwards; transform-box: fill-box; transform-origin: center; }
-@keyframes cv-shadow { 0%, 85%, 100% { transform: scaleX(1) } 40% { transform: scaleX(.5) } }
-.cv-roll { animation: cv-roll .64s cubic-bezier(.2,.7,.3,1) forwards; transform-box: fill-box; transform-origin: center; }
-@keyframes cv-roll { 0% { transform: translateX(70px) rotate(0) } 80% { transform: translateX(-4px) rotate(-400deg) } 100% { transform: translateX(0) rotate(-380deg) } }
-.cv-stack { opacity: 0; animation: cv-stack .3s cubic-bezier(.3,1.6,.5,1) forwards; transform-box: fill-box; transform-origin: center bottom; }
-.cv-stack-1 { animation-delay: .14s; }
-.cv-stack-2 { animation-delay: .28s; }
-@keyframes cv-stack { 0% { opacity: 0; transform: translateY(-40px) scale(.9) } 100% { opacity: 1; transform: translateY(0) scale(1) } }
