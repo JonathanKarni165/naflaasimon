@@ -51,8 +51,11 @@ const RAW = `
 const LEVEL_SET = new Set(LEVELS);
 // Exam codes decide the level: שאלון 582 → 5 יח״ל, etc.
 const examLevel = (name) => {
-  const m = name.match(/(?:שאלון\s*)(3|4|5)(?:8\d|\d\d)$/) || name.match(/שאלון\s*35(3|4|5)8\d/);
-  return m ? `${m[1]} יח״ל` : '';
+  // Old codes: 371/471/581 (first digit = units). New codes: 35181 / 35481 / 35581 (351 = 3 units, 354 = 4, 355 = 5).
+  const old = name.match(/^שאלון\s*([345])\d\d$/);
+  if (old) return `${old[1]} יח״ל`;
+  const nw = name.match(/^שאלון\s*35([145])8\d$/);
+  return nw ? `${{ 1: 3, 4: 4, 5: 5 }[nw[1]]} יח״ל` : '';
 };
 
 export const TOPICS = RAW.trim().split('\n').flatMap((line) => {
@@ -96,9 +99,18 @@ export const OPTIONS = (() => {
     const levels = [...new Set(hints.flatMap((h) => (HINT_LEVELS[h] ? HINT_LEVELS[h](subject) : LEVEL_SET.has(h) && h !== subject ? [h] : [])))]
       .sort((x, y) => LEVELS.indexOf(x) - LEVELS.indexOf(y));
     // A subject taught at one level only (e.g. engineering) doesn't need a "subject - level" row.
-    if (levels.length > 1) levels.forEach((level) => out.push({ key: `l:${subject}:${level}`, label: `${subject} - ${level}`, subject, level, topic: '' }));
+    // Exam codes are the same thing as their level (שאלון 582 = 5 יח״ל), so they live inside the level row:
+    // "מתמטיקה - 5 יח״ל (581, 582)", and typing "582" finds that row.
+    if (levels.length > 1) levels.forEach((level) => {
+      const exams = TOPICS.filter((t) => t.subject === subject && examLevel(t.name) === level).map((t) => t.name.replace(/^שאלון\s*/, ''));
+      const short = exams.filter((c) => c.length <= 3);
+      out.push({
+        key: `l:${subject}:${level}`, label: `${subject} - ${level}${short.length ? ` (שאלונים ${short.join(', ')})` : ''}`,
+        match: exams.length ? `${subject} ${level} שאלון ${exams.join(' ')}` : '', subject, level, topic: '',
+      });
+    });
   }
-  TOPICS.forEach((t) => out.push({ key: `t:${t.subject}:${t.name}`, label: `${t.subject} - ${t.name}`, subject: t.subject, level: t.level, topic: t.name }));
+  TOPICS.filter((t) => !examLevel(t.name)).forEach((t) => out.push({ key: `t:${t.subject}:${t.name}`, label: `${t.subject} - ${t.name}`, subject: t.subject, level: t.level, topic: t.name }));
   return out;
 })();
 
@@ -109,7 +121,7 @@ export function searchOptions(text, limit = 14) {
   const words = q.split(' ');
   const scored = [];
   for (const o of OPTIONS) {
-    const n = norm(o.label);
+    const n = norm(o.label + ' ' + (o.match || ''));
     if (!words.every((w) => n.includes(w))) continue;
     const subj = norm(o.subject);
     const topicN = norm(o.topic);
@@ -120,6 +132,8 @@ export function searchOptions(text, limit = 14) {
     else if (topicN.startsWith(q)) score = 2;
     else if (topicN.split(' ').some((x) => x.startsWith(words[0]))) score = 4;
     else score = 5;
+    // A match only through the hidden exam codes ranks just below a match on the visible label.
+    if (o.match && !words.every((w) => norm(o.label).includes(w))) score += 0.5;
     scored.push([score, o]);
   }
   // Ties keep the list order (levels from young to academia, courses as written).
