@@ -399,7 +399,7 @@ footer .linkish { color: inherit; font-weight: 600; }
 
 /* Chat between student and tutor */
 .chat { display: grid; gap: 8px; }
-.chat-list { list-style: none; margin: 0; padding: 4px 2px; display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto; overscroll-behavior: contain; }
+.chat-list { list-style: none; margin: 0; padding: 4px 2px; display: flex; flex-direction: column; gap: 8px; max-height: min(340px, 50vh); overflow-y: auto; }
 .msg { max-width: 85%; padding: 8px 12px 6px; border-radius: 14px; display: grid; gap: 2px; }
 .msg p { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
 .msg-who { font-size: 12px; font-weight: 800; opacity: .75; }
@@ -523,5 +523,14 @@ footer .linkish { color: inherit; font-weight: 600; }
   .inq-wiz { border-radius: 20px 20px 0 0; max-height: 92dvh; border-bottom: 0; }
   .wiz-steps { font-size: 12px; }
 }
+
+/* Inbox: one short row per inquiry; the conversation opens on tap */
+.inq-head { all: unset; box-sizing: border-box; display: grid; gap: 4px; width: 100%; cursor: pointer; text-align: start; }
+.inq-head:focus-visible { outline: 3px solid var(--brass); outline-offset: 4px; border-radius: 8px; }
+.inq-head .inq-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.inq-preview-line { color: var(--muted); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inq-toggle { font-size: 13px; font-weight: 700; color: var(--good); }
+.inq.is-open { background: color-mix(in srgb, var(--brass-soft) 25%, var(--surface)); }
+.inq:not(.is-open):hover { background: color-mix(in srgb, var(--chip) 50%, var(--surface)); }
 .inq-note { min-height: 104px; }
 .inq-count { text-align: end; margin-top: -4px; font-size: 13px; }

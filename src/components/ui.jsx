@@ -191,7 +191,15 @@ export function InquiryChat({ q, asTutor }) {
     api.listInquiryMessages(q.id).then((m) => live && setMsgs(m), () => live && setMsgs([]));
     return () => { live = false; };
   }, [api, q.id, version]);
-  useEffect(() => { const el = listRef.current; if (el) el.scrollTop = el.scrollHeight; }, [msgs]);
+  // Jump to the newest message only on first load, or when a message arrives while you're already at the bottom.
+  const seen = useRef(-1);
+  useEffect(() => {
+    const el = listRef.current; if (!el || msgs == null) return;
+    const count = msgs.length;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+    if (seen.current === -1 || (count > seen.current && nearBottom)) el.scrollTop = el.scrollHeight;
+    seen.current = count;
+  }, [msgs]);
 
   const tutorName = q.tutor?.name || 'המורה';
   const items = [
@@ -207,6 +215,7 @@ export function InquiryChat({ q, asTutor }) {
     try {
       const m = await api.sendInquiryMessage(q.id, t, asTutor);
       setMsgs((list) => [...(list || []), m]); setText('');
+      requestAnimationFrame(() => { const el = listRef.current; if (el) el.scrollTop = el.scrollHeight; });
       reload(); // status (new → answered) and the inbox badge update everywhere
     } catch (err) { notify(err.message, true); }
     setBusy(false);

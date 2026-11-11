@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, useLoad, useMyTutor, go } from '../state.jsx';
 import { SUBJECTS, LEVELS, CITIES, GOALS, LESSON_COUNTS, labelOf } from '../data/constants.js';
 import { money, dateShort, dateLong, normalizePhone, isPhone } from '../lib/format.js';
@@ -136,6 +136,7 @@ function Inbox() {
   const { api, user, version, reload, notify } = useApp();
   const [list, loading, error] = useLoad(() => api.tutorInquiries(), [user.id, version]);
   const [filter, setFilter] = useState('open');
+  const [openId, setOpenId] = useState(null);
   if (loading && !list) return <Loading />;
   if (error) return <p className="err">{error.message}</p>;
   const all = list || [];
@@ -153,7 +154,7 @@ function Inbox() {
         <Empty title="עוד אין פניות"><p>כשתלמיד ישלח פנייה מהפרופיל שלכם, היא תופיע כאן.</p></Empty>
       ) : !shown.length ? <p className="muted-text">אין פניות בסינון הזה.</p> : (
         <div className="inq-list">
-          {shown.map((q) => <InquiryItem key={q.id} q={q} showTutor={user.isAdmin} onChange={async (patch, msg) => {
+          {shown.map((q) => <InquiryItem key={q.id} q={q} showTutor={user.isAdmin} open={openId === q.id} onToggle={() => setOpenId(openId === q.id ? null : q.id)} onChange={async (patch, msg) => {
             try { await api.answerInquiry(q.id, patch); notify(msg); reload(); } catch (e) { notify(e.message, true); }
           }} />)}
         </div>
@@ -162,20 +163,32 @@ function Inbox() {
   );
 }
 
-function InquiryItem({ q, onChange, showTutor }) {
+/** One inquiry in the inbox: a short row; tapping it opens the conversation (one at a time, so the page stays short). */
+function InquiryItem({ q, onChange, showTutor, open, onToggle }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open || !ref.current) return;
+    const r = ref.current.getBoundingClientRect();
+    if (r.top < 80 || r.top > window.innerHeight * 0.6) window.scrollTo({ top: window.scrollY + r.top - 90, behavior: 'smooth' });
+  }, [open]);
   const via = viaOf(q);
   const first = q.name.split(' ')[0];
   const wa = q.phone ? `https://wa.me/${normalizePhone(q.phone)}?text=${encodeURIComponent(`היי ${first}, כאן ${q.tutor?.name || ''} מנפל האסימון. קיבלתי את הפנייה שלך.`)}` : '';
   const mail = q.email ? `mailto:${q.email}?subject=${encodeURIComponent('הפנייה שלך בנפל האסימון')}` : '';
   return (
-    <article className={'inq' + (q.status === 'new' ? ' is-new' : '')}>
-      <div className="inq-top">
-        <b className="inq-name">{q.name}</b>
-        <StatusTag status={q.status} />
-        <span className="muted-text inq-date">{dateShort(q.createdAt)}</span>
-      </div>
-      <p className="t-meta">{[q.subject, q.level, q.mode != null ? MODE_LABEL[q.mode] : ''].filter(Boolean).join(' · ')}{showTutor && q.tutor ? ` · אל ${q.tutor.name}` : ''}</p>
-      {q.goal || q.lessons ? <p className="inq-tags">{q.goal ? <span className="tag">{labelOf(GOALS, q.goal)}</span> : null}{q.lessons ? <span className="tag">{labelOf(LESSON_COUNTS, q.lessons)}</span> : null}</p> : null}
+    <article ref={ref} className={'inq' + (q.status === 'new' ? ' is-new' : '') + (open ? ' is-open' : '')}>
+      <button type="button" className="inq-head" aria-expanded={open} onClick={onToggle}>
+        <span className="inq-top">
+          <b className="inq-name">{q.name}</b>
+          <StatusTag status={q.status} />
+          <span className="muted-text inq-date">{dateShort(q.createdAt)}</span>
+        </span>
+        <span className="t-meta">{[q.subject, q.level, q.mode != null ? MODE_LABEL[q.mode] : ''].filter(Boolean).join(' · ')}{showTutor && q.tutor ? ` · אל ${q.tutor.name}` : ''}</span>
+        {q.goal || q.lessons ? <span className="inq-tags">{q.goal ? <span className="tag">{labelOf(GOALS, q.goal)}</span> : null}{q.lessons ? <span className="tag">{labelOf(LESSON_COUNTS, q.lessons)}</span> : null}</span> : null}
+        {!open ? <span className="inq-preview-line">{(q.message || '').split('\n').slice(1).join(' · ') || q.message}</span> : null}
+        <span className="inq-toggle">{open ? 'סגירה ▲' : 'פתיחת השיחה ▼'}</span>
+      </button>
+      {open ? (<>
       <p className="via-line">מעדיף/ה: {VIA.filter(([v]) => via.includes(v)).map(([, l]) => l).join(' · ')}</p>
       <InquiryChat q={q} asTutor />
       <div className="inq-actions">
@@ -186,6 +199,7 @@ function InquiryItem({ q, onChange, showTutor }) {
         {q.status !== 'declined' ? <button type="button" className="linkish small" onClick={() => onChange({ status: 'declined' }, 'הפנייה סומנה כלא מתאימה')}>לא מתאים</button>
           : <button type="button" className="linkish small" onClick={() => onChange({ status: q.messageCount || q.reply ? 'replied' : 'new' }, 'הפנייה הוחזרה לפתוחות')}>החזרה לפתוחות</button>}
       </div>
+      </>) : null}
     </article>
   );
 }
