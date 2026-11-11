@@ -443,14 +443,14 @@ footer .linkish { color: inherit; font-weight: 600; }
 .loading { display: grid; justify-items: center; gap: 8px; }
 .loading .coin { animation: coin-spin 1s linear infinite; }
 @keyframes coin-spin { 0% { transform: rotateY(0) } 100% { transform: rotateY(360deg) } }
-.coin-veil { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: var(--bg); pointer-events: none; animation: veil .76s ease forwards; }
-.cv-coin { animation: cv-drop .56s cubic-bezier(.5,0,.75,.35) forwards; transform-box: fill-box; transform-origin: center; }
-.cv-slot { animation: cv-slot .76s ease forwards; transform-box: fill-box; transform-origin: center; }
-.cv-spark { opacity: 0; animation: cv-spark .76s ease forwards; }
-@keyframes veil { 0%, 62% { opacity: 1 } 100% { opacity: 0 } }
-@keyframes cv-drop { 0% { transform: translateY(-34px) rotate(-40deg) } 55% { transform: translateY(48px) rotate(0) } 100% { transform: translateY(118px) rotate(20deg) } }
-@keyframes cv-slot { 0%, 60% { transform: scaleX(1) } 70% { transform: scaleX(1.08) } 80%, 100% { transform: scaleX(1) } }
-@keyframes cv-spark { 0%, 62% { opacity: 0 } 70% { opacity: 1 } 100% { opacity: 0 } }
+.coin-veil { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgb(243 240 233 / .82); pointer-events: none; animation: veil .52s ease forwards; }
+.cv-coin { animation: cv-drop .4s cubic-bezier(.5,0,.75,.35) forwards; transform-box: fill-box; transform-origin: center; }
+.cv-slot { animation: cv-slot .52s ease forwards; transform-box: fill-box; transform-origin: center; }
+.cv-spark { opacity: 0; animation: cv-spark .52s ease forwards; }
+@keyframes veil { 0% { opacity: 0 } 12%, 70% { opacity: 1 } 100% { opacity: 0 } }
+@keyframes cv-drop { 0% { transform: translateY(-20px) } 100% { transform: translateY(118px) } }
+@keyframes cv-slot { 0%, 72% { transform: scaleX(1) } 80% { transform: scaleX(1.06) } 90%, 100% { transform: scaleX(1) } }
+@keyframes cv-spark { 0%, 74% { opacity: 0 } 82% { opacity: .8 } 100% { opacity: 0 } }
 @media (prefers-reduced-motion: reduce) { .coin-veil { display: none; } .loading .coin { animation: none; } }
 .ai-main .status { justify-self: start; width: auto; }
 
@@ -532,3 +532,5 @@ footer .linkish { color: inherit; font-weight: 600; }
 .inq-toggle { font-size: 13px; font-weight: 700; color: var(--good); }
 .inq.is-open { background: color-mix(in srgb, var(--brass-soft) 25%, var(--surface)); }
 .inq:not(.is-open):hover { background: color-mix(in srgb, var(--chip) 50%, var(--surface)); }
+.inq-note { min-height: 104px; }
+.inq-count { text-align: end; margin-top: -4px; font-size: 13px; }
