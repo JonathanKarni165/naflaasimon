@@ -47,7 +47,7 @@ function FreshBadge() {
 
 function PanelTabs() {
   const { user, route } = useApp();
-  const [mine, loading] = useMyTutor();
+  const [mine, loading, , , loaded] = useMyTutor();
   const isTutor = !!mine;
   const tabs = TABS.filter(([k]) => (k !== 'panel-admin' || user.isAdmin) && (isTutor || !TUTOR_TABS.includes(k)));
   // A student who opened "פתיחת פרופיל מורה" (#panel) gets the sign-up form, without the tutor tabs.
@@ -55,7 +55,7 @@ function PanelTabs() {
   const tab = tabs.some(([k]) => k === route.name) ? route.name : becoming ? 'panel' : isTutor ? 'panel' : 'panel-seats';
   // On phones the tab row scrolls sideways: keep the open tab in view.
   useEffect(() => { document.querySelector('.tabs [aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }, [tab]);
-  if (loading && mine == null) return <main className="wrap page-pad"><Loading /></main>;
+  if (loading && mine == null && !loaded) return <main className="wrap page-pad"><Loading /></main>;
   return (
     <main className="wrap page-pad">
       <div className="page-head"><h1>האזור האישי</h1><p className="muted-text">שלום {user.name}{user.isAdmin ? ' · מנהל/ת האתר' : ''}</p></div>
@@ -75,9 +75,9 @@ function PanelTabs() {
 
 function MyProfile() {
   const { api, user, version, reload, notify } = useApp();
-  const [mine, loading, , refresh] = useLoad(() => api.getMyTutor(), [user.id, version]);
+  const [mine, loading, , refresh, loaded] = useLoad(() => api.getMyTutor(), [user.id, version]);
   const [editing, setEditing] = useState(false);
-  if (loading && !mine) return <Loading />;
+  if (loading && !mine && !loaded) return <Loading />;
   if (!mine && !editing) {
     return (
       <div className="panel-empty">
@@ -380,13 +380,13 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
 
 function MyGroups() {
   const { api, user, tutors, groups, reload, notify, version } = useApp();
-  const [mine, loading] = useLoad(() => api.getMyTutor(), [user.id, version]);
+  const [mine, loading, , , loaded] = useLoad(() => api.getMyTutor(), [user.id, version]);
   const [editing, setEditing] = useState(null); // null | {} | group
   const [openSeats, setOpenSeats] = useState(null);
   const manageable = useMemo(() => (user.isAdmin ? tutors || [] : mine ? [mine] : []), [user.isAdmin, tutors, mine]);
   const list = useMemo(() => (groups || []).filter((g) => manageable.some((t) => t.id === g.tutorId)).sort((a, b) => a.startDate.localeCompare(b.startDate)), [groups, manageable]);
 
-  if (loading && !mine && !user.isAdmin) return <Loading />;
+  if (loading && !mine && !loaded && !user.isAdmin) return <Loading />;
   if (!manageable.length) {
     return (
       <div className="panel-empty">
