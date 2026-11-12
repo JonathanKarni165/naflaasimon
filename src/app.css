@@ -114,7 +114,7 @@ textarea.input { resize: vertical; line-height: 1.6; }
 .marathon-link { margin: 4px 0 0; font-size: 15px; font-weight: 600; }
 .sort-note { color: var(--muted); font-size: 14px; margin: 8px 0 14px; }
 .inline-pick { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
-.inline-pick .select { flex: 1; min-width: min(180px, 100%); }
+.inline-pick .combo { flex: 1; min-width: min(220px, 100%); }
 .only-sm { display: inline-flex; }
 .t-rows { display: grid; gap: 12px; }
 .t-row { background: var(--surface); border: 2px solid var(--line); border-radius: 18px; padding: 14px; display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 14px; transition: border-color .15s ease; }

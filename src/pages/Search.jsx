@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '../state.jsx';
-import { LEVELS, CITIES, cityByName } from '../data/constants.js';
+import { LEVELS } from '../data/constants.js';
 import { filterTutors, sortTutors, topicFirst } from '../lib/ranking.js';
 import { optionLabel } from '../data/topics.js';
 import { TutorRow, Seg, Loading, Empty, WherePicker, resolveWhere, TopicPicker } from '../components/ui.jsx';
@@ -29,10 +29,6 @@ export default function Search() {
     const w = resolveWhere(text);
     set({ ...w, mode: w.mode === 'online' ? 'online' : f.mode === 'online' ? 'any' : f.mode, sort: w.origin && f.sort === 'best' ? 'near' : f.sort });
   };
-  const pickCity = (name) => {
-    const c = cityByName(name);
-    set({ city: name, origin: c ? { lat: c.lat, lng: c.lng } : null, sort: c && f.sort === 'best' ? 'near' : f.sort });
-  };
   const useMyLocation = () => {
     setLocMsg('מאתרים…');
     if (!navigator.geolocation) { setLocMsg('הדפדפן לא תומך באיתור מיקום. בחרו עיר מהרשימה.'); return; }
@@ -43,7 +39,6 @@ export default function Search() {
     );
   };
 
-  const needOrigin = f.sort === 'near' && !f.origin;
   const activeCount = [f.level, f.mode !== 'any', f.maxPrice, f.maxKm, f.q, f.place].filter(Boolean).length;
 
   return (
@@ -116,12 +111,11 @@ export default function Search() {
             {f.sort === 'cheap' && `מהמחיר הנמוך לגבוה${f.mode === 'online' ? ' (מחיר אונליין)' : f.mode === 'frontal' ? ' (מחיר פרונטלי)' : ' (המחיר הנמוך מבין פרונטלי ואונליין)'}.`}
             {f.sort === 'popular' && 'המורים שהכי הרבה תלמידים פנו אליהם וכתבו עליהם ביקורת.'}
           </p>
-          {needOrigin ? (
+          {f.sort === 'near' ? (
             <div className="inline-pick">
-              <select className="select" aria-label="בחירת עיר" value="" onChange={(e) => pickCity(e.target.value)}>
-                <option value="">באיזו עיר אתם?</option>
-                {CITIES.map((c) => <option key={c.name}>{c.name}</option>)}
-              </select>
+              <label className="sr-only" htmlFor="near-where">איפה אתם?</label>
+              {/* Type a city or neighbourhood (same field as "אני נמצא/ת ב…"), not only pick from a long list. */}
+              <WherePicker id="near-where" value={whereText === 'online' ? '' : whereText} onChange={pickWhere} placeholder="הקלידו עיר או שכונה, למשל חולון" />
               <button type="button" className="btn btn-line" onClick={useMyLocation}>מיקום נוכחי</button>
             </div>
           ) : null}
