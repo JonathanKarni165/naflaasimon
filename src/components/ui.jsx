@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useApp, useMyTutor, go } from '../state.jsx';
 import { money, rating1, reviewsLabel, initials, avatarColor, km, relDays, dateLong, dateTime, isPhone, isEmail } from '../lib/format.js';
-import { CITIES, WEEK_DAYS, WEEK_DAY_NAMES, DAY_SLOTS, LESSON_COUNTS, GOALS, slotLabel, labelOf } from '../data/constants.js';
+import { CITIES, NEIGHBORHOODS, WEEK_DAYS, WEEK_DAY_NAMES, DAY_SLOTS, LESSON_COUNTS, GOALS, slotLabel, labelOf } from '../data/constants.js';
 import { searchOptions, optionLabel } from '../data/topics.js';
 import { topicMatch } from '../lib/ranking.js';
 
@@ -546,7 +546,12 @@ export function resolveWhere(text) {
   const v = (text || '').trim();
   if (!v || v === 'כל הארץ') return { mode: 'any', city: '', origin: null, place: '' };
   if (v === 'online' || v === 'אונליין') return { mode: 'online', city: '', origin: null, place: '' };
-  const c = CITIES.find((x) => x.name === v) || CITIES.find((x) => v.includes(x.name));
+  // A neighbourhood ("המשתלה", "שכונת המשתלה", "המשתלה, תל אביב") searches around its centre and city.
+  const bare = v.replace(/^שכונת\s+|^שכונה\s+/, '');
+  const cityIn = CITIES.find((x) => bare.includes(x.name));
+  const nb = NEIGHBORHOODS.find((n) => bare.split(/[,\s]+/).join(' ').includes(n.name) && (!cityIn || cityIn.name === n.city));
+  if (nb) return { mode: 'any', city: nb.city, origin: { lat: nb.lat, lng: nb.lng }, place: '' };
+  const c = CITIES.find((x) => x.name === v) || cityIn;
   if (c) return { mode: 'any', city: c.name, origin: { lat: c.lat, lng: c.lng }, place: '' };
   return { mode: 'any', city: '', origin: null, place: v };
 }
@@ -559,11 +564,14 @@ export function WherePicker({ id, value, onChange, placeholder = 'עיר או ש
   const shown = value === 'online' ? 'אונליין' : value;
   const typed = (shown || '').trim();
   // A value that was picked from the list (e.g. "חיפה") must not hide the other cities: show them all.
-  const picked = WHERE_FIXED.some(([, l]) => l === typed) || CITIES.some((c) => c.name === typed);
+  const nbLabel = (n) => `${n.name}, ${n.city}`;
+  const picked = WHERE_FIXED.some(([, l]) => l === typed) || CITIES.some((c) => c.name === typed) || NEIGHBORHOODS.some((n) => nbLabel(n) === typed);
   const q = picked ? '' : typed;
   const opts = [
     ...WHERE_FIXED.filter(([, l]) => !q || l.includes(q)),
     ...CITIES.filter((c) => !q || c.name.includes(q)).map((c) => [c.name, c.name]),
+    // Neighbourhoods only show once something is typed, so the empty list stays short.
+    ...(q ? NEIGHBORHOODS.filter((n) => nbLabel(n).includes(q.replace(/^שכונת\s+|^שכונה\s+/, ''))).map((n) => [nbLabel(n), 'שכונת ' + nbLabel(n)]) : []),
   ];
   useEffect(() => {
     const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
