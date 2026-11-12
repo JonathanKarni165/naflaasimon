@@ -815,3 +815,78 @@ export function CoinTransition() {
     </div>
   );
 }
+
+export const REPORT_REASONS = [
+  ['behavior', 'התנהגות לא הולמת בשיעור או בשיחה'],
+  ['harassment', 'הטרדה, איומים או תוכן פוגעני'],
+  ['fake', 'פרופיל מזויף או פרטים לא נכונים'],
+  ['payment', 'בעיה בתשלום או ניסיון הונאה'],
+  ['other', 'משהו אחר'],
+];
+
+/** "דיווח על המורה": a quiet link that opens a short form. Reports reach the site admins only, never the tutor. */
+export function ReportTutor({ tutor }) {
+  const { api, user, requireLogin, notify } = useApp();
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState('');
+  const [details, setDetails] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const d = ref.current; if (!d) return;
+    if (open && !d.open) d.showModal();
+    if (!open && d.open) d.close();
+  }, [open]);
+  if (user && user.id === tutor.ownerId) return null;
+  const start = () => {
+    if (!requireLogin('כדי לדווח על מורה צריך להתחבר. הדיווח מגיע רק לצוות האתר, והמורה לא יודע/ת מי דיווח.')) return;
+    setReason(''); setDetails(''); setSent(false); setOpen(true);
+  };
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!reason) { notify('בחרו מה קרה', true); return; }
+    setBusy(true);
+    try { await api.reportTutor({ tutorId: tutor.id, reason, details: details.trim() }); setSent(true); } catch (err) { notify(err.message, true); }
+    setBusy(false);
+  };
+  const first = tutor.name.split(' ')[0];
+  return (
+    <>
+      <button type="button" className="report-link" onClick={start}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 21V4" /><path d="M5 4h11l-2 4 2 4H5" /></svg>
+        דיווח על המורה
+      </button>
+      <dialog ref={ref} className="modal" onClose={() => setOpen(false)} onClick={(e) => { if (e.target === ref.current) setOpen(false); }} aria-labelledby="rp-title">
+        <div className="modal-body report-body">
+          <button type="button" className="modal-x" onClick={() => setOpen(false)} aria-label="סגירה">×</button>
+          {sent ? (
+            <>
+              <h2 id="rp-title">תודה, הדיווח התקבל</h2>
+              <p className="muted-text">צוות נפל האסימון יבדוק אותו. {first} לא יקבל/תקבל הודעה ולא יידע/תדע מי דיווח.</p>
+              <p className="muted-text">אם יש סכנה מיידית, פנו למשטרה בטלפון <bdi>100</bdi>.</p>
+              <button type="button" className="btn btn-brand" onClick={() => setOpen(false)}>סגירה</button>
+            </>
+          ) : (
+            <form className="report-form" onSubmit={submit}>
+              <h2 id="rp-title">דיווח על {tutor.name}</h2>
+              <p className="muted-text">הדיווח מגיע רק לצוות האתר. המורה לא רואה אותו ולא יודע/ת מי דיווח.</p>
+              <fieldset>
+                <legend className="field-label">מה קרה?</legend>
+                {REPORT_REASONS.map(([k, label]) => (
+                  <label key={k} className="check-line"><input type="radio" name="rp-reason" value={k} checked={reason === k} onChange={() => setReason(k)} /> {label}</label>
+                ))}
+              </fieldset>
+              <label className="field-label" htmlFor="rp-details">פרטים (לא חובה)</label>
+              <textarea id="rp-details" className="input" rows={4} maxLength={2000} value={details} onChange={(e) => setDetails(e.target.value)} placeholder="מה קרה ומתי. כמה שיותר פרטים יעזרו לנו לבדוק." />
+              <div className="form-actions">
+                <button type="submit" className="btn btn-brand" disabled={busy || !reason}>{busy ? 'שולחים…' : 'שליחת הדיווח'}</button>
+                <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>ביטול</button>
+              </div>
+            </form>
+          )}
+        </div>
+      </dialog>
+    </>
+  );
+}

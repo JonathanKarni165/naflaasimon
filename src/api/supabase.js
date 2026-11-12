@@ -279,6 +279,29 @@ export async function addGroupMessage(groupId, text) {
   return true;
 }
 
+// Reports about a tutor: row level security lets any signed-in user add one and only admins read them.
+const REPORT_ERR = 'הדיווח לא נשלח. נסו שוב בעוד רגע.';
+export async function reportTutor({ tutorId, reason, details }) {
+  const u = need();
+  const { error } = await sb.from('reports').insert({ tutor_id: tutorId, user_id: u.id, reason, details: details || null });
+  if (error) throw new Error(/דיווחים היום/.test(error.message) ? error.message : REPORT_ERR);
+  return true;
+}
+export async function listReports() {
+  if (!user?.isAdmin) return [];
+  const rows = check(await sb.from('reports').select('*').order('created_at', { ascending: false }));
+  const list = rows.map((r) => ({ id: r.id, tutorId: r.tutor_id, userId: r.user_id, reason: r.reason, details: r.details || '', status: r.status, createdAt: r.created_at }));
+  const ids = [...new Set(list.map((r) => r.tutorId))];
+  const tutors = ids.length ? check(await sb.from('tutors').select('id,name').in('id', ids)) : [];
+  const uids = [...new Set(list.map((r) => r.userId).filter(Boolean))];
+  const people = uids.length ? ((await sb.from('profiles').select('id,name,email').in('id', uids)).data || []) : [];
+  return list.map((r) => {
+    const p = people.find((x) => x.id === r.userId);
+    return { ...r, tutor: tutors.find((t) => t.id === r.tutorId) || null, userName: p ? [p.name, p.email].filter(Boolean).join(', ') : '' };
+  });
+}
+export async function setReportStatus(id, status) { need(); check(await sb.from('reports').update({ status }).eq('id', id)); return true; }
+
 export function resetDemo() {}
 
 // Live updates: any change anyone makes (new group, seat, inquiry, review…) reaches every open page.

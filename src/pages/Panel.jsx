@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, useLoad, useMyTutor, go } from '../state.jsx';
 import { SUBJECTS, LEVELS, CITIES, GOALS, LESSON_COUNTS, labelOf } from '../data/constants.js';
 import { money, dateShort, dateLong, normalizePhone, isPhone } from '../lib/format.js';
-import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, StatusTag, InquiryChat, VIA, viaOf, WeekGrid } from '../components/ui.jsx';
+import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, StatusTag, InquiryChat, VIA, viaOf, WeekGrid, ReportTutor, REPORT_REASONS } from '../components/ui.jsx';
 import { subtopicsOf } from '../data/topics.js';
 
 // Tutor-only tabs are hidden from students; a student sees only their own inquiries and details.
@@ -14,7 +14,9 @@ const TABS = [
   ['panel-seats', 'הפניות וההרשמות שלי'],
   ['panel-me', 'הפרטים שלי'],
   ['panel-admin', 'ניהול מורים'],
+  ['panel-reports', 'דיווחים'],
 ];
+const ADMIN_TABS = ['panel-admin', 'panel-reports'];
 
 export default function Panel() {
   const { user, setLoginOpen } = useApp();
@@ -49,7 +51,7 @@ function PanelTabs() {
   const { user, route } = useApp();
   const [mine, loading, , , loaded] = useMyTutor();
   const isTutor = !!mine;
-  const tabs = TABS.filter(([k]) => (k !== 'panel-admin' || user.isAdmin) && (isTutor || !TUTOR_TABS.includes(k)));
+  const tabs = TABS.filter(([k]) => (!ADMIN_TABS.includes(k) || user.isAdmin) && (isTutor || !TUTOR_TABS.includes(k)));
   // A student who opened "פתיחת פרופיל מורה" (#panel) gets the sign-up form, without the tutor tabs.
   const becoming = !isTutor && route.name === 'panel';
   const tab = tabs.some(([k]) => k === route.name) ? route.name : becoming ? 'panel' : isTutor ? 'panel' : 'panel-seats';
@@ -69,6 +71,7 @@ function PanelTabs() {
       {tab === 'panel-seats' && !isTutor ? <p className="become-tutor muted-text">מלמדים בעצמכם? <a href="#panel">פתיחת פרופיל מורה</a></p> : null}
       {tab === 'panel-me' && <MyDetails />}
       {tab === 'panel-admin' && <AdminTutors />}
+      {tab === 'panel-reports' && <AdminReports />}
     </main>
   );
 }
@@ -569,6 +572,7 @@ function MySeats() {
                 </div>
                 {q.status === 'new' && !q.messageCount ? <p className="hint">המורה עוד לא ענה. בינתיים אפשר להוסיף הודעה.</p> : null}
                 <InquiryChat q={q} />
+                {q.tutor ? <ReportTutor tutor={q.tutor} /> : null}
               </article>
             ))}
           </div>
@@ -590,6 +594,44 @@ function MySeats() {
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+function AdminReports() {
+  const { api, user, version, notify } = useApp();
+  const [list, loading, , refresh] = useLoad(() => api.listReports(), [user.id, version]);
+  const [show, setShow] = useState('open');
+  if (loading && !list) return <Loading />;
+  const all = list || [];
+  const shown = all.filter((r) => show === 'all' || r.status === show);
+  const setStatus = async (r, status) => { try { await api.setReportStatus(r.id, status); refresh(); } catch (e) { notify(e.message, true); } };
+  return (
+    <div className="inbox">
+      <p className="muted-text">דיווחים של משתמשים על מורים. המורה לא רואה אותם. אפשר לערוך או להסיר מורה בלשונית ״ניהול מורים״.</p>
+      <span className="sr-only" id="rp-show">אילו דיווחים להציג</span>
+      <Seg label="rp-show" value={show} onChange={setShow} options={[['open', `פתוחים (${all.filter((r) => r.status === 'open').length})`], ['handled', 'טופלו'], ['all', 'הכול']]} />
+      {!shown.length ? <p className="muted-text">{show === 'open' ? 'אין דיווחים פתוחים.' : 'אין דיווחים.'}</p> : (
+        <div className="admin-list">
+          {shown.map((r) => (
+            <article key={r.id} className="admin-item">
+              <div className="ai-main">
+                <div className="inq-top">
+                  {r.tutor ? <a className="t-name" href={`#tutor-${r.tutorId}`}>{r.tutor.name}</a> : <b>מורה שהוסר/ה</b>}
+                  <span className={'tag' + (r.status === 'open' ? ' brass' : '')}>{r.status === 'open' ? 'פתוח' : 'טופל'}</span>
+                </div>
+                <p className="t-meta">{labelOf(REPORT_REASONS, r.reason) || r.reason} · {dateShort(r.createdAt)}{r.userName ? ` · מאת ${r.userName}` : ''}</p>
+                {r.details ? <p className="inq-msg">{r.details}</p> : null}
+              </div>
+              <div className="ai-actions">
+                {r.status === 'open'
+                  ? <button type="button" className="btn btn-line btn-sm" onClick={() => setStatus(r, 'handled')}>סימון כטופל</button>
+                  : <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStatus(r, 'open')}>פתיחה מחדש</button>}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
