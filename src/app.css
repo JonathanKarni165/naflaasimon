@@ -602,3 +602,5 @@ footer .linkish { color: inherit; font-weight: 600; }
 .auth-switch { text-align: center; margin: 6px 0 0; }
 .link-btn { background: none; border: 0; padding: 0; color: inherit; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
 .auth-card > .link-btn { justify-self: center; margin-top: 4px; }
+.wg-skip-hint { margin: 0 0 8px; }
+.wg-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
