@@ -489,7 +489,7 @@ function SeatList({ groupId }) {
   );
 }
 
-const EMPTY_GROUP = { tutorId: '', title: '', subject: 'מתמטיקה', level: '', description: '', startDate: '', time: '', sessions: 1, mode: 'online', city: '', location: '', pricePerPerson: '', maxSeats: 8, joinMode: 'open' };
+const EMPTY_GROUP = { tutorId: '', title: '', subject: 'מתמטיקה', level: '', description: '', startDate: '', time: '', sessions: 1, mode: 'online', city: '', location: '', pricePerPerson: '', maxSeats: 8, joinMode: 'open', joinMessage: '' };
 
 function GroupForm({ initial, tutors, onSaved, onCancel }) {
   const { api, notify } = useApp();
@@ -498,6 +498,7 @@ function GroupForm({ initial, tutors, onSaved, onCancel }) {
   const [busy, setBusy] = useState(false);
   const set = (patch) => setG((x) => ({ ...x, ...patch }));
   useEffect(() => { if (!g.startDate) { const d = new Date(); d.setDate(d.getDate() + 7); set({ startDate: d.toISOString().slice(0, 10) }); } }, []); // eslint-disable-line
+  useEffect(() => { if (initial?.id) api.getGroupJoinMessage?.(initial.id).then((m) => set({ joinMessage: m })).catch(() => {}); }, [initial?.id]); // eslint-disable-line
 
   const submit = async (ev) => {
     ev.preventDefault();
@@ -536,6 +537,9 @@ function GroupForm({ initial, tutors, onSaved, onCancel }) {
         </div>
         <label className="field-label" htmlFor="gf-desc">מה עושים בקבוצה</label>
         <textarea id="gf-desc" className="input" rows={4} maxLength={1500} placeholder="נושאים, למי זה מתאים, מה מקבלים (הקלטה, דפי תרגול)…" value={g.description} onChange={(e) => set({ description: e.target.value })} />
+        <label className="field-label" htmlFor="gf-join">הודעת הצטרפות (לא חובה)</label>
+        <textarea id="gf-join" className="input" rows={3} maxLength={1500} placeholder="מה שתרצו שנרשם יראה מיד אחרי ההצטרפות: למשל קישור לקבוצת וואטסאפ או לשיעור בזום, ומה להביא." value={g.joinMessage || ''} onChange={(e) => set({ joinMessage: e.target.value })} />
+        <p className="hint">רק מי שהצטרף לקבוצה (ואתם) רואה את ההודעה הזאת. היא לא גלויה לציבור.</p>
       </fieldset>
       <fieldset>
         <legend>מתי ואיפה</legend>
@@ -610,7 +614,7 @@ function MySeats() {
                   <a className="t-name" href={`#group-${g.id}`}>{g.title}</a> <StatusTag status={s.status} map={SEAT_STATUS} />
                   <p className="t-meta">{dateLong(g.startDate)} · {g.time} · {g.mode === 'online' ? 'אונליין' : g.location || g.city} · עם {g.tutor?.name}</p>
                 </div>
-                <div className="ai-actions"><a className="btn btn-line btn-sm" href={`#group-${g.id}`}>לעמוד הקבוצה</a></div>
+                <div className="ai-actions"><a className="btn btn-brand btn-sm" href={`#group-${g.id}`}>{s.status === 'approved' ? 'לצ׳אט הקבוצה' : 'לעמוד הקבוצה'}</a></div>
               </article>
             ))}
           </div>

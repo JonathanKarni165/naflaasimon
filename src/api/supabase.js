@@ -302,7 +302,9 @@ export async function saveGroup(input) {
     join_mode: input.joinMode === 'approval' ? 'approval' : 'open',
   };
   const q = input.id ? sb.from('groups').update(row).eq('id', input.id) : sb.from('groups').insert(row);
-  return groupFromRow(check(await q.select().single()));
+  const saved = check(await q.select().single());
+  if (input.joinMessage !== undefined) check(await sb.from('group_secrets').upsert({ group_id: saved.id, join_message: (input.joinMessage || '').trim() }));
+  return groupFromRow(saved);
 }
 export async function deleteGroup(id) { need(); check(await sb.from('groups').delete().eq('id', id)); return true; }
 export async function joinGroup(groupId, { name, phone, note }) {
@@ -326,15 +328,21 @@ export async function listGroupSeats(groupId) {
 }
 export async function listGroupMessages(groupId) {
   return check(await sb.from('group_messages').select('*').eq('group_id', groupId).order('created_at'))
-    .map((m) => ({ id: m.id, groupId: m.group_id, userId: m.user_id, userName: m.user_name, isTutor: m.is_tutor, text: m.text, createdAt: m.created_at }));
+    .map((m) => ({ id: m.id, groupId: m.group_id, parentId: m.parent_id || null, userId: m.user_id, userName: m.user_name, isTutor: m.is_tutor, text: m.text, createdAt: m.created_at }));
 }
-export async function addGroupMessage(groupId, text) {
+export async function addGroupMessage(groupId, text, parentId) {
   const u = need();
   const g = check(await sb.from('groups').select('tutor_id').eq('id', groupId).single());
   const t = check(await sb.from('tutors').select('name, owner_id').eq('id', g.tutor_id).single());
   const isTutor = t.owner_id === u.id;
-  check(await sb.from('group_messages').insert({ group_id: groupId, user_id: u.id, user_name: isTutor ? t.name : u.name, is_tutor: isTutor, text }));
+  check(await sb.from('group_messages').insert({ group_id: groupId, user_id: u.id, user_name: isTutor ? t.name : u.name, is_tutor: isTutor, text, ...(parentId ? { parent_id: parentId } : {}) }));
   return true;
+}
+/** The message the tutor wrote for people who join (e.g. a WhatsApp link). Only the tutor and members can read it. */
+export async function getGroupJoinMessage(groupId) {
+  if (!user) return '';
+  const { data } = await sb.from('group_secrets').select('join_message').eq('group_id', groupId).maybeSingle();
+  return data?.join_message || '';
 }
 
 export function resetDemo() {}
