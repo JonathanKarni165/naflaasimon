@@ -5,7 +5,7 @@
 // Each inquiry is mailed at most once and only within 10 minutes of being sent (inquiries.notified_at),
 // so the public URL can't be used to spam anyone. Secrets: GMAIL_USER + GMAIL_APP_PASSWORD (or RESEND_API_KEY).
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
-import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
+import nodemailer from 'npm:nodemailer@6.9.14';
 
 const env = (k: string) => Deno.env.get(k) || '';
 const SITE = env('SITE_URL') || 'https://jonathankarni165.github.io/naflaasimon/';
@@ -23,9 +23,9 @@ async function send(to: string, subject: string, html: string, text: string) {
   }
   const user = env('GMAIL_USER');
   if (!user || !env('GMAIL_APP_PASSWORD')) throw new Error('no mail provider configured');
-  const client = new SMTPClient({ connection: { hostname: 'smtp.gmail.com', port: 465, tls: true, auth: { username: user, password: env('GMAIL_APP_PASSWORD') } } });
-  await client.send({ from: `נפל האסימון <${user}>`, to, subject, content: text, html });
-  await client.close();
+  // nodemailer encodes Hebrew subjects and names correctly (denomailer produced a broken message).
+  const transport = nodemailer.createTransport({ host: 'smtp.gmail.com', port: 465, secure: true, auth: { user, pass: env('GMAIL_APP_PASSWORD') } });
+  await transport.sendMail({ from: { name: 'נפל האסימון', address: user }, to, subject, text, html });
 }
 
 Deno.serve(async (req) => {
