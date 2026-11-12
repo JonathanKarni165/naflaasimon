@@ -7,6 +7,7 @@ import Tutor from './pages/Tutor.jsx';
 import { Groups, Group } from './pages/Groups.jsx';
 import Panel from './pages/Panel.jsx';
 import About from './pages/About.jsx';
+import Auth from './pages/Auth.jsx';
 import './base.css';
 import './app.css';
 
@@ -19,6 +20,8 @@ function Router() {
     case 'groups-marathons': return <Groups key="marathons" initialKind="marathon" />;
     case 'group': return <Group id={route.id} />;
     case 'about': return <About />;
+    case 'login': return <Auth mode="login" />;
+    case 'signup': return <Auth mode="signup" />;
     default:
       if (route.name.startsWith('panel')) return <Panel />;
       return <Home />;

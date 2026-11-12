@@ -675,66 +675,27 @@ export function WherePicker({ id, value, onChange, placeholder = 'עיר או ש
   );
 }
 
-const GOOGLE_ICON = (
+export const GOOGLE_ICON = (
   <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" /><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" /><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" /><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" /></svg>
 );
 
-/** One screen of email sign-in: mode 'in' (sign in), 'up' (new account) or 'reset' (forgot password). */
-function EmailForm({ api, mode, setMode, onError }) {
-  const [f, setF] = useState({ name: '', email: '', password: '' });
-  const [busy, setBusy] = useState(false);
-  const [info, setInfo] = useState('');
-  const submit = async (e) => {
-    e.preventDefault(); onError(''); setInfo('');
-    const email = f.email.trim();
-    if (!/^\S+@\S+\.\S+$/.test(email)) { onError('כתבו כתובת מייל תקינה'); return; }
-    if (mode !== 'reset' && f.password.length < 6) { onError('הסיסמה חייבת להכיל לפחות 6 תווים'); return; }
-    if (mode === 'up' && !f.name.trim()) { onError('כתבו שם'); return; }
-    setBusy(true);
-    try {
-      if (mode === 'in') await api.auth.signInEmail({ email, password: f.password });
-      else if (mode === 'up') {
-        const r = await api.auth.signUpEmail({ email, password: f.password, name: f.name.trim() });
-        if (r.needsConfirm) setInfo('שלחנו אליכם מייל אימות. לחצו על הקישור שבו (חפשו גם בספאם) ואז היכנסו.');
-      } else { await api.auth.resetPassword(email); setInfo('שלחנו קישור לאיפוס הסיסמה למייל.'); }
-    } catch (err) { onError(err.message); }
-    setBusy(false);
-  };
-  return (
-    <form className="login-email" onSubmit={submit} noValidate>
-      <h3>{mode === 'in' ? 'כניסה עם מייל' : mode === 'up' ? 'פתיחת חשבון חדש' : 'איפוס סיסמה'}</h3>
-      {mode === 'up' ? <input className="input" aria-label="שם" autoComplete="name" placeholder="שם" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /> : null}
-      <input className="input" aria-label="מייל" type="email" autoComplete="email" dir="ltr" placeholder="name@email.com" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
-      {mode !== 'reset' ? <input className="input" aria-label="סיסמה" type="password" autoComplete={mode === 'up' ? 'new-password' : 'current-password'} dir="ltr" placeholder="סיסמה (לפחות 6 תווים)" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} /> : null}
-      <button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'רגע…' : mode === 'in' ? 'כניסה' : mode === 'up' ? 'יצירת חשבון' : 'שליחת קישור לאיפוס'}</button>
-      {mode === 'in' ? <><button type="button" className="linkish" onClick={() => { setMode('reset'); onError(''); }}>שכחתי סיסמה</button><button type="button" className="linkish" onClick={() => { setMode('up'); onError(''); }}>אין לי חשבון, לפתיחת חשבון חדש</button></> : null}
-      {mode === 'up' ? <button type="button" className="linkish" onClick={() => { setMode('in'); onError(''); }}>כבר יש לי חשבון, לכניסה</button> : null}
-      {info ? <p className="ok-note" role="status">{info}</p> : null}
-    </form>
-  );
+/** Where to come back to after signing in on the full-page forms. */
+export function rememberReturn() {
+  try { const h = window.location.hash; if (!/^#(login|signup)$/.test(h)) sessionStorage.setItem('naflaasimon-return', h.replace(/^#/, '')); } catch { /* private mode */ }
 }
 
-/** Choice screen (Google / email / new account / phone only), then one screen per path. */
+/** Choice screen: Google, email sign-in and sign-up open their own full pages; "phone only" opens the short form. */
 function AuthFlow({ api, guest, onBack }) {
-  const { openGuest, setLoginOpen } = useApp();
-  const [view, setView] = useState('choice'); // 'choice' | 'in' | 'up' | 'reset'
+  const { openGuest, setLoginOpen, closeGuest } = useApp();
   const [err, setErr] = useState('');
-  const google = async () => { try { await api.auth.signInWithGoogle(); } catch (e) { setErr(e.message); } };
-  if (view !== 'choice') {
-    return (
-      <div className="auth-flow">
-        <button type="button" className="back-btn" onClick={() => { setView('choice'); setErr(''); }}>→ חזרה</button>
-        <EmailForm api={api} mode={view} setMode={setView} onError={setErr} />
-        {err ? <p className="err">{err}</p> : null}
-      </div>
-    );
-  }
+  const google = async () => { rememberReturn(); try { await api.auth.signInWithGoogle(); } catch (e) { setErr(e.message); } };
+  const page = (name) => { rememberReturn(); setLoginOpen(false); closeGuest(); go(name); };
   return (
     <div className="auth-flow">
       {onBack ? <button type="button" className="back-btn" onClick={onBack}>→ חזרה</button> : null}
       <button type="button" className="btn btn-google" onClick={google}>{GOOGLE_ICON} המשך עם Google</button>
-      <button type="button" className="btn btn-brand" onClick={() => setView('in')}>כניסה עם מייל וסיסמה</button>
-      <button type="button" className="btn btn-line" onClick={() => setView('up')}>פתיחת חשבון חדש</button>
+      <button type="button" className="btn btn-brand" onClick={() => page('login')}>כניסה עם מייל וסיסמה</button>
+      <button type="button" className="btn btn-line" onClick={() => page('signup')}>פתיחת חשבון חדש</button>
       {guest ? (
         <>
           <div className="login-or"><span>או</span></div>

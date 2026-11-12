@@ -587,3 +587,18 @@ footer .linkish { color: inherit; font-weight: 600; }
 .auth-flow .login-email h3 { margin: 0; font-size: 20px; }
 .back-btn { justify-self: start; background: none; border: 0; padding: 0; font-weight: 700; color: var(--purple); cursor: pointer; }
 .auth-flow .input, .auth-flow .login-email { width: 100%; box-sizing: border-box; }
+
+/* full-page sign up / login */
+.auth-page { display: flex; justify-content: center; padding: 32px 16px 56px; }
+.auth-card { width: 100%; max-width: 460px; display: grid; gap: 10px; text-align: start; justify-items: stretch; background: #fff; border: 1px solid rgba(58,49,48,.12); border-radius: 20px; padding: 28px 24px; }
+.auth-card > :first-child { justify-self: center; }
+.auth-card h1 { margin: 0; text-align: center; font-size: 28px; }
+.auth-card .muted-text { text-align: center; margin: 0 0 6px; }
+.auth-card .btn { width: 100%; justify-content: center; }
+.auth-form { display: grid; gap: 6px; }
+.auth-form .field-label { margin-top: 6px; }
+.auth-form .input { width: 100%; box-sizing: border-box; }
+.auth-form .btn { margin-top: 10px; }
+.auth-switch { text-align: center; margin: 6px 0 0; }
+.link-btn { background: none; border: 0; padding: 0; color: inherit; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.auth-card > .link-btn { justify-self: center; margin-top: 4px; }

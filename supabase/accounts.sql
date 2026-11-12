@@ -120,3 +120,21 @@ begin
 end $$;
 revoke execute on function public.review_tutor(uuid, boolean, text) from anon, public;
 grant execute on function public.review_tutor(uuid, boolean, text) to authenticated;
+
+-- 4. Sign-up form (email accounts): phone, birth date and area travel in the sign-up metadata and land in the profile.
+create or replace function public.handle_new_user() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare m jsonb := coalesce(new.raw_user_meta_data, '{}'::jsonb); bd date; ph text;
+begin
+  begin bd := nullif(m->>'birth_date', '')::date; exception when others then bd := null; end;
+  if bd is not null and (bd < date '1900-01-01' or bd > current_date) then bd := null; end if;
+  ph := nullif(regexp_replace(coalesce(m->>'phone', ''), '[\s-]', '', 'g'), '');
+  if ph is not null and length(ph) not between 7 and 20 then ph := null; end if;
+  insert into public.profiles (id, name, email, avatar, phone, birth_date, area, profile_done)
+  values (new.id,
+          coalesce(nullif(btrim(m->>'full_name'), ''), nullif(btrim(m->>'name'), ''), split_part(new.email, '@', 1)),
+          new.email, m->>'avatar_url', ph, bd, nullif(left(btrim(coalesce(m->>'area', '')), 80), ''),
+          coalesce(m->>'signup_form', '') = 'true')
+  on conflict (id) do nothing;
+  return new;
+end $$;
