@@ -1,22 +1,24 @@
 import { useMemo, useState } from 'react';
 import { useApp, useLoad } from '../state.jsx';
-import { SUBJECTS } from '../data/constants.js';
+import { optionLabel, norm } from '../data/topics.js';
 import { money, dateLong, relDays, dateShort, isPhone } from '../lib/format.js';
-import { GroupCard, Seg, SeatDots, Avatar, Verified, Stars, Loading, Empty } from '../components/ui.jsx';
+import { GroupCard, Seg, TopicPicker, SeatDots, Avatar, Verified, Stars, Loading, Empty } from '../components/ui.jsx';
 
 export const isMarathon = (g) => Number(g.sessions) <= 1 || /מרתון/.test(g.title || '');
 
 export function Groups({ initialKind = 'any' }) {
   const { groups, filters } = useApp();
-  const [subject, setSubject] = useState(filters.subject || '');
+  // Same "מה רוצים ללמוד?" field as the tutor search: subject, level, exam code or course.
+  const [pick, setPick] = useState({ subject: filters.subject || '', level: filters.level || '', topic: filters.topic || '' });
+  const { subject, level, topic } = pick;
   const [mode, setMode] = useState('any');
   const [kind, setKind] = useState(initialKind);
   const [q, setQ] = useState('');
   const [onlyOpen, setOnlyOpen] = useState(true);
   const list = useMemo(() => {
     const words = q.trim().split(/\s+/).filter(Boolean);
-    return (groups || [])
-      .filter((g) => (!subject || g.subject === subject) && (mode === 'any' || g.mode === mode) && (!onlyOpen || g.seatsTaken < g.maxSeats))
+    const out = (groups || [])
+      .filter((g) => (!subject || g.subject === subject) && (!level || !g.level || g.level === level) && (mode === 'any' || g.mode === mode) && (!onlyOpen || g.seatsTaken < g.maxSeats))
       .filter((g) => kind === 'any' || (kind === 'marathon') === isMarathon(g))
       .filter((g) => {
         if (!words.length) return true;
@@ -24,25 +26,29 @@ export function Groups({ initialKind = 'any' }) {
         return words.every((w) => hay.includes(w));
       })
       .sort((a, b) => a.startDate.localeCompare(b.startDate));
-  }, [groups, subject, mode, onlyOpen, kind, q]);
-
-  const subjects = useMemo(() => [...new Set([...(groups || []).map((g) => g.subject).filter(Boolean)])].sort((a, b) => SUBJECTS.indexOf(a) - SUBJECTS.indexOf(b)), [groups]);
+    if (!topic) return out;
+    // Groups that name the chosen course or exam come first; the rest of the subject follows.
+    const hit = (g) => norm([g.title, g.description, g.level].filter(Boolean).join(' ')).includes(norm(topic).replace(/^שאלון /, ''));
+    return [...out.filter(hit), ...out.filter((g) => !hit(g))];
+  }, [groups, subject, level, topic, mode, onlyOpen, kind, q]);
 
   return (
     <main className="wrap page-pad">
       <div className="page-head">
-        <h1>קבוצות למידה ומרתונים</h1>
+        <h1>קבוצות למידה ומרתונים{subject ? ` ב${subject}` : ''}{topic ? `: ${topic}` : level ? `, ${level}` : ''}</h1>
         <p className="muted-text">מורים מעלים קבוצה עם מטרה, תאריך ומחיר לתלמיד. שומרים מקום בלחיצה ושואלים את המורה ישירות.</p>
+        <div className="topic-search">
+          <label className="field-label" htmlFor="g-topic">מה רוצים ללמוד?</label>
+          <TopicPicker id="g-topic" value={optionLabel(pick)} onPick={(o) => setPick(o
+            ? { subject: o.subject, topic: o.topic, level: o.topic ? (o.level || '') : o.level }
+            : { subject: '', topic: '', level: '' })} />
+        </div>
       </div>
       <div className="group-filters">
-        <label className="sr-only" htmlFor="g-q">חיפוש קבוצה או מרתון</label>
-        <input id="g-q" className="input" type="search" placeholder="חיפוש: 472, גאומטריה, פסיכומטרי, שם מורה…" value={q} onChange={(e) => setQ(e.target.value)} />
         <span className="sr-only" id="g-kind">סוג קבוצה</span>
         <Seg label="g-kind" value={kind} onChange={setKind} options={[['any', 'הכול'], ['marathon', 'מרתונים'], ['course', 'קבוצות קבועות']]} />
-        <div className="chips" role="group" aria-label="מקצוע">
-          <button type="button" className="chip" aria-pressed={!subject} onClick={() => setSubject('')}>הכול</button>
-          {subjects.map((s) => <button key={s} type="button" className="chip" aria-pressed={subject === s} onClick={() => setSubject(s)}>{s}</button>)}
-        </div>
+        <label className="sr-only" htmlFor="g-q">חיפוש לפי שם או מילה</label>
+        <input id="g-q" className="input" type="search" placeholder="חיפוש לפי שם מורה, עיר או מילה…" value={q} onChange={(e) => setQ(e.target.value)} />
         <div className="gf-row">
           <span className="sr-only" id="g-mode">סוג</span>
           <Seg label="g-mode" value={mode} onChange={setMode} options={[['any', 'הכול'], ['online', 'אונליין'], ['frontal', 'פרונטלי']]} />
@@ -50,7 +56,7 @@ export function Groups({ initialKind = 'any' }) {
         </div>
       </div>
       {!groups ? <Loading /> : list.length === 0 ? (
-        <Empty title="אין כרגע קבוצות שמתאימות">
+        <Empty title={subject ? `אין כרגע קבוצות ב${optionLabel(pick).replace(' - הכל', '')}` : 'אין כרגע קבוצות שמתאימות'}>
           <p>{kind === 'marathon' ? 'אין כרגע מרתון שמתאים. נסו מקצוע אחר, או בקשו מהמורה שלכם לפתוח מרתון.' : 'נסו מקצוע אחר, או בקשו מהמורה שלכם לפתוח קבוצה.'}</p>
         </Empty>
       ) : (
