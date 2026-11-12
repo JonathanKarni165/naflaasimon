@@ -579,3 +579,5 @@ footer .linkish { color: inherit; font-weight: 600; }
 .guest-form { text-align: start; }
 .guest-form .field-label { margin-top: 8px; }
 .guest-form .note { margin: 8px 0 4px; font-weight: 500; font-size: 15px; }
+.login-panel { display: grid; gap: 8px; margin-top: 10px; text-align: start; }
+.guest-form .login-panel { margin-bottom: 8px; }
