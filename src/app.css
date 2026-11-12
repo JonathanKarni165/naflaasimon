@@ -581,3 +581,9 @@ footer .linkish { color: inherit; font-weight: 600; }
 .guest-form .note { margin: 8px 0 4px; font-weight: 500; font-size: 15px; }
 .login-panel { display: grid; gap: 8px; margin-top: 10px; text-align: start; }
 .guest-form .login-panel { margin-bottom: 8px; }
+.auth-flow { display: grid; gap: 10px; margin-top: 12px; text-align: start; }
+.auth-flow .btn { width: 100%; justify-content: center; }
+.auth-flow .login-email { margin-top: 0; }
+.auth-flow .login-email h3 { margin: 0; font-size: 20px; }
+.back-btn { justify-self: start; background: none; border: 0; padding: 0; font-weight: 700; color: var(--purple); cursor: pointer; }
+.auth-flow .input, .auth-flow .login-email { width: 100%; box-sizing: border-box; }

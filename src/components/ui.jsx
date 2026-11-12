@@ -259,36 +259,28 @@ export function buildInquiryText(tutor, f) {
 const slotSort = (a, b) => { const [d1, h1] = a.split('-').map(Number); const [d2, h2] = b.split('-').map(Number); return d1 - d2 || h1 - h2; };
 
 /** Contact a tutor through the site. The tutor's phone is never shown; the request lands in their panel. */
-/** Google button + email form, used inside dialogs that want people to sign in or open an account. */
-function LoginPanel({ api }) {
-  const [err, setErr] = useState('');
-  const google = async () => { try { await api.auth.signInWithGoogle(); } catch (e) { setErr(e.message); } };
-  return (
-    <div className="login-panel">
-      <button type="button" className="btn btn-google" onClick={google}>
-        <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" /><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" /><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" /><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" /></svg>
-        המשך עם Google
-      </button>
-      <EmailLogin api={api} onError={setErr} />
-      {err ? <p className="err">{err}</p> : null}
-    </div>
-  );
+/** Link under a CTA: "just leave a phone number". Opens the shared dialog (GuestDialog). */
+export function GuestRequest({ tutor, group }) {
+  const { user, api, openGuest } = useApp();
+  if (user || api.mode === 'demo' || !api.sendGuestRequest || !tutor) return null;
+  return <button type="button" className="linkish small guest-link" onClick={() => openGuest({ tutor, group })}>או להשאיר מספר טלפון בלבד (בלי צ׳אט)</button>;
 }
 
-/** "No account" route: leave a name, phone and message. The site recommends opening an account instead. */
-export function GuestRequest({ tutor, group }) {
-  const { api, user, notify, setLoginOpen } = useApp();
-  const [open, setOpen] = useState(false);
+/** "No account" route: leave a name, phone and message. After sending, the site offers sign-in. */
+export function GuestDialog() {
+  const { api, user, notify, guestTarget, closeGuest } = useApp();
   const [f, setF] = useState({ name: '', phone: '', email: '', message: '', hp: '' });
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
+  const [signin, setSignin] = useState(false);
   const ref = useRef(null);
+  const open = !!guestTarget && !user;
   useEffect(() => {
     const d = ref.current; if (!d) return;
-    if (open && !d.open) d.showModal();
+    if (open && !d.open) { setSent(false); setSignin(false); d.showModal(); }
     if (!open && d.open) d.close();
   }, [open]);
-  if (user || api.mode === 'demo' || !api.sendGuestRequest) return null;
+  const tutor = guestTarget?.tutor; const group = guestTarget?.group;
   const submit = async (e) => {
     e.preventDefault();
     if (f.name.trim().length < 2) { notify('כתבו שם', true); return; }
@@ -296,44 +288,43 @@ export function GuestRequest({ tutor, group }) {
     if (f.email.trim() && !isEmail(f.email)) { notify('בדקו את כתובת המייל', true); return; }
     if (!f.message.trim()) { notify('כתבו הודעה קצרה למורה', true); return; }
     setBusy(true);
-    try { await api.sendGuestRequest({ tutorId: tutor.id, groupId: group?.id, ...f, name: f.name.trim(), message: f.message.trim() }); setSent(true); } catch (err) { notify(err.message, true); }
+    try { await api.sendGuestRequest({ tutorId: tutor.id, groupId: group?.id, ...f, name: f.name.trim(), message: f.message.trim() }); setSent(true); setF((x) => ({ ...x, message: '', hp: '' })); } catch (err) { notify(err.message, true); }
     setBusy(false);
   };
-  const close = () => { setOpen(false); if (sent) { setSent(false); setF({ name: '', phone: '', email: '', message: '', hp: '' }); } };
   return (
-    <>
-      <button type="button" className="linkish small guest-link" onClick={() => setOpen(true)}>או להשאיר מספר טלפון בלבד (בלי צ׳אט)</button>
-      <dialog ref={ref} className="modal" onClose={close} onClick={(e) => { if (e.target === ref.current) close(); }}>
-        <div className="modal-body guest-form">
-          <button type="button" className="modal-x" onClick={close} aria-label="סגירה">×</button>
-          {sent ? (
-            <>
-              <Coin size={44} />
-              <h2>הפנייה נשלחה</h2>
-              <p>{tutor.name.split(' ')[0]} יקבל/תקבל את הטלפון שלכם ויחזור אליכם.</p>
-              <p className="note">בלי חשבון המורה מקבל/ת רק מספר טלפון: אין צ׳אט באתר ואין מעקב אחרי התשובה. היכנסו או פתחו חשבון, ואז אפשר לשלוח פנייה עם צ׳אט, בלי למסור טלפון.</p>
-              <LoginPanel api={api} />
-              <div className="form-actions"><button type="button" className="btn btn-ghost" onClick={close}>אולי אחר כך</button></div>
-            </>
-          ) : (
-            <form onSubmit={submit} noValidate>
-              <h2>{group ? 'השארת פרטים לקבוצה' : 'השארת פרטים למורה'}</h2>
-              <p className="note">מומלץ בחום להיכנס או לפתוח חשבון: אז אפשר לדבר עם המורה בצ׳אט באתר, בלי למסור טלפון, ולראות את התשובה באזור האישי. <button type="button" className="linkish" onClick={() => { close(); setLoginOpen(true); }}>כניסה או הרשמה</button></p>
-              <label className="field-label" htmlFor="gr-name">שם</label>
-              <input id="gr-name" className="input" autoComplete="name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
-              <label className="field-label" htmlFor="gr-phone">טלפון (המורה יחזור אליכם אליו)</label>
-              <input id="gr-phone" className="input" type="tel" inputMode="tel" dir="ltr" autoComplete="tel" placeholder="050-1234567" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
-              <label className="field-label" htmlFor="gr-email">מייל (לא חובה)</label>
-              <input id="gr-email" className="input" type="email" dir="ltr" autoComplete="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
-              <label className="field-label" htmlFor="gr-msg">מה אתם צריכים?</label>
-              <textarea id="gr-msg" className="input" rows={4} maxLength={1000} placeholder={group ? `למשל: רוצה להצטרף ל"${group.title}"` : 'מקצוע, רמה, מתי נוח לכם…'} value={f.message} onChange={(e) => setF({ ...f, message: e.target.value })} />
-              <input className="sr-only" tabIndex={-1} autoComplete="off" aria-hidden="true" name="website" value={f.hp} onChange={(e) => setF({ ...f, hp: e.target.value })} />
-              <div className="form-actions"><button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'שולחים…' : 'שליחה'}</button><button type="button" className="btn btn-ghost" onClick={close}>ביטול</button></div>
-            </form>
-          )}
-        </div>
-      </dialog>
-    </>
+    <dialog ref={ref} className="modal" onClose={closeGuest} onClick={(e) => { if (e.target === ref.current) closeGuest(); }}>
+      <div className="modal-body guest-form">
+        <button type="button" className="modal-x" onClick={closeGuest} aria-label="סגירה">×</button>
+        {open && sent ? (
+          <>
+            <Coin size={44} />
+            <h2>הפנייה נשלחה</h2>
+            <p>{tutor.name.split(' ')[0]} יקבל/תקבל את הטלפון שלכם ויחזור אליכם.</p>
+            {signin ? <AuthFlow api={api} onBack={() => setSignin(false)} /> : (
+              <>
+                <p className="note">בלי חשבון המורה מקבל/ת רק מספר טלפון: אין צ׳אט באתר ואין מעקב אחרי התשובה. עם חשבון אפשר לדבר בצ׳אט בלי למסור טלפון.</p>
+                <div className="form-actions"><button type="button" className="btn btn-brand" onClick={() => setSignin(true)}>כניסה או הרשמה</button><button type="button" className="btn btn-ghost" onClick={closeGuest}>סגירה</button></div>
+              </>
+            )}
+          </>
+        ) : open ? (
+          <form onSubmit={submit} noValidate>
+            <h2>{group ? 'השארת פרטים לקבוצה' : 'השארת פרטים למורה'}</h2>
+            <p className="note">עדיף להיכנס או לפתוח חשבון: אז אפשר לדבר עם המורה בצ׳אט באתר, בלי למסור טלפון.</p>
+            <label className="field-label" htmlFor="gr-name">שם</label>
+            <input id="gr-name" className="input" autoComplete="name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+            <label className="field-label" htmlFor="gr-phone">טלפון (המורה יחזור אליכם אליו)</label>
+            <input id="gr-phone" className="input" type="tel" inputMode="tel" dir="ltr" autoComplete="tel" placeholder="050-1234567" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+            <label className="field-label" htmlFor="gr-email">מייל (לא חובה)</label>
+            <input id="gr-email" className="input" type="email" dir="ltr" autoComplete="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+            <label className="field-label" htmlFor="gr-msg">מה אתם צריכים?</label>
+            <textarea id="gr-msg" className="input" rows={4} maxLength={1000} placeholder={group ? `למשל: רוצה להצטרף ל"${group.title}"` : 'מקצוע, רמה, מתי נוח לכם…'} value={f.message} onChange={(e) => setF({ ...f, message: e.target.value })} />
+            <input className="sr-only" tabIndex={-1} autoComplete="off" aria-hidden="true" name="website" value={f.hp} onChange={(e) => setF({ ...f, hp: e.target.value })} />
+            <div className="form-actions"><button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'שולחים…' : 'שליחה'}</button><button type="button" className="btn btn-ghost" onClick={closeGuest}>ביטול</button></div>
+          </form>
+        ) : null}
+      </div>
+    </dialog>
   );
 }
 
@@ -369,7 +360,7 @@ export function InquiryBox({ tutor }) {
   if (user && user.id === tutor.ownerId) return <p className="hint">זה הפרופיל שלכם. פניות מתלמידים מגיעות ל<a href="#panel-inbox">תיבת הפניות בפאנל</a>.</p>;
 
   const start = () => {
-    if (!requireLogin('כדי לשלוח פנייה למורה צריך להתחבר. ככה המורה יודע שמדובר באדם אמיתי, ואתם רואים את התשובה באזור האישי.')) return;
+    if (!requireLogin('כדי לשלוח פנייה למורה צריך להתחבר. ככה המורה יודע שמדובר באדם אמיתי, ואתם רואים את התשובה באזור האישי.', { tutor })) return;
     setF(blank()); setEditDetails(!user?.name); setStep(0); setSent(false); setOpen(true);
   };
   const toggleVia = (v) => setF((x) => ({ ...x, via: x.via.includes(v) ? x.via.filter((y) => y !== v) : [...x.via, v] }));
@@ -684,9 +675,12 @@ export function WherePicker({ id, value, onChange, placeholder = 'עיר או ש
   );
 }
 
-/** Sign in / sign up with email and password (the account works without Google). */
-function EmailLogin({ api, onError }) {
-  const [mode, setMode] = useState('in'); // 'in' | 'up' | 'reset'
+const GOOGLE_ICON = (
+  <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" /><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" /><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" /><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" /></svg>
+);
+
+/** One screen of email sign-in: mode 'in' (sign in), 'up' (new account) or 'reset' (forgot password). */
+function EmailForm({ api, mode, setMode, onError }) {
   const [f, setF] = useState({ name: '', email: '', password: '' });
   const [busy, setBusy] = useState(false);
   const [info, setInfo] = useState('');
@@ -708,36 +702,61 @@ function EmailLogin({ api, onError }) {
   };
   return (
     <form className="login-email" onSubmit={submit} noValidate>
-      <div className="login-or"><span>או עם מייל</span></div>
-      <div className="seg" role="group" aria-label="כניסה או הרשמה">
-        <button type="button" aria-pressed={mode !== 'up'} onClick={() => { setMode('in'); setInfo(''); onError(''); }}>כניסה</button>
-        <button type="button" aria-pressed={mode === 'up'} onClick={() => { setMode('up'); setInfo(''); onError(''); }}>הרשמה</button>
-      </div>
+      <h3>{mode === 'in' ? 'כניסה עם מייל' : mode === 'up' ? 'פתיחת חשבון חדש' : 'איפוס סיסמה'}</h3>
       {mode === 'up' ? <input className="input" aria-label="שם" autoComplete="name" placeholder="שם" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /> : null}
       <input className="input" aria-label="מייל" type="email" autoComplete="email" dir="ltr" placeholder="name@email.com" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
       {mode !== 'reset' ? <input className="input" aria-label="סיסמה" type="password" autoComplete={mode === 'up' ? 'new-password' : 'current-password'} dir="ltr" placeholder="סיסמה (לפחות 6 תווים)" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} /> : null}
       <button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'רגע…' : mode === 'in' ? 'כניסה' : mode === 'up' ? 'יצירת חשבון' : 'שליחת קישור לאיפוס'}</button>
-      {mode === 'in' ? <button type="button" className="linkish" onClick={() => { setMode('reset'); setInfo(''); onError(''); }}>שכחתי סיסמה</button> : null}
-      {mode === 'reset' ? <button type="button" className="linkish" onClick={() => setMode('in')}>חזרה לכניסה</button> : null}
+      {mode === 'in' ? <><button type="button" className="linkish" onClick={() => { setMode('reset'); onError(''); }}>שכחתי סיסמה</button><button type="button" className="linkish" onClick={() => { setMode('up'); onError(''); }}>אין לי חשבון, לפתיחת חשבון חדש</button></> : null}
+      {mode === 'up' ? <button type="button" className="linkish" onClick={() => { setMode('in'); onError(''); }}>כבר יש לי חשבון, לכניסה</button> : null}
       {info ? <p className="ok-note" role="status">{info}</p> : null}
     </form>
   );
 }
 
-export function LoginModal() {
-  const { loginOpen, setLoginOpen, loginReason, api } = useApp();
-  const [picking, setPicking] = useState(false);
+/** Choice screen (Google / email / new account / phone only), then one screen per path. */
+function AuthFlow({ api, guest, onBack }) {
+  const { openGuest, setLoginOpen } = useApp();
+  const [view, setView] = useState('choice'); // 'choice' | 'in' | 'up' | 'reset'
   const [err, setErr] = useState('');
+  const google = async () => { try { await api.auth.signInWithGoogle(); } catch (e) { setErr(e.message); } };
+  if (view !== 'choice') {
+    return (
+      <div className="auth-flow">
+        <button type="button" className="back-btn" onClick={() => { setView('choice'); setErr(''); }}>→ חזרה</button>
+        <EmailForm api={api} mode={view} setMode={setView} onError={setErr} />
+        {err ? <p className="err">{err}</p> : null}
+      </div>
+    );
+  }
+  return (
+    <div className="auth-flow">
+      {onBack ? <button type="button" className="back-btn" onClick={onBack}>→ חזרה</button> : null}
+      <button type="button" className="btn btn-google" onClick={google}>{GOOGLE_ICON} המשך עם Google</button>
+      <button type="button" className="btn btn-brand" onClick={() => setView('in')}>כניסה עם מייל וסיסמה</button>
+      <button type="button" className="btn btn-line" onClick={() => setView('up')}>פתיחת חשבון חדש</button>
+      {guest ? (
+        <>
+          <div className="login-or"><span>או</span></div>
+          <button type="button" className="btn btn-ghost" onClick={() => { setLoginOpen(false); openGuest(guest); }}>להשאיר מספר טלפון בלבד (בלי צ׳אט)</button>
+        </>
+      ) : null}
+      {err ? <p className="err">{err}</p> : null}
+    </div>
+  );
+}
+
+export function LoginModal() {
+  const { loginOpen, setLoginOpen, loginReason, loginGuest, api } = useApp();
+  const [picking, setPicking] = useState(false);
+  const [round, setRound] = useState(0);
   const ref = useRef(null);
   useEffect(() => {
     const d = ref.current; if (!d) return;
-    if (loginOpen && !d.open) { d.showModal(); setPicking(false); setErr(''); }
+    if (loginOpen && !d.open) { d.showModal(); setPicking(false); setRound((r) => r + 1); }
     if (!loginOpen && d.open) d.close();
   }, [loginOpen]);
-  const google = async () => {
-    if (api.mode === 'demo') { setPicking(true); return; }
-    try { await api.auth.signInWithGoogle(); } catch (e) { setErr(e.message); }
-  };
+  const demo = api.mode === 'demo';
   return (
     <dialog ref={ref} className="modal" onClose={() => setLoginOpen(false)} onClick={(e) => { if (e.target === ref.current) setLoginOpen(false); }}>
       <div className="modal-body">
@@ -745,12 +764,9 @@ export function LoginModal() {
         <Coin size={44} />
         <h2>כניסה לנפל האסימון</h2>
         <p className="muted-text">{loginReason || 'מתחברים כדי לפנות למורים, לכתוב ביקורות ולהצטרף לקבוצות.'}</p>
-        {!picking ? (
-          <button type="button" className="btn btn-google" onClick={google}>
-            <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" /><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" /><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" /><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" /></svg>
-            המשך עם Google
-          </button>
-        ) : (
+        {demo && !picking ? (
+          <button type="button" className="btn btn-google" onClick={() => setPicking(true)}>{GOOGLE_ICON} המשך עם Google</button>
+        ) : demo ? (
           <div className="demo-accounts">
             <p className="demo-note">גרסת תצוגה: בחרו חשבון לדוגמה. באתר האמיתי כאן נפתח חלון ההתחברות של Google.</p>
             {api.demoUsers.map((u) => (
@@ -760,9 +776,7 @@ export function LoginModal() {
               </button>
             ))}
           </div>
-        )}
-        {!picking && api.mode !== 'demo' ? <EmailLogin api={api} onError={setErr} /> : null}
-        {err ? <p className="err">{err}</p> : null}
+        ) : <AuthFlow key={round} api={api} guest={loginGuest} />}
         <p className="fine">בכניסה אתם מסכימים לתנאי השימוש. לא נפרסם דבר בשמכם.</p>
       </div>
     </dialog>
