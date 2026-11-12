@@ -259,6 +259,22 @@ export function buildInquiryText(tutor, f) {
 const slotSort = (a, b) => { const [d1, h1] = a.split('-').map(Number); const [d2, h2] = b.split('-').map(Number); return d1 - d2 || h1 - h2; };
 
 /** Contact a tutor through the site. The tutor's phone is never shown; the request lands in their panel. */
+/** Google button + email form, used inside dialogs that want people to sign in or open an account. */
+function LoginPanel({ api }) {
+  const [err, setErr] = useState('');
+  const google = async () => { try { await api.auth.signInWithGoogle(); } catch (e) { setErr(e.message); } };
+  return (
+    <div className="login-panel">
+      <button type="button" className="btn btn-google" onClick={google}>
+        <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" /><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" /><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" /><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" /></svg>
+        המשך עם Google
+      </button>
+      <EmailLogin api={api} onError={setErr} />
+      {err ? <p className="err">{err}</p> : null}
+    </div>
+  );
+}
+
 /** "No account" route: leave a name, phone and message. The site recommends opening an account instead. */
 export function GuestRequest({ tutor, group }) {
   const { api, user, notify, setLoginOpen } = useApp();
@@ -286,7 +302,7 @@ export function GuestRequest({ tutor, group }) {
   const close = () => { setOpen(false); if (sent) { setSent(false); setF({ name: '', phone: '', email: '', message: '', hp: '' }); } };
   return (
     <>
-      <button type="button" className="linkish small guest-link" onClick={() => setOpen(true)}>אין לכם חשבון? אפשר להשאיר טלפון בלי להירשם</button>
+      <button type="button" className="linkish small guest-link" onClick={() => setOpen(true)}>או להשאיר מספר טלפון בלבד (בלי צ׳אט)</button>
       <dialog ref={ref} className="modal" onClose={close} onClick={(e) => { if (e.target === ref.current) close(); }}>
         <div className="modal-body guest-form">
           <button type="button" className="modal-x" onClick={close} aria-label="סגירה">×</button>
@@ -294,14 +310,15 @@ export function GuestRequest({ tutor, group }) {
             <>
               <Coin size={44} />
               <h2>הפנייה נשלחה</h2>
-              <p>{tutor.name.split(' ')[0]} יחזרו אליכם בטלפון.</p>
-              <p className="muted-text">בפעם הבאה כדאי לפתוח חשבון: אפשר לדבר עם המורה בצ׳אט באתר בלי למסור טלפון, לעקוב אחרי התשובות ולהצטרף לקבוצות בלחיצה.</p>
-              <div className="form-actions"><button type="button" className="btn btn-brand" onClick={() => { close(); setLoginOpen(true); }}>פתיחת חשבון</button><button type="button" className="btn btn-ghost" onClick={close}>סגירה</button></div>
+              <p>{tutor.name.split(' ')[0]} יקבל/תקבל את הטלפון שלכם ויחזור אליכם.</p>
+              <p className="note">בלי חשבון המורה מקבל/ת רק מספר טלפון: אין צ׳אט באתר ואין מעקב אחרי התשובה. היכנסו או פתחו חשבון, ואז אפשר לשלוח פנייה עם צ׳אט, בלי למסור טלפון.</p>
+              <LoginPanel api={api} />
+              <div className="form-actions"><button type="button" className="btn btn-ghost" onClick={close}>אולי אחר כך</button></div>
             </>
           ) : (
             <form onSubmit={submit} noValidate>
               <h2>{group ? 'השארת פרטים לקבוצה' : 'השארת פרטים למורה'}</h2>
-              <p className="note">מומלץ בחום לפתוח חשבון במקום: אז אפשר לדבר עם המורה בצ׳אט באתר, בלי למסור טלפון, ולראות את התשובה באזור האישי. <button type="button" className="linkish" onClick={() => { close(); setLoginOpen(true); }}>פתיחת חשבון</button></p>
+              <p className="note">מומלץ בחום להיכנס או לפתוח חשבון: אז אפשר לדבר עם המורה בצ׳אט באתר, בלי למסור טלפון, ולראות את התשובה באזור האישי. <button type="button" className="linkish" onClick={() => { close(); setLoginOpen(true); }}>כניסה או הרשמה</button></p>
               <label className="field-label" htmlFor="gr-name">שם</label>
               <input id="gr-name" className="input" autoComplete="name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
               <label className="field-label" htmlFor="gr-phone">טלפון (המורה יחזור אליכם אליו)</label>
@@ -869,7 +886,7 @@ export function Header() {
             <a href="#groups" aria-current={cur('groups')}>קבוצות למידה</a>
           </nav>
           <div className="top-actions">
-            {user ? <UserMenu /> : <button type="button" className="btn btn-ghost" onClick={() => setLoginOpen(true)}>כניסה</button>}
+            {user ? <UserMenu /> : <button type="button" className="btn btn-line" onClick={() => setLoginOpen(true)}>כניסה / הרשמה</button>}
             {isTutor ? null : <a className="btn btn-brass hide-sm" href="#panel">פתיחת פרופיל מורה</a>}
           </div>
         </div>
