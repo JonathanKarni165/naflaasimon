@@ -59,11 +59,12 @@ export const auth = {
     if (error) throw error;
   },
   /** Sign-up with email + password. Supabase mails a confirmation link; the account works once it is clicked. */
-  async signUpEmail({ email, password, name }) {
+  async signUpEmail({ email, password, name, phone, birthDate, area }) {
     const emailRedirectTo = window.location.origin + window.location.pathname;
-    const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo, data: { full_name: name || '' } } });
+    const data = { full_name: name || '', signup_form: 'true', ...(phone ? { phone } : {}), ...(birthDate ? { birth_date: birthDate } : {}), ...(area ? { area } : {}) };
+    const { data: res, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo, data } });
     if (error) throw new Error(authError(error));
-    return { needsConfirm: !data.session };
+    return { needsConfirm: !res.session };
   },
   async signInEmail({ email, password }) {
     const { error } = await sb.auth.signInWithPassword({ email, password });
