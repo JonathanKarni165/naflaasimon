@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useApp, useLoad } from '../state.jsx';
 import { optionLabel, norm } from '../data/topics.js';
 import { money, dateLong, relDays, dateShort, isPhone } from '../lib/format.js';
-import { GroupCard, Seg, TopicPicker, SeatDots, Avatar, Verified, Stars, Loading, Empty } from '../components/ui.jsx';
+import { GroupCard, GuestRequest, Seg, TopicPicker, SeatDots, Avatar, Verified, Stars, Loading, Empty } from '../components/ui.jsx';
 
 export const isMarathon = (g) => Number(g.sessions) <= 1 || /מרתון/.test(g.title || '');
 
@@ -244,6 +244,7 @@ export function Group({ id }) {
               <>
                 {mine?.status === 'declined' ? <p className="hint">המורה לא אישר/ה את הבקשה הקודמת שלכם. אפשר לשאול אותו/ה למטה למה, או לשלוח שוב.</p> : null}
                 <button type="button" className="btn btn-brand go" onClick={startJoin} disabled={full}>{full ? 'הקבוצה מלאה' : approval ? 'בקשת הצטרפות' : 'אני נכנס/ת, שמרו לי מקום'}</button>
+                {t && !full ? <GuestRequest tutor={t} group={group} /> : null}
               </>
             )}
             {t && !isTutor ? <a className="btn btn-line btn-sm" href={`#tutor-${t.id}`}>פנייה פרטית למורה</a> : null}

@@ -575,3 +575,7 @@ footer .linkish { color: inherit; font-weight: 600; }
 .join-msg { background: var(--brass-soft); border-radius: 14px; padding: 14px 16px; }
 .join-msg h2 { margin-top: 0; }
 .join-msg p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.guest-link { display: block; margin-top: 8px; text-align: start; }
+.guest-form { text-align: start; }
+.guest-form .field-label { margin-top: 8px; }
+.guest-form .note { margin: 8px 0 4px; font-weight: 500; font-size: 15px; }
