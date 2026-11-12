@@ -405,14 +405,16 @@ footer .linkish { color: inherit; font-weight: 600; }
 .check-line input { width: 18px; height: 18px; accent-color: var(--purple); }
 
 /* Chat between student and tutor */
-.chat { display: grid; gap: 8px; }
+.chat { display: grid; gap: 10px; border: 2px solid var(--ink); border-radius: 14px; background: var(--bg); padding: 12px; }
 .chat-list { list-style: none; margin: 0; padding: 4px 2px; display: flex; flex-direction: column; gap: 8px; max-height: min(340px, 50vh); overflow-y: auto; }
 .msg { max-width: 85%; padding: 8px 12px 6px; border-radius: 14px; display: grid; gap: 2px; }
 .msg p { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
 .msg-who { font-size: 12px; font-weight: 800; opacity: .75; }
 .msg time { font-size: 11px; opacity: .65; justify-self: end; }
-.msg.mine { align-self: flex-end; background: var(--purple); color: #fff; border-end-end-radius: 4px; }
-.msg.theirs { align-self: flex-start; background: var(--surface); border: 1.5px solid var(--line); border-end-start-radius: 4px; }
+.msg.mine { align-self: flex-end; background: var(--brass-soft); color: var(--ink); border: 1.5px solid var(--brass); border-end-end-radius: 4px; }
+.msg.theirs { align-self: flex-start; background: var(--surface); color: var(--ink); border: 1.5px solid var(--line); border-end-start-radius: 4px; }
+.chat-form { padding-top: 10px; border-top: 1px solid var(--line); }
+.chat-form .input { background: var(--surface); }
 .chat-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
 .chat-form .input { min-height: 44px; resize: vertical; }
 .via-line { margin: 0; font-size: 14px; font-weight: 700; color: var(--purple-ink); }
@@ -424,9 +426,9 @@ footer .linkish { color: inherit; font-weight: 600; }
 .inbox, .my-requests { display: grid; gap: 16px; }
 .my-requests section { display: grid; gap: 12px; }
 .sub-h { font-size: 22px; }
-.inq-list { display: block; background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; overflow: hidden; }
-.inq { padding: 16px 18px; display: grid; gap: 6px; }
-.inq + .inq { border-top: 1px solid var(--line); }
+.inq-list { display: grid; gap: 18px; }
+.inq { padding: 16px 18px; display: grid; gap: 10px; background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; }
+.inq > .inq-top { padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 .inq.is-new { box-shadow: inset -5px 0 0 var(--brass); }
 .inq-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .inq-name { font-size: 18px; font-weight: 800; }
