@@ -75,11 +75,63 @@ export function Groups({ initialKind = 'any' }) {
   );
 }
 
+/** Comments with replies. A reply goes under the comment it answers; deeper levels stay indented at most 3 steps. */
+function Comments({ messages, isTutor, tutorPlaceholder, onSend }) {
+  const [replyTo, setReplyTo] = useState(null);
+  const [text, setText] = useState('');
+  const [top, setTop] = useState('');
+  const kids = useMemo(() => {
+    const by = {};
+    (messages || []).forEach((m) => { (by[m.parentId || 'root'] ||= []).push(m); });
+    return by;
+  }, [messages]);
+  const sendReply = async (e, parentId) => {
+    e.preventDefault();
+    if (!text.trim()) return;
+    if (await onSend(text.trim(), parentId)) { setText(''); setReplyTo(null); }
+  };
+  const sendTop = async (e) => {
+    e.preventDefault();
+    if (!top.trim()) return;
+    if (await onSend(top.trim(), null)) setTop('');
+  };
+  const node = (m, depth) => (
+    <li key={m.id} className={'cm' + (m.isTutor ? ' tutor' : '')}>
+      <div className="cm-body">
+        <b>{m.userName}</b>{m.isTutor ? <span className="tag brass">המורה</span> : null}
+        <small>{dateShort(m.createdAt)}</small>
+        <p>{m.text}</p>
+        <button type="button" className="linkish small" onClick={() => { setReplyTo(replyTo === m.id ? null : m.id); setText(''); }}>{replyTo === m.id ? 'ביטול' : 'תגובה'}</button>
+      </div>
+      {replyTo === m.id ? (
+        <form className="cm-reply" onSubmit={(e) => sendReply(e, m.id)}>
+          <label className="sr-only" htmlFor={`r-${m.id}`}>תגובה ל{m.userName}</label>
+          <input id={`r-${m.id}`} className="input" maxLength={1000} autoFocus placeholder={`תגובה ל${m.userName.split(' ')[0]}…`} value={text} onChange={(e) => setText(e.target.value)} />
+          <button type="submit" className="btn btn-brand btn-sm">שליחה</button>
+        </form>
+      ) : null}
+      {(kids[m.id] || []).length ? <ul className={'cm-list' + (depth >= 3 ? ' flat' : '')}>{kids[m.id].map((c) => node(c, depth + 1))}</ul> : null}
+    </li>
+  );
+  const roots = kids.root || [];
+  return (
+    <div className="comments">
+      {roots.length ? <ul className="cm-list root">{roots.map((m) => node(m, 1))}</ul> : <p className="muted-text">עוד אין שאלות. רוצים לדעת משהו לפני שנרשמים? שאלו כאן.</p>}
+      <form className="msg-form" onSubmit={sendTop}>
+        <label className="sr-only" htmlFor="msg">הודעה חדשה</label>
+        <input id="msg" className="input" maxLength={1000} value={top} onChange={(e) => setTop(e.target.value)} placeholder={isTutor ? tutorPlaceholder : 'למשל: יש הקלטה למי שלא מגיע?'} />
+        <button type="submit" className="btn btn-brand">שליחה</button>
+      </form>
+    </div>
+  );
+}
+
 export function Group({ id }) {
   const { api, user, version, reload, requireLogin, notify } = useApp();
   const [group, loading] = useLoad(() => api.getGroup(id), [id, version]);
   const [seats, , , refreshSeats] = useLoad(() => api.mySeats(), [user?.id, version]);
   const [messages, , , refreshMsgs] = useLoad(() => api.listGroupMessages(id), [id, version]);
+  const [joinMsg] = useLoad(() => (api.getGroupJoinMessage ? api.getGroupJoinMessage(id) : ''), [id, user?.id, version]);
   const [joining, setJoining] = useState(false);
   const [form, setForm] = useState({ name: '', phone: '', note: '' });
   const [msg, setMsg] = useState('');
@@ -116,11 +168,9 @@ export function Group({ id }) {
     try { await api.leaveGroup(id); notify('ביטלנו את ההרשמה'); refreshSeats(); reload(); } catch (err) { notify(err.message, true); }
     setBusy(false);
   };
-  const send = async (e) => {
-    e.preventDefault();
-    if (!msg.trim()) return;
-    if (!requireLogin('כדי לשאול את המורה שאלה צריך להתחבר.')) return;
-    try { await api.addGroupMessage(id, msg.trim()); setMsg(''); refreshMsgs(); } catch (err) { notify(err.message, true); }
+  const sendComment = async (text, parentId) => {
+    if (!requireLogin('כדי לכתוב בצ׳אט הקבוצה צריך להתחבר.')) return false;
+    try { await api.addGroupMessage(id, text, parentId); refreshMsgs(); if (isTutor) notify('ההודעה נשלחה. נרשמים בקבוצה יקבלו אותה גם במייל'); return true; } catch (err) { notify(err.message, true); return false; }
   };
 
   return (
@@ -151,22 +201,17 @@ export function Group({ id }) {
             </section>
           ) : null}
 
+          {joinMsg && (isTutor || (activeSeat && activeSeat.status === 'approved')) ? (
+            <section className="p-sec join-msg" aria-labelledby="jm-h">
+              <h2 id="jm-h">הודעה מהמורה לנרשמים</h2>
+              <p className="p-about">{joinMsg}</p>
+            </section>
+          ) : null}
+
           <section className="p-sec" aria-labelledby="qa-h">
-            <h2 id="qa-h">שאלות למורה</h2>
-            <p className="muted-text">השאלות והתשובות גלויות לכל מי שמתעניין בקבוצה.</p>
-            <div className="thread">
-              {(messages || []).map((m) => (
-                <div key={m.id} className={'bubble-msg' + (m.isTutor ? ' tutor' : '')}>
-                  <b>{m.userName}{m.isTutor ? ' · המורה' : ''}</b><p>{m.text}</p><small>{dateShort(m.createdAt)}</small>
-                </div>
-              ))}
-              {messages && !messages.length ? <p className="muted-text">עוד אין שאלות. רוצים לדעת משהו לפני שנרשמים? שאלו כאן.</p> : null}
-            </div>
-            <form className="msg-form" onSubmit={send}>
-              <label className="sr-only" htmlFor="msg">שאלה למורה</label>
-              <input id="msg" className="input" maxLength={1000} value={msg} onChange={(e) => setMsg(e.target.value)} placeholder={isTutor ? 'תשובה לתלמידים…' : 'למשל: יש הקלטה למי שלא מגיע?'} />
-              <button type="submit" className="btn btn-brand">שליחה</button>
-            </form>
+            <h2 id="qa-h">צ׳אט הקבוצה</h2>
+            <p className="muted-text">שאלות ותשובות גלויות לכל מי שמתעניין בקבוצה. כל הודעה של המורה נשלחת גם במייל לנרשמים.</p>
+            <Comments messages={messages} isTutor={isTutor} tutorPlaceholder="הודעה לנרשמים…" onSend={sendComment} />
           </section>
         </div>
 
