@@ -60,8 +60,10 @@ export default function Home() {
           <p className="lead">מורים פרטיים למתמטיקה ולשאר המקצועות. מחפשים לפי רמה ומיקום, משווים מחיר וביקורות, ופונים ישירות.</p>
           <figure className="hero-photo">
             <img src="img/hero.jpg" fetchpriority="high" decoding="async" alt="סטודנטית עם משקפיים לומדת ליד שולחן עם מחשב ועפרונות צבעוניים" width="1200" height="800" />
-            <div className="h-chip h-chip-tutor"><span className="dot" aria-hidden="true">✓</span><span><b>דנה, מורה למתמטיקה</b>מאומתת · 5 יח״ל</span></div>
-            <div className="h-chip h-chip-aha"><b>״אה, עכשיו הבנתי!״</b><span>עידו, כיתה י״א</span></div>
+            {featured[0] ? (
+              <div className="h-chip h-chip-tutor"><span className="dot" aria-hidden="true">★</span><span><b>{featured[0].name}{featured[0].subjects[0] ? `, מורה ל${featured[0].subjects[0]}` : ''}</b>{featured[0].ratingAvg.toFixed(1)} מתוך <bdi>{featured[0].ratingCount}</bdi> ביקורות</span></div>
+            ) : null}
+            <div className="h-chip h-chip-aha"><b>פנייה חינם, בלי עמלות</b><span>ישירות למורה</span></div>
             <svg className="h-coin" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46" fill="#F2CC4B" stroke="#3A3130" strokeWidth="4" /><circle cx="50" cy="50" r="33" fill="none" stroke="#3A3130" strokeOpacity=".3" strokeWidth="3" /><rect x="22" y="45" width="56" height="10" rx="5" fill="#3A3130" /></svg>
           </figure>
         </div>
