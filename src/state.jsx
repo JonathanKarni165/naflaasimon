@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import api from './api/index.js';
 
 const Ctx = createContext(null);
@@ -118,18 +118,21 @@ export function useLoad(fn, deps) {
   const [state, setState] = useState(() => (LOAD_CACHE.has(key)
     ? { data: LOAD_CACHE.get(key), loading: false, error: null } : { data: null, loading: true, error: null }));
   const [n, setN] = useState(0);
+  // Has this hook loaded at least once? A refresh after that (e.g. after sending a message) keeps the page on
+  // screen instead of swapping it for the loading coin, even when the data is legitimately null.
+  const loaded = useRef(LOAD_CACHE.has(key));
   useEffect(() => {
     let live = true;
     if (LOAD_CACHE.has(key)) setState({ data: LOAD_CACHE.get(key), loading: false, error: null });
     else setState((s) => ({ ...s, loading: true }));
     Promise.resolve().then(fn).then(
-      (data) => { LOAD_CACHE.set(key, data); if (live) setState({ data, loading: false, error: null }); },
+      (data) => { LOAD_CACHE.set(key, data); if (live) { loaded.current = true; setState({ data, loading: false, error: null }); } },
       (error) => live && setState((s) => (s.data != null && !navigator.onLine ? { ...s, loading: false } : { data: null, loading: false, error })),
     );
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...deps, n]);
-  return [state.data, state.loading, state.error, () => setN((x) => x + 1)];
+  return [state.data, state.loading, state.error, () => setN((x) => x + 1), loaded.current];
 }
 
 /** The signed-in user's tutor profile (null for students). Shared by the menu, the header and the panel. */
