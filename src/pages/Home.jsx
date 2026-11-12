@@ -158,7 +158,7 @@ export default function Home() {
         <div className="wrap">
           <div className="sec-head"><h2 id="how-h">איך זה עובד</h2></div>
           <ol className="steps">
-            <li className="step"><span className="n">1</span><div><h3>מחפשים</h3><p>מקצוע, רמה ועיר. ממיינים לפי הכי קרוב, הכי זול או הכי מבוקש.</p></div></li>
+            <li className="step"><span className="n">1</span><div><h3>מחפשים</h3><p>מקצוע, רמה ועיר. ממיינים לפי המומלצים, הכי קרוב או הכי מבוקש.</p></div></li>
             <li className="step"><span className="n">2</span><div><h3>משווים</h3><p>מחיר פרונטלי ואונליין, ניסיון וביקורות של תלמידים.</p></div></li>
             <li className="step"><span className="n">3</span><div><h3>שולחים פנייה</h3><p>נכנסים עם Google ושולחים למורה פנייה. התשובה מחכה לכם באזור האישי.</p></div></li>
           </ol>

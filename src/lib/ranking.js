@@ -70,7 +70,7 @@ export function filterTutors(tutors, f) {
   });
 }
 
-/** sort: 'best' (weighted rating) | 'near' | 'cheap' | 'popular' */
+/** sort: 'best' (weighted rating) | 'near' | 'popular' */
 export function sortTutors(tutors, sort, { origin, mode } = {}) {
   const m = globalMean(tutors);
   const withScore = tutors.map((t) => ({
@@ -83,7 +83,6 @@ export function sortTutors(tutors, sort, { origin, mode } = {}) {
   const cmp = {
     best: byScore,
     near: (a, b) => (a.distance ?? 1e9) - (b.distance ?? 1e9) || byScore(a, b),
-    cheap: (a, b) => (a.price ?? 1e9) - (b.price ?? 1e9) || byScore(a, b),
     popular: (a, b) => popularity(b) - popularity(a) || byScore(a, b),
   }[sort] || byScore;
   return withScore.sort(cmp);
