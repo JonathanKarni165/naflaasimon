@@ -287,3 +287,21 @@ export function subscribe(onChange) {
   window.addEventListener('storage', on);
   return () => window.removeEventListener('storage', on);
 }
+
+// Reports about a tutor: only admins see them (panel → דיווחים).
+export async function reportTutor({ tutorId, reason, details }) {
+  const u = need();
+  const d = db(); d.reports ||= [];
+  d.reports.push({ id: uid('r'), tutorId, userId: u.id, userName: u.name, reason, details: details || '', status: 'open', createdAt: new Date().toISOString() });
+  save(); return wait(true);
+}
+export async function listReports() {
+  if (!user?.isAdmin) return [];
+  const d = db();
+  return wait((d.reports || []).slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .map((r) => ({ ...r, tutor: d.tutors.find((t) => t.id === r.tutorId) || null })));
+}
+export async function setReportStatus(id, status) {
+  const r = (db().reports || []).find((x) => x.id === id); if (r) { r.status = status; save(); }
+  return wait(true);
+}
