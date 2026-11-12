@@ -453,8 +453,13 @@ export function InquiryBox({ tutor }) {
                     </>
                   ) : null}
                   <span className="field-label">מתי נוח לכם? <small className="muted-text">(לא חובה)</small></span>
+                  <p className="hint wg-skip-hint">אפשר לסמן כמה זמנים, או לא לסמן כלום ולהמשיך. את השעות המדויקות אפשר לתאם עם המורה בצ׳אט.</p>
                   <WeekGrid mode="pick" value={f.slots} allowed={tutor.availability} onChange={(slots) => setF({ ...f, slots })} label="בחירת זמנים נוחים" />
                   {(tutor.availability || []).length ? <p className="wg-legend"><span><i className="free" />המורה פנוי/ה</span><span><i />בחרתם</span></p> : null}
+                  <div className="wg-actions">
+                    <span className="hint">{f.slots.length ? `נבחרו ${f.slots.length} זמנים` : 'לא נבחרו זמנים, זה בסדר גמור'}</span>
+                    {f.slots.length ? <button type="button" className="btn btn-ghost btn-sm" onClick={() => setF({ ...f, slots: [] })}>ניקוי הבחירה</button> : null}
+                  </div>
                 </>
               ) : null}
               {step === 2 ? (
@@ -499,7 +504,7 @@ export function InquiryBox({ tutor }) {
             </div>
             <div className="wiz-actions">
               {step < 2
-                ? <button type="submit" className="btn btn-brand" disabled={!canNext}>המשך</button>
+                ? <button type="submit" className="btn btn-brand" disabled={!canNext}>{step === 1 && !f.slots.length ? 'דילוג והמשך' : 'המשך'}</button>
                 : <button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'שולחים…' : 'שליחת הפנייה'}</button>}
               {step > 0 ? <button type="button" className="btn btn-ghost" onClick={() => setStep(step - 1)}>חזרה</button> : null}
             </div>
