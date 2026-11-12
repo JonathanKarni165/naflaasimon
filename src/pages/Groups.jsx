@@ -37,23 +37,28 @@ export function Groups({ initialKind = 'any' }) {
       <div className="page-head">
         <h1>קבוצות למידה ומרתונים{subject ? ` ב${subject}` : ''}{topic ? `: ${topic}` : level ? `, ${level}` : ''}</h1>
         <p className="muted-text">מורים מעלים קבוצה עם מטרה, תאריך ומחיר לתלמיד. שומרים מקום בלחיצה ושואלים את המורה ישירות.</p>
-        <div className="topic-search">
-          <label className="field-label" htmlFor="g-topic">מה רוצים ללמוד?</label>
-          <TopicPicker id="g-topic" value={optionLabel(pick)} onPick={(o) => setPick(o
-            ? { subject: o.subject, topic: o.topic, level: o.topic ? (o.level || '') : o.level }
-            : { subject: '', topic: '', level: '' })} />
-        </div>
       </div>
       <div className="group-filters">
-        <span className="sr-only" id="g-kind">סוג קבוצה</span>
-        <Seg label="g-kind" value={kind} onChange={setKind} options={[['any', 'הכול'], ['marathon', 'מרתונים'], ['course', 'קבוצות קבועות']]} />
-        <label className="sr-only" htmlFor="g-q">חיפוש לפי שם או מילה</label>
-        <input id="g-q" className="input" type="search" placeholder="חיפוש לפי שם מורה, עיר או מילה…" value={q} onChange={(e) => setQ(e.target.value)} />
-        <div className="gf-row">
-          <span className="sr-only" id="g-mode">סוג</span>
-          <Seg label="g-mode" value={mode} onChange={setMode} options={[['any', 'הכול'], ['online', 'אונליין'], ['frontal', 'פרונטלי']]} />
-          <label className="check"><input type="checkbox" checked={onlyOpen} onChange={(e) => setOnlyOpen(e.target.checked)} /> רק קבוצות עם מקום פנוי</label>
+        <div className="gf-search">
+          <div className="topic-search">
+            <label className="field-label" htmlFor="g-topic">מה רוצים ללמוד?</label>
+            <TopicPicker id="g-topic" value={optionLabel(pick)} onPick={(o) => setPick(o
+              ? { subject: o.subject, topic: o.topic, level: o.topic ? (o.level || '') : o.level }
+              : { subject: '', topic: '', level: '' })} />
+          </div>
+          <div className="topic-search">
+            <label className="field-label" htmlFor="g-q">שם מורה, עיר או מילה</label>
+            <input id="g-q" className="input" type="search" placeholder="למשל רמת גן" value={q} onChange={(e) => setQ(e.target.value)} />
+          </div>
         </div>
+        <div className="gf-row">
+          <span className="sr-only" id="g-kind">סוג קבוצה</span>
+          <Seg label="g-kind" value={kind} onChange={setKind} options={[['any', 'הכול'], ['marathon', 'מרתונים'], ['course', 'קבוצות קבועות']]} />
+          <span className="sr-only" id="g-mode">איפה</span>
+          <Seg label="g-mode" value={mode} onChange={setMode} options={[['any', 'הכול'], ['online', 'אונליין'], ['frontal', 'פרונטלי']]} />
+          <label className="check"><input type="checkbox" checked={onlyOpen} onChange={(e) => setOnlyOpen(e.target.checked)} /> רק עם מקום פנוי</label>
+        </div>
+        {groups ? <p className="muted-text gf-count"><bdi>{list.length}</bdi> {list.length === 1 ? 'קבוצה' : 'קבוצות'}</p> : null}
       </div>
       {!groups ? <Loading /> : list.length === 0 ? (
         <Empty title={subject ? `אין כרגע קבוצות ב${optionLabel(pick).replace(' - הכל', '')}` : 'אין כרגע קבוצות שמתאימות'}>
