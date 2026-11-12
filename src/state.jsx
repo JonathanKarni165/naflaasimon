@@ -30,6 +30,8 @@ export function AppProvider({ children }) {
   const [online, setOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine !== false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginReason, setLoginReason] = useState('');
+  const [loginGuest, setLoginGuest] = useState(null); // { tutor, group }: lets the login dialog offer "phone number only"
+  const [guestTarget, setGuestTarget] = useState(null);
   const [toast, setToast] = useState(null);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [version, setVersion] = useState(0);
@@ -88,16 +90,18 @@ export function AppProvider({ children }) {
     return () => clearTimeout(t);
   }, [toast]);
 
-  const requireLogin = useCallback((reason) => {
+  const requireLogin = useCallback((reason, guest) => {
     if (user) return true;
-    setLoginReason(reason || ''); setLoginOpen(true); return false;
+    setLoginReason(reason || ''); setLoginGuest(guest || null); setLoginOpen(true); return false;
   }, [user]);
+  const openGuest = useCallback((target) => setGuestTarget(target), []);
+  const closeGuest = useCallback(() => setGuestTarget(null), []);
 
   const value = useMemo(() => ({
     api, route, user, tutors, groups, reload, version, notify, toast, online,
-    loginOpen, setLoginOpen, loginReason, requireLogin,
+    loginOpen, setLoginOpen, loginReason, loginGuest, requireLogin, guestTarget, openGuest, closeGuest,
     filters, setFilters, resetFilters: () => setFilters(DEFAULT_FILTERS),
-  }), [route, user, tutors, groups, reload, version, notify, toast, online, loginOpen, loginReason, requireLogin, filters]);
+  }), [route, user, tutors, groups, reload, version, notify, toast, online, loginOpen, loginReason, loginGuest, requireLogin, guestTarget, openGuest, closeGuest, filters]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

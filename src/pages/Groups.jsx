@@ -148,7 +148,7 @@ export function Group({ id }) {
   const isTutor = user && t && (user.id === t.ownerId || user.isAdmin);
 
   const startJoin = () => {
-    if (!requireLogin('כדי לשמור מקום בקבוצה צריך להתחבר. ככה המורה יודע מי נרשם.')) return;
+    if (!requireLogin('כדי לשמור מקום בקבוצה צריך להתחבר. ככה המורה יודע מי נרשם.', t ? { tutor: t, group } : undefined)) return;
     setForm({ name: user.name, phone: user.phone || '', note: '' }); setJoining(true);
   };
   const join = async (e) => {
