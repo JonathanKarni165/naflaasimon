@@ -5,7 +5,9 @@ import { cityByName } from '../data/constants.js';
 
 import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 
-const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+// PKCE: the sign-in result comes back as ?code=... in the query string. The default (implicit) flow appends
+// #access_token=... to the address, which collides with this site's #hash routes and silently drops the login.
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: 'pkce' } });
 
 export const mode = 'supabase';
 export const demoUsers = [];
