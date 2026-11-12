@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, useLoad } from '../state.jsx';
 import { bayesScore, globalMean } from '../lib/ranking.js';
 import { money, dateShort, rating1, reviewsLabel } from '../lib/format.js';
-import { Avatar, Stars, StarRow, Verified, InquiryBox, GroupCard, WeekGrid, ConfirmButton, Loading, Empty, placeLabel } from '../components/ui.jsx';
+import { Avatar, Stars, StarRow, Verified, InquiryBox, GroupCard, WeekGrid, ConfirmButton, Loading, Empty, placeLabel, ReportTutor } from '../components/ui.jsx';
 import { topicsBySubject } from '../data/topics.js';
 
 export default function Tutor({ id }) {
@@ -90,6 +90,7 @@ export default function Tutor({ id }) {
             <InquiryBox tutor={tutor} />
             <p className="hint">משלמים למורה ישירות. לנפל האסימון אין עמלה.</p>
           </div>
+          <ReportTutor tutor={tutor} />
         </aside>
       </div>
     </main>
