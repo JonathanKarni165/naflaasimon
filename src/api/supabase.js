@@ -18,14 +18,19 @@ const listeners = new Set();
 async function loadProfile(session) {
   if (!session?.user) return null;
   const u = session.user;
-  let { data, error } = await sb.from('profiles').select('name, is_admin, avatar, phone').eq('id', u.id).maybeSingle();
-  // Before supabase/contact.sql has run there is no phone column yet.
+  const cols = 'name, is_admin, avatar, phone, birth_date, area, profile_done';
+  let { data, error } = await sb.from('profiles').select(cols).eq('id', u.id).maybeSingle();
+  // Before supabase/accounts.sql (or contact.sql) has run some columns don't exist yet.
   if (error) ({ data } = await sb.from('profiles').select('name, is_admin, avatar').eq('id', u.id).maybeSingle());
+  // The site mailbox is an admin even before its profile row says so (see is_admin() in accounts.sql).
+  const { data: adminFlag } = await sb.rpc('is_admin');
   return {
     id: u.id, email: u.email, phone: data?.phone || '',
     name: data?.name || u.user_metadata?.full_name || u.email,
     avatar: data?.avatar || u.user_metadata?.avatar_url || null,
-    isAdmin: !!data?.is_admin,
+    birthDate: data?.birth_date || '', area: data?.area || '',
+    profileDone: data ? data.profile_done !== false : true,
+    isAdmin: !!(data?.is_admin || adminFlag),
   };
 }
 
@@ -33,6 +38,16 @@ const ready = sb.auth.getSession().then(async ({ data }) => { user = await loadP
 sb.auth.onAuthStateChange((_e, session) => {
   setTimeout(async () => { user = await loadProfile(session); listeners.forEach((cb) => cb(user)); }, 0);
 });
+
+function authError(e) {
+  const m = (e.message || '').toLowerCase();
+  if (m.includes('invalid login')) return 'המייל או הסיסמה לא נכונים';
+  if (m.includes('not confirmed')) return 'צריך לאשר את המייל קודם. חפשו את מייל האימות שלנו (גם בספאם)';
+  if (m.includes('already registered')) return 'המייל הזה כבר רשום. נסו להיכנס, או לחצו על "שכחתי סיסמה"';
+  if (m.includes('password')) return 'הסיסמה חייבת להכיל לפחות 6 תווים';
+  if (m.includes('rate limit') || m.includes('too many')) return 'נשלחו הרבה בקשות. נסו שוב בעוד כמה דקות';
+  return e.message || 'משהו השתבש, נסו שוב';
+}
 
 export const auth = {
   current: () => user,
@@ -42,6 +57,21 @@ export const auth = {
     const redirectTo = window.location.origin + window.location.pathname + window.location.hash;
     const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } });
     if (error) throw error;
+  },
+  /** Sign-up with email + password. Supabase mails a confirmation link; the account works once it is clicked. */
+  async signUpEmail({ email, password, name }) {
+    const emailRedirectTo = window.location.origin + window.location.pathname;
+    const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo, data: { full_name: name || '' } } });
+    if (error) throw new Error(authError(error));
+    return { needsConfirm: !data.session };
+  },
+  async signInEmail({ email, password }) {
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(authError(error));
+  },
+  async resetPassword(email) {
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname });
+    if (error) throw new Error(authError(error));
   },
   async signOut() { await sb.auth.signOut(); user = null; listeners.forEach((cb) => cb(null)); },
 };
@@ -56,6 +86,8 @@ function check({ data, error }) {
     if (m.includes('group full')) throw new Error('הקבוצה מלאה');
     if (m.includes('duplicate')) throw new Error('כבר נרשמתם');
     if (m.includes('login required')) throw new Error('צריך להתחבר כדי לעשות את זה');
+    if (m.includes('cannot join your own group')) throw new Error('אי אפשר להצטרף לקבוצה של עצמכם');
+    if (m.includes('tutor details required')) throw new Error('חסרים פרטי חובה למורה: ' + (m.split('required:')[1] || 'שם, טלפון, כתובת, תאריך לידה ותמונה').trim());
     if (m.includes('cannot contact yourself')) throw new Error('אי אפשר לשלוח פנייה לעצמכם');
     if (m.includes('not allowed')) throw new Error('אין הרשאה');
     throw new Error(m || 'משהו השתבש, נסו שוב');
@@ -69,6 +101,7 @@ const tutorFromRow = (r, stats = {}) => ({
   teachesOnline: r.teaches_online, teachesFrontal: r.teaches_frontal, priceOnline: r.price_online, priceFrontal: r.price_frontal,
   experienceYears: r.experience_years, verified: r.verified, contactCount: r.contact_count, createdAt: r.created_at,
   ratingCount: stats.rating_count || 0, ratingAvg: stats.rating_avg || 0,
+  approval: r.approval || 'approved', rejectReason: r.reject_reason || '',
 });
 const tutorToRow = (t) => {
   const c = cityByName(t.city);
@@ -92,7 +125,18 @@ async function statsMap() {
 
 export async function listTutors() {
   const [rows, stats] = await Promise.all([sb.from('tutors').select('*').then(check), statsMap()]);
+  // Tutors waiting for approval are visible to their owner and to admins by row level security; the public lists show approved ones only.
+  return rows.filter((r) => (r.approval || 'approved') === 'approved').map((r) => tutorFromRow(r, stats[r.id]));
+}
+/** Admin: every tutor with its approval state. */
+export async function listAllTutors() {
+  const [rows, stats] = await Promise.all([sb.from('tutors').select('*').then(check), statsMap()]);
   return rows.map((r) => tutorFromRow(r, stats[r.id]));
+}
+export async function reviewTutor(id, approve, reason) {
+  need();
+  check(await sb.rpc('review_tutor', { t: id, p_approve: !!approve, p_reason: reason || '' }));
+  return true;
 }
 export async function getTutor(id) {
   const r = check(await sb.from('tutors').select('*').eq('id', id).maybeSingle());
@@ -101,8 +145,8 @@ export async function getTutor(id) {
   return tutorFromRow(r, s || {});
 }
 async function withPhone(t) {
-  const c = check(await sb.from('tutor_contacts').select('phone').eq('tutor_id', t.id).maybeSingle());
-  return { ...t, phone: c?.phone || '' };
+  const { data: c } = await sb.from('tutor_contacts').select('phone, birth_date, address').eq('tutor_id', t.id).maybeSingle();
+  return { ...t, phone: c?.phone || '', birthDate: c?.birth_date || '', address: c?.address || '' };
 }
 export async function getMyTutor() {
   if (!user) return null;
@@ -111,7 +155,13 @@ export async function getMyTutor() {
 }
 export async function getTutorForEdit(id) {
   const r = check(await sb.from('tutors').select('*').eq('id', id).single());
-  return withPhone(tutorFromRow(r));
+  const t = await withPhone(tutorFromRow(r));
+  // Admins also see the account email of the tutor (profiles are readable by the owner and admins only).
+  if (user?.isAdmin && r.owner_id) {
+    const { data: p } = await sb.from('profiles').select('email').eq('id', r.owner_id).maybeSingle();
+    t.email = p?.email || '';
+  }
+  return t;
 }
 const inquiryFromRow = (q) => ({
   id: q.id, tutorId: q.tutor_id, userId: q.user_id, name: q.name, phone: q.phone || '', email: q.email || '',
@@ -143,11 +193,14 @@ export async function sendInquiry({ tutorId, name, phone, email, contactVia, sub
 }
 
 /** The signed-in person's saved contact details (private: only they and admins can read their profile row). */
-export async function saveMyContact({ name, phone }) {
+export async function saveMyContact({ name, phone, birthDate, area }) {
   const u = need();
-  const patch = { name: (name || u.name).trim(), phone: (phone || '').trim() || null };
+  const patch = { name: (name || u.name).trim(), phone: (phone || '').trim() || null, profile_done: true };
+  if (area !== undefined) patch.area = (area || '').trim() || null;
+  // A birth date can be set once; after that the database keeps the first value.
+  if (birthDate && !u.birthDate) patch.birth_date = birthDate;
   check(await sb.from('profiles').update(patch).eq('id', u.id));
-  user = { ...u, name: patch.name, phone: patch.phone || '' };
+  user = { ...u, name: patch.name, phone: patch.phone || '', area: patch.area ?? u.area, birthDate: u.birthDate || birthDate || '', profileDone: true };
   listeners.forEach((cb) => cb(user));
   return user;
 }
@@ -182,13 +235,18 @@ export async function saveTutor(input) {
   const u = need();
   const row = tutorToRow(input);
   let saved;
-  if (input.id) {
+  const isNew = !input.id;
+  if (!isNew) {
     saved = check(await sb.from('tutors').update(row).eq('id', input.id).select().single());
   } else {
     row.owner_id = input.forSelf || !u.isAdmin ? u.id : null;
     saved = check(await sb.from('tutors').insert(row).select().single());
   }
-  check(await sb.from('tutor_contacts').upsert({ tutor_id: saved.id, phone: input.phone || '' }));
+  const { error } = await sb.from('tutor_contacts').upsert({ tutor_id: saved.id, phone: input.phone || '', birth_date: input.birthDate || null, address: input.address || null });
+  if (error) {
+    if (isNew) await sb.from('tutors').delete().eq('id', saved.id); // don't leave a half-filled application behind
+    check({ error });
+  }
   return tutorFromRow(saved);
 }
 export async function deleteTutor(id) { need(); check(await sb.from('tutors').delete().eq('id', id)); return true; }

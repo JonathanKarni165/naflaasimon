@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import { AppProvider, useApp } from './state.jsx';
-import { Header, OfflineBar, BottomNav, Footer, LoginModal, Toast, CoinTransition } from './components/ui.jsx';
+import { Header, OfflineBar, BottomNav, Footer, LoginModal, ProfileSetup, Toast, CoinTransition } from './components/ui.jsx';
 import Home from './pages/Home.jsx';
 import Search from './pages/Search.jsx';
 import Tutor from './pages/Tutor.jsx';
@@ -35,6 +35,7 @@ function App() {
       <Footer />
       <BottomNav />
       <LoginModal />
+      <ProfileSetup />
       <Toast />
     </div>
   );

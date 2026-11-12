@@ -82,7 +82,7 @@ function MyProfile() {
     return (
       <div className="panel-empty">
         <h2>עוד אין לכם פרופיל מורה</h2>
-        <p className="muted-text">זה לוקח בערך שלוש דקות. אחרי הפרסום תופיעו בחיפוש ותוכלו לפתוח קבוצות.</p>
+        <p className="muted-text">זה לוקח בערך חמש דקות. כל הפרטים חובה (שם מלא, תאריך לידה, טלפון, כתובת ותמונה), והצוות שלנו מאשר כל פרופיל חדש לפני שהוא מופיע בחיפוש.</p>
         <button type="button" className="btn btn-brand" onClick={() => setEditing(true)}>פתיחת פרופיל מורה</button>
       </div>
     );
@@ -91,11 +91,13 @@ function MyProfile() {
     return (
       <TutorForm initial={mine} forSelf
         onCancel={() => setEditing(false)}
-        onSaved={(t) => { setEditing(false); refresh(); reload(); notify(mine ? 'הפרופיל עודכן' : 'הפרופיל פורסם! עכשיו תלמידים יכולים למצוא אתכם'); if (!mine) go(`tutor-${t.id}`); }} />
+        onSaved={(t) => { setEditing(false); refresh(); reload(); notify(mine ? 'הפרופיל עודכן' : 'הפרופיל נשלח לאישור. נעדכן במייל ברגע שיאושר'); }} />
     );
   }
   return (
     <div className="my-profile">
+      {mine.approval === 'pending' ? <p className="note approval-note" role="status"><b>הפרופיל ממתין לאישור.</b> הצוות בודק אותו, בדרך כלל תוך יום עסקים. עד אז הוא לא מופיע בחיפוש ואי אפשר לפתוח קבוצות.</p> : null}
+      {mine.approval === 'rejected' ? <p className="note approval-note bad" role="status"><b>הפרופיל לא אושר.</b> {mine.rejectReason ? `סיבה: ${mine.rejectReason}. ` : ''}תקנו את הפרטים ושמרו, והוא יחזור לבדיקה.</p> : null}
       <div className="mp-card">
         <Avatar tutor={mine} className="mp-photo" />
         <div>
@@ -104,6 +106,7 @@ function MyProfile() {
           <p>{(mine.subjects || []).join(', ')} · {(mine.levels || []).join(', ')}</p>
           <p>{mine.teachesFrontal && mine.priceFrontal ? `פרונטלי ${money(mine.priceFrontal)} ב${mine.city}` : ''}{mine.teachesFrontal && mine.teachesOnline ? ' · ' : ''}{mine.teachesOnline && mine.priceOnline ? `אונליין ${money(mine.priceOnline)}` : ''}</p>
           <p>טלפון (לא מוצג לתלמידים): <bdi>{mine.phone}</bdi></p>
+          {mine.address ? <p>כתובת (לא מוצגת לתלמידים): {mine.address}</p> : null}
           <div className="form-actions">
             <button type="button" className="btn btn-brand" onClick={() => setEditing(true)}>עריכה</button>
             <a className="btn btn-line" href={`#tutor-${mine.id}`}>איך תלמידים רואים אותי</a>
@@ -207,14 +210,14 @@ function InquiryItem({ q, onChange, showTutor, open, onToggle }) {
 /** Saved contact details: filled in automatically when contacting a tutor or joining a group. */
 function MyDetails() {
   const { api, user, notify } = useApp();
-  const [f, setF] = useState({ name: user.name || '', phone: user.phone || '' });
+  const [f, setF] = useState({ name: user.name || '', phone: user.phone || '', birthDate: user.birthDate || '', area: user.area || '' });
   const [busy, setBusy] = useState(false);
   const save = async (e) => {
     e.preventDefault();
     if (!f.name.trim()) { notify('כתבו שם', true); return; }
     if (f.phone.trim() && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל 050-1234567', true); return; }
     setBusy(true);
-    try { await api.saveMyContact({ name: f.name.trim(), phone: f.phone.trim() }); notify('הפרטים נשמרו'); } catch (err) { notify(err.message, true); }
+    try { await api.saveMyContact({ name: f.name.trim(), phone: f.phone.trim(), birthDate: f.birthDate, area: f.area }); notify('הפרטים נשמרו'); } catch (err) { notify(err.message, true); }
     setBusy(false);
   };
   return (
@@ -224,8 +227,14 @@ function MyDetails() {
       <input id="me-name" className="input" autoComplete="name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
       <label className="field-label" htmlFor="me-phone">טלפון</label>
       <input id="me-phone" className="input" type="tel" autoComplete="tel" inputMode="tel" dir="ltr" placeholder="050-1234567" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+      <label className="field-label" htmlFor="me-birth">תאריך לידה</label>
+      <input id="me-birth" className="input" type="date" disabled={!!user.birthDate} max={new Date().toISOString().slice(0, 10)} value={f.birthDate} onChange={(e) => setF({ ...f, birthDate: e.target.value })} />
+      <p className="hint">{user.birthDate ? 'תאריך לידה אי אפשר לשנות אחרי שנקבע. לתיקון פנו אלינו.' : 'לא חובה. אחרי השמירה אי אפשר לשנות אותו.'}</p>
+      <label className="field-label" htmlFor="me-area">אזור מגורים</label>
+      <input id="me-area" className="input" list="me-cities" autoComplete="off" placeholder="עיר או שכונה (לא חובה)" value={f.area} onChange={(e) => setF({ ...f, area: e.target.value })} />
+      <datalist id="me-cities">{CITIES.map((c) => <option key={c.name} value={c.name} />)}</datalist>
       <span className="field-label">מייל</span>
-      <p className="me-email"><bdi>{user.email || 'לא ידוע'}</bdi> <small className="muted-text">מחשבון Google</small></p>
+      <p className="me-email"><bdi>{user.email || 'לא ידוע'}</bdi> <small className="muted-text">המייל הוא ההתחברות שלכם ולא ניתן לשינוי כאן</small></p>
       <div className="form-actions"><button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'שומרים…' : 'שמירת הפרטים'}</button></div>
     </form>
   );
@@ -233,7 +242,7 @@ function MyDetails() {
 
 const EMPTY_TUTOR = {
   name: '', photo: '', headline: '', about: '', subjects: ['מתמטיקה'], levels: [], topics: [], city: '', area: '',
-  teachesFrontal: true, priceFrontal: '', teachesOnline: true, priceOnline: '', experienceYears: '', phone: '', verified: false, availability: [],
+  teachesFrontal: true, priceFrontal: '', teachesOnline: true, priceOnline: '', experienceYears: '', phone: '', birthDate: '', address: '', verified: false, availability: [],
 };
 
 export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
@@ -246,14 +255,22 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
 
   const validate = () => {
     const e = {};
+    const strict = !user.isAdmin || forSelf; // admins adding example profiles are exempt from the mandatory private details
     if (!t.name.trim()) e.name = 'כתבו שם';
+    else if (strict && t.name.trim().split(/\s+/).length < 2) e.name = 'כתבו שם מלא (שם ושם משפחה)';
+    if (strict && !t.photo) e.photo = 'צריך תמונה ברורה של הפנים';
+    if (strict) {
+      if (!t.birthDate) e.birthDate = 'כתבו תאריך לידה';
+      else if (new Date(t.birthDate) > new Date(new Date().setFullYear(new Date().getFullYear() - 16))) e.birthDate = 'מורה צריך להיות בן 16 לפחות';
+      if (!(t.address || '').trim()) e.address = 'כתבו כתובת מגורים (רחוב, מספר ועיר)';
+    }
     if (!t.subjects.length) e.subjects = 'בחרו לפחות מקצוע אחד';
     if (!t.levels.length) e.levels = 'בחרו לפחות רמה אחת';
     if (!t.teachesFrontal && !t.teachesOnline) e.mode = 'בחרו פרונטלי, אונליין או את שניהם';
     if (t.teachesFrontal && !t.city) e.city = 'בחרו עיר לשיעורים פרונטליים';
     if (t.teachesFrontal && !(Number(t.priceFrontal) > 0)) e.priceFrontal = 'כתבו מחיר לשעה';
     if (t.teachesOnline && !(Number(t.priceOnline) > 0)) e.priceOnline = 'כתבו מחיר לשעה';
-    if (!/^0\d{1,2}-?\d{7}$/.test((t.phone || '').replace(/\s/g, ''))) e.phone = 'מספר טלפון ישראלי, למשל 050-1234567';
+    if (strict || t.phone) { if (!/^0\d{1,2}-?\d{7}$/.test((t.phone || '').replace(/\s/g, ''))) e.phone = 'מספר טלפון ישראלי, למשל 050-1234567'; }
     setErrors(e);
     return !Object.keys(e).length;
   };
@@ -291,13 +308,19 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
             <label className="btn btn-line btn-sm" htmlFor="tf-photo">{uploading ? 'מעלים…' : t.photo ? 'החלפת תמונה' : 'העלאת תמונה'}</label>
             <input id="tf-photo" type="file" accept="image/*" className="sr-only" onChange={upload} />
             {t.photo ? <button type="button" className="linkish" onClick={() => set({ photo: '' })}>הסרה</button> : null}
-            <p className="hint">תמונה ברורה של הפנים מגדילה פניות בערך פי שניים.</p>
+            <p className="hint">חובה: תמונה ברורה של הפנים, בלי משקפי שמש. היא מגדילה פניות בערך פי שניים.</p>
+            <Err k="photo" />
           </div>
         </div>
         <div className="f2">
           <div><label className="field-label" htmlFor="tf-name">שם מלא</label><input id="tf-name" className="input" value={t.name} onChange={(e) => set({ name: e.target.value })} /><Err k="name" /></div>
           <div><label className="field-label" htmlFor="tf-phone">טלפון (לא מוצג באתר, רק לצוות)</label><input id="tf-phone" className="input" dir="ltr" inputMode="tel" placeholder="050-1234567" value={t.phone} onChange={(e) => set({ phone: e.target.value })} /><Err k="phone" /></div>
         </div>
+        <div className="f2">
+          <div><label className="field-label" htmlFor="tf-birth">תאריך לידה (לא מוצג באתר)</label><input id="tf-birth" className="input" type="date" max={new Date().toISOString().slice(0, 10)} value={t.birthDate || ''} onChange={(e) => set({ birthDate: e.target.value })} /><Err k="birthDate" /></div>
+          <div><label className="field-label" htmlFor="tf-address">כתובת מגורים (לא מוצגת באתר)</label><input id="tf-address" className="input" autoComplete="street-address" placeholder="רחוב, מספר, עיר" value={t.address || ''} onChange={(e) => set({ address: e.target.value })} /><Err k="address" /></div>
+        </div>
+        <p className="hint">המייל שלכם הוא המייל של החשבון: <bdi>{user.email}</bdi>. כל הפרטים האלה נחוצים לאימות, ורק הצוות רואה אותם.</p>
         <label className="field-label" htmlFor="tf-headline">שורה אחת עליכם</label>
         <input id="tf-headline" className="input" maxLength={80} placeholder="למשל: סטודנטית לתואר שני במתמטיקה" value={t.headline} onChange={(e) => set({ headline: e.target.value })} />
         <label className="field-label" htmlFor="tf-about">על השיעורים שלכם</label>
@@ -371,7 +394,7 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
       </fieldset>
 
       <div className="form-actions sticky-actions">
-        <button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'שומרים…' : initial ? 'שמירת השינויים' : 'פרסום הפרופיל'}</button>
+        <button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'שומרים…' : initial ? 'שמירת השינויים' : forSelf ? 'שליחה לאישור' : 'פרסום הפרופיל'}</button>
         {onCancel ? <button type="button" className="btn btn-ghost" onClick={onCancel}>ביטול</button> : null}
       </div>
     </form>
@@ -387,6 +410,9 @@ function MyGroups() {
   const list = useMemo(() => (groups || []).filter((g) => manageable.some((t) => t.id === g.tutorId)).sort((a, b) => a.startDate.localeCompare(b.startDate)), [groups, manageable]);
 
   if (loading && !mine && !loaded && !user.isAdmin) return <Loading />;
+  if (mine && mine.approval !== 'approved' && !user.isAdmin) {
+    return <div className="panel-empty"><h2>הפרופיל עדיין לא אושר</h2><p className="muted-text">אפשר יהיה לפתוח קבוצות ברגע שהצוות יאשר את הפרופיל שלכם.</p><a className="btn btn-brand" href="#panel">לפרופיל</a></div>;
+  }
   if (!manageable.length) {
     return (
       <div className="panel-empty">
@@ -594,8 +620,61 @@ function MySeats() {
   );
 }
 
+function PendingTutors({ onChange }) {
+  const { api, notify, reload, version } = useApp();
+  const [all, loading, , refresh] = useLoad(() => api.listAllTutors(), [version]);
+  const [open, setOpen] = useState(null); // tutor with private details
+  const [reason, setReason] = useState('');
+  const queue = (all || []).filter((t) => t.approval === 'pending').sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+  const show = async (t) => {
+    if (open?.id === t.id) { setOpen(null); return; }
+    try { setOpen(await api.getTutorForEdit(t.id)); setReason(''); } catch (e) { notify(e.message, true); }
+  };
+  const decide = async (t, approve) => {
+    if (!approve && !reason.trim()) { notify('כתבו סיבה לדחייה, המורה יראה אותה', true); return; }
+    try { await api.reviewTutor(t.id, approve, reason); notify(approve ? 'המורה אושר ומופיע באתר' : 'המורה נדחה'); setOpen(null); refresh(); reload(); onChange?.(); } catch (e) { notify(e.message, true); }
+  };
+  if (loading && !all) return <Loading />;
+  return (
+    <section className="pending-box" aria-label="מורים שממתינים לאישור">
+      <h2>ממתינים לאישור ({queue.length})</h2>
+      {!queue.length ? <p className="muted-text">אין מורים שממתינים לאישור כרגע.</p> : (
+        <div className="admin-list">
+          {queue.map((t) => (
+            <article key={t.id} className="admin-item pending-item">
+              <Avatar tutor={t} className="ai-photo" size={64} />
+              <div className="ai-main">
+                <b>{t.name}</b>
+                <p className="t-meta">{(t.subjects || []).join(', ')} · {(t.levels || []).join(', ')} · {t.city || 'אונליין'}</p>
+                <p className="t-meta">נשלח {dateShort(t.createdAt)}</p>
+                {open?.id === t.id ? (
+                  <div className="pending-details">
+                    <p>טלפון: <bdi>{open.phone || 'חסר'}</bdi></p>
+                    <p>תאריך לידה: <bdi>{open.birthDate || 'חסר'}</bdi></p>
+                    <p>כתובת: {open.address || 'חסרה'}</p>
+                    <p>מייל החשבון: <bdi>{open.email || '(ראו בלוח Supabase)'}</bdi></p>
+                    <p>{t.headline}</p><p>{t.about}</p>
+                    <input className="input" aria-label="סיבה לדחייה" placeholder="סיבה לדחייה (רק אם דוחים)" value={reason} onChange={(e) => setReason(e.target.value)} />
+                    <div className="form-actions">
+                      <button type="button" className="btn btn-brand btn-sm" onClick={() => decide(t, true)}>אישור</button>
+                      <button type="button" className="btn btn-line btn-sm" onClick={() => decide(t, false)}>דחייה</button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+              <div className="ai-actions"><button type="button" className="btn btn-line btn-sm" onClick={() => show(t)}>{open?.id === t.id ? 'סגירה' : 'בדיקה'}</button></div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function AdminTutors() {
-  const { api, tutors, reload, notify } = useApp();
+  const { api, tutors: publicTutors, reload, notify, version } = useApp();
+  const [allTutors] = useLoad(() => api.listAllTutors(), [version]);
+  const tutors = allTutors || publicTutors;
   const [editing, setEditing] = useState(null); // null | 'new' | tutor (with phone)
   const [q, setQ] = useState('');
   const list = useMemo(() => (tutors || []).filter((t) => !q || t.name.includes(q) || (t.city || '').includes(q)).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')), [tutors, q]);
@@ -606,6 +685,7 @@ function AdminTutors() {
   }
   return (
     <div className="my-groups">
+      <PendingTutors />
       <div className="mg-head">
         <input className="input" type="search" aria-label="חיפוש מורה" placeholder="חיפוש לפי שם או עיר…" value={q} onChange={(e) => setQ(e.target.value)} />
         <button type="button" className="btn btn-brand" onClick={() => setEditing('new')}>+ הוספת מורה</button>
@@ -617,7 +697,7 @@ function AdminTutors() {
             <article key={t.id} className="admin-item">
               <Avatar tutor={t} className="ai-photo" size={56} />
               <div className="ai-main">
-                <a className="t-name" href={`#tutor-${t.id}`}>{t.name}</a> <Verified tutor={t} />
+                <a className="t-name" href={`#tutor-${t.id}`}>{t.name}</a> <Verified tutor={t} />{t.approval && t.approval !== 'approved' ? <span className={'tag ' + (t.approval === 'pending' ? 'brass' : '')}>{t.approval === 'pending' ? 'ממתין' : 'נדחה'}</span> : null}
                 <p className="t-meta">{(t.subjects || []).join(', ')} · {t.city || 'אונליין'} · {[t.teachesFrontal && t.priceFrontal ? `פרונטלי ${money(t.priceFrontal)}` : '', t.teachesOnline && t.priceOnline ? `אונליין ${money(t.priceOnline)}` : ''].filter(Boolean).join(' · ')}</p>
                 <Stars avg={t.ratingAvg} count={t.ratingCount} compact />
               </div>

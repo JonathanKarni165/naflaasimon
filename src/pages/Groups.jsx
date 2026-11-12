@@ -193,6 +193,8 @@ export function Group({ id }) {
                 <button type="submit" className="btn btn-brand go" disabled={busy}>{busy ? 'שולחים…' : approval ? 'שליחת בקשה למורה' : 'שמירת מקום'}</button>
                 <button type="button" className="btn btn-ghost" onClick={() => setJoining(false)}>ביטול</button>
               </form>
+            ) : user && t && user.id === t.ownerId ? (
+              <p className="hint">זו הקבוצה שלכם, ולכן אי אפשר להירשם אליה.</p>
             ) : (
               <>
                 {mine?.status === 'declined' ? <p className="hint">המורה לא אישר/ה את הבקשה הקודמת שלכם. אפשר לשאול אותו/ה למטה למה, או לשלוח שוב.</p> : null}

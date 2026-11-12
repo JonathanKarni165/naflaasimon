@@ -605,6 +605,46 @@ export function WherePicker({ id, value, onChange, placeholder = 'עיר או ש
   );
 }
 
+/** Sign in / sign up with email and password (the account works without Google). */
+function EmailLogin({ api, onError }) {
+  const [mode, setMode] = useState('in'); // 'in' | 'up' | 'reset'
+  const [f, setF] = useState({ name: '', email: '', password: '' });
+  const [busy, setBusy] = useState(false);
+  const [info, setInfo] = useState('');
+  const submit = async (e) => {
+    e.preventDefault(); onError(''); setInfo('');
+    const email = f.email.trim();
+    if (!/^\S+@\S+\.\S+$/.test(email)) { onError('כתבו כתובת מייל תקינה'); return; }
+    if (mode !== 'reset' && f.password.length < 6) { onError('הסיסמה חייבת להכיל לפחות 6 תווים'); return; }
+    if (mode === 'up' && !f.name.trim()) { onError('כתבו שם'); return; }
+    setBusy(true);
+    try {
+      if (mode === 'in') await api.auth.signInEmail({ email, password: f.password });
+      else if (mode === 'up') {
+        const r = await api.auth.signUpEmail({ email, password: f.password, name: f.name.trim() });
+        if (r.needsConfirm) setInfo('שלחנו אליכם מייל אימות. לחצו על הקישור שבו (חפשו גם בספאם) ואז היכנסו.');
+      } else { await api.auth.resetPassword(email); setInfo('שלחנו קישור לאיפוס הסיסמה למייל.'); }
+    } catch (err) { onError(err.message); }
+    setBusy(false);
+  };
+  return (
+    <form className="login-email" onSubmit={submit} noValidate>
+      <div className="login-or"><span>או עם מייל</span></div>
+      <div className="seg" role="group" aria-label="כניסה או הרשמה">
+        <button type="button" aria-pressed={mode !== 'up'} onClick={() => { setMode('in'); setInfo(''); onError(''); }}>כניסה</button>
+        <button type="button" aria-pressed={mode === 'up'} onClick={() => { setMode('up'); setInfo(''); onError(''); }}>הרשמה</button>
+      </div>
+      {mode === 'up' ? <input className="input" aria-label="שם" autoComplete="name" placeholder="שם" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /> : null}
+      <input className="input" aria-label="מייל" type="email" autoComplete="email" dir="ltr" placeholder="name@email.com" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+      {mode !== 'reset' ? <input className="input" aria-label="סיסמה" type="password" autoComplete={mode === 'up' ? 'new-password' : 'current-password'} dir="ltr" placeholder="סיסמה (לפחות 6 תווים)" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} /> : null}
+      <button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'רגע…' : mode === 'in' ? 'כניסה' : mode === 'up' ? 'יצירת חשבון' : 'שליחת קישור לאיפוס'}</button>
+      {mode === 'in' ? <button type="button" className="linkish" onClick={() => { setMode('reset'); setInfo(''); onError(''); }}>שכחתי סיסמה</button> : null}
+      {mode === 'reset' ? <button type="button" className="linkish" onClick={() => setMode('in')}>חזרה לכניסה</button> : null}
+      {info ? <p className="ok-note" role="status">{info}</p> : null}
+    </form>
+  );
+}
+
 export function LoginModal() {
   const { loginOpen, setLoginOpen, loginReason, api } = useApp();
   const [picking, setPicking] = useState(false);
@@ -642,9 +682,56 @@ export function LoginModal() {
             ))}
           </div>
         )}
+        {!picking && api.mode !== 'demo' ? <EmailLogin api={api} onError={setErr} /> : null}
         {err ? <p className="err">{err}</p> : null}
         <p className="fine">בכניסה אתם מסכימים לתנאי השימוש. לא נפרסם דבר בשמכם.</p>
       </div>
+    </dialog>
+  );
+}
+
+/** Shown once after a new person signs up: name is needed, the rest is optional. */
+export function ProfileSetup() {
+  const { user, api, notify } = useApp();
+  const [skipped, setSkipped] = useState(() => { try { return sessionStorage.getItem('naflaasimon-setup-skipped') === '1'; } catch { return false; } });
+  const [f, setF] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const ref = useRef(null);
+  const show = !!user && api.mode !== 'demo' && user.profileDone === false && !skipped;
+  useEffect(() => {
+    const d = ref.current; if (!d) return;
+    if (show && !d.open) { setF({ name: user.name || '', phone: user.phone || '', birthDate: '', area: user.area || '' }); d.showModal(); }
+    if (!show && d.open) d.close();
+  }, [show, user]);
+  const skip = () => { try { sessionStorage.setItem('naflaasimon-setup-skipped', '1'); } catch { /* private mode */ } setSkipped(true); };
+  const save = async (e) => {
+    e.preventDefault();
+    if (!f.name.trim()) { notify('כתבו שם', true); return; }
+    if (f.phone.trim() && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל 050-1234567', true); return; }
+    setBusy(true);
+    try { await api.saveMyContact({ name: f.name.trim(), phone: f.phone.trim(), birthDate: f.birthDate, area: f.area }); notify('נשמר. ברוכים הבאים!'); } catch (err) { notify(err.message, true); }
+    setBusy(false);
+  };
+  return (
+    <dialog ref={ref} className="modal" onCancel={(e) => { e.preventDefault(); skip(); }}>
+      {f ? (
+        <form className="modal-body setup-form" onSubmit={save} noValidate>
+          <Coin size={44} />
+          <h2>ברוכים הבאים</h2>
+          <p className="muted-text">שם נדרש כדי שמורים ידעו מי פונה. כל השאר לא חובה, והפרטים נשמרים אצלנו ולא מוצגים באתר.</p>
+          <label className="field-label" htmlFor="su-name">שם</label>
+          <input id="su-name" className="input" autoComplete="name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+          <label className="field-label" htmlFor="su-phone">טלפון (לא חובה)</label>
+          <input id="su-phone" className="input" type="tel" inputMode="tel" dir="ltr" autoComplete="tel" placeholder="050-1234567" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+          <label className="field-label" htmlFor="su-birth">תאריך לידה (לא חובה, אי אפשר לשנות אחר כך)</label>
+          <input id="su-birth" className="input" type="date" max={new Date().toISOString().slice(0, 10)} value={f.birthDate} onChange={(e) => setF({ ...f, birthDate: e.target.value })} />
+          <label className="field-label" htmlFor="su-area">אזור מגורים (לא חובה)</label>
+          <input id="su-area" className="input" list="su-cities" autoComplete="off" placeholder="עיר או שכונה" value={f.area} onChange={(e) => setF({ ...f, area: e.target.value })} />
+          <datalist id="su-cities">{CITIES.map((c) => <option key={c.name} value={c.name} />)}</datalist>
+          <p className="fine">המייל שלכם: <bdi>{user.email}</bdi></p>
+          <div className="form-actions"><button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'שומרים…' : 'שמירה והמשך'}</button><button type="button" className="btn btn-ghost" onClick={skip}>אחר כך</button></div>
+        </form>
+      ) : null}
     </dialog>
   );
 }
