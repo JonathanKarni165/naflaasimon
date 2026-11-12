@@ -345,6 +345,26 @@ export async function getGroupJoinMessage(groupId) {
   return data?.join_message || '';
 }
 
+/** A request from someone without an account: stored by the guest-request function (it checks spam and mails the tutor). */
+export async function sendGuestRequest({ tutorId, groupId, name, phone, email, message, hp }) {
+  let r;
+  try {
+    r = await fetch(`${SUPABASE_URL}/functions/v1/guest-request`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY },
+      body: JSON.stringify({ tutor_id: tutorId, group_id: groupId || null, name, phone, email, message, hp }),
+    });
+  } catch { throw new Error('אין חיבור לאינטרנט. נסו שוב'); }
+  if (r.ok) return true;
+  const e = await r.json().catch(() => ({}));
+  const msgs = { name: 'כתבו שם', phone: 'בדקו את מספר הטלפון, למשל 050-1234567', email: 'בדקו את כתובת המייל', message: 'כתבו הודעה קצרה למורה', rate: 'נשלחו הרבה פניות. נסו שוב מאוחר יותר', moderation: 'ההודעה לא עברה את בדיקת התוכן. הסירו קישורים ומילים לא ראויות' };
+  throw new Error(msgs[e.error] || 'משהו השתבש, נסו שוב');
+}
+export async function tutorGuestRequests() {
+  const rows = check(await sb.from('guest_requests').select('*, groups(title)').order('created_at', { ascending: false }));
+  return rows.map((g) => ({ id: g.id, tutorId: g.tutor_id, name: g.name, phone: g.phone, email: g.email || '', message: g.message, status: g.status, groupTitle: g.groups?.title || '', createdAt: g.created_at }));
+}
+export async function setGuestStatus(id, status) { need(); check(await sb.from('guest_requests').update({ status }).eq('id', id)); return true; }
+
 export function resetDemo() {}
 
 // Live updates: any change anyone makes (new group, seat, inquiry, review…) reaches every open page.

@@ -135,6 +135,32 @@ function Stats({ tutorId, contactCount }) {
 
 const MODE_LABEL = { online: 'אונליין', frontal: 'פרונטלי', '': 'לא משנה' };
 
+function GuestInbox() {
+  const { api, user, version, notify } = useApp();
+  const [list, , , refresh] = useLoad(() => (api.tutorGuestRequests ? api.tutorGuestRequests() : []), [user.id, version]);
+  const open = (list || []).filter((g) => g.status === 'new');
+  if (!open.length) return null;
+  const done = async (g) => { try { await api.setGuestStatus(g.id, 'done'); notify('סומן כטופל'); refresh(); } catch (e) { notify(e.message, true); } };
+  return (
+    <section className="pending-box" aria-label="פניות מאנשים בלי חשבון">
+      <h2>פניות בלי חשבון ({open.length})</h2>
+      <p className="muted-text">אנשים שהשאירו טלפון בלי להירשם. חזרו אליהם בטלפון, ובפעם הבאה אפשר להמליץ להם על חשבון.</p>
+      <div className="admin-list">
+        {open.map((g) => (
+          <article key={g.id} className="admin-item">
+            <div className="ai-main">
+              <b>{g.name}</b> <a href={`tel:${g.phone}`} dir="ltr"><bdi>{g.phone}</bdi></a>{g.email ? <> · <bdi>{g.email}</bdi></> : null}
+              <p className="t-meta">{g.groupTitle ? `לקבוצה "${g.groupTitle}" · ` : ''}{dateShort(g.createdAt)}</p>
+              <p style={{ margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{g.message}</p>
+            </div>
+            <div className="ai-actions"><button type="button" className="btn btn-line btn-sm" onClick={() => done(g)}>סימון כטופל</button></div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function Inbox() {
   const { api, user, version, reload, notify } = useApp();
   const [list, loading, error] = useLoad(() => api.tutorInquiries(), [user.id, version]);
@@ -147,6 +173,7 @@ function Inbox() {
   const n = (st) => all.filter((q) => q.status === st).length;
   return (
     <div className="inbox">
+      <GuestInbox />
       <p className="muted-text">תלמידים שולחים לכם פנייה מהפרופיל. הטלפון שלכם לא מוצג באתר. עונים בצ׳אט כאן, או בטלפון ובמייל אם התלמיד בחר לשתף אותם.</p>
       <div className="chips wrap-chips" role="group" aria-label="סינון פניות">
         {[['open', `פתוחות (${n('new') + n('replied')})`], ['new', `חדשות (${n('new')})`], ['booked', `נקבע שיעור (${n('booked')})`], ['declined', `לא מתאים (${n('declined')})`], ['all', `הכול (${all.length})`]].map(([k, l]) => (

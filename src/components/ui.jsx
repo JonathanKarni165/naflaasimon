@@ -259,6 +259,67 @@ export function buildInquiryText(tutor, f) {
 const slotSort = (a, b) => { const [d1, h1] = a.split('-').map(Number); const [d2, h2] = b.split('-').map(Number); return d1 - d2 || h1 - h2; };
 
 /** Contact a tutor through the site. The tutor's phone is never shown; the request lands in their panel. */
+/** "No account" route: leave a name, phone and message. The site recommends opening an account instead. */
+export function GuestRequest({ tutor, group }) {
+  const { api, user, notify, setLoginOpen } = useApp();
+  const [open, setOpen] = useState(false);
+  const [f, setF] = useState({ name: '', phone: '', email: '', message: '', hp: '' });
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const d = ref.current; if (!d) return;
+    if (open && !d.open) d.showModal();
+    if (!open && d.open) d.close();
+  }, [open]);
+  if (user || api.mode === 'demo' || !api.sendGuestRequest) return null;
+  const submit = async (e) => {
+    e.preventDefault();
+    if (f.name.trim().length < 2) { notify('כתבו שם', true); return; }
+    if (!isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל 050-1234567', true); return; }
+    if (f.email.trim() && !isEmail(f.email)) { notify('בדקו את כתובת המייל', true); return; }
+    if (!f.message.trim()) { notify('כתבו הודעה קצרה למורה', true); return; }
+    setBusy(true);
+    try { await api.sendGuestRequest({ tutorId: tutor.id, groupId: group?.id, ...f, name: f.name.trim(), message: f.message.trim() }); setSent(true); } catch (err) { notify(err.message, true); }
+    setBusy(false);
+  };
+  const close = () => { setOpen(false); if (sent) { setSent(false); setF({ name: '', phone: '', email: '', message: '', hp: '' }); } };
+  return (
+    <>
+      <button type="button" className="linkish small guest-link" onClick={() => setOpen(true)}>אין לכם חשבון? אפשר להשאיר טלפון בלי להירשם</button>
+      <dialog ref={ref} className="modal" onClose={close} onClick={(e) => { if (e.target === ref.current) close(); }}>
+        <div className="modal-body guest-form">
+          <button type="button" className="modal-x" onClick={close} aria-label="סגירה">×</button>
+          {sent ? (
+            <>
+              <Coin size={44} />
+              <h2>הפנייה נשלחה</h2>
+              <p>{tutor.name.split(' ')[0]} יחזרו אליכם בטלפון.</p>
+              <p className="muted-text">בפעם הבאה כדאי לפתוח חשבון: אפשר לדבר עם המורה בצ׳אט באתר בלי למסור טלפון, לעקוב אחרי התשובות ולהצטרף לקבוצות בלחיצה.</p>
+              <div className="form-actions"><button type="button" className="btn btn-brand" onClick={() => { close(); setLoginOpen(true); }}>פתיחת חשבון</button><button type="button" className="btn btn-ghost" onClick={close}>סגירה</button></div>
+            </>
+          ) : (
+            <form onSubmit={submit} noValidate>
+              <h2>{group ? 'השארת פרטים לקבוצה' : 'השארת פרטים למורה'}</h2>
+              <p className="note">מומלץ בחום לפתוח חשבון במקום: אז אפשר לדבר עם המורה בצ׳אט באתר, בלי למסור טלפון, ולראות את התשובה באזור האישי. <button type="button" className="linkish" onClick={() => { close(); setLoginOpen(true); }}>פתיחת חשבון</button></p>
+              <label className="field-label" htmlFor="gr-name">שם</label>
+              <input id="gr-name" className="input" autoComplete="name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+              <label className="field-label" htmlFor="gr-phone">טלפון (המורה יחזור אליכם אליו)</label>
+              <input id="gr-phone" className="input" type="tel" inputMode="tel" dir="ltr" autoComplete="tel" placeholder="050-1234567" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+              <label className="field-label" htmlFor="gr-email">מייל (לא חובה)</label>
+              <input id="gr-email" className="input" type="email" dir="ltr" autoComplete="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+              <label className="field-label" htmlFor="gr-msg">מה אתם צריכים?</label>
+              <textarea id="gr-msg" className="input" rows={4} maxLength={1000} placeholder={group ? `למשל: רוצה להצטרף ל"${group.title}"` : 'מקצוע, רמה, מתי נוח לכם…'} value={f.message} onChange={(e) => setF({ ...f, message: e.target.value })} />
+              <input className="sr-only" tabIndex={-1} autoComplete="off" aria-hidden="true" name="website" value={f.hp} onChange={(e) => setF({ ...f, hp: e.target.value })} />
+              <div className="form-actions"><button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'שולחים…' : 'שליחה'}</button><button type="button" className="btn btn-ghost" onClick={close}>ביטול</button></div>
+            </form>
+          )}
+        </div>
+      </dialog>
+    </>
+  );
+}
+
 export function InquiryBox({ tutor }) {
   const { user, api, requireLogin, notify, version } = useApp();
   const [mine, setMine] = useState([]);
@@ -451,7 +512,8 @@ export function InquiryBox({ tutor }) {
         </div>
       ) : null}
       <button type="button" className={'btn go ' + (last ? 'btn-line' : 'btn-brand')} onClick={start}>{last ? 'פנייה חדשה' : 'שליחת פנייה למורה'}</button>
-      {!user ? <p className="hint">כניסה מהירה עם Google, בלי סיסמה. אפשר לדבר עם המורה בצ׳אט באתר, בלי למסור טלפון.</p> : null}
+      {!user ? <p className="hint">כניסה מהירה עם Google או עם מייל. אפשר לדבר עם המורה בצ׳אט באתר, בלי למסור טלפון.</p> : null}
+      <GuestRequest tutor={tutor} />
       {wizard}
     </div>
   );
