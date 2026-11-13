@@ -695,3 +695,58 @@ footer .linkish { color: inherit; font-weight: 600; }
 .g-tutor-info b { font-size: 24px; line-height: 1.2; }
 .g-tutor-cta { font-weight: 800; color: var(--good); margin-top: 4px; }
 @media (max-width: 520px) { .g-tutor { grid-template-columns: 84px minmax(0, 1fr); gap: 12px; padding: 12px; } .g-tutor-photo { width: 84px; height: 84px; } .g-tutor-info b { font-size: 20px; } }
+
+/* ---- Tutor cards (search): one clear card per tutor ---- */
+.t-rows { display: grid; gap: 16px; background: none; border: 0; border-radius: 0; overflow: visible; }
+.tc {
+  position: relative; cursor: pointer; background: var(--surface); border: 2px solid var(--ink); border-radius: 6px;
+  box-shadow: 4px 4px 0 var(--brass); padding: 14px;
+  display: grid; grid-template-columns: 104px minmax(0, 1fr); grid-template-areas: "photo head" "quote quote" "tags tags" "side side";
+  gap: 12px 14px; transition: transform .15s ease, box-shadow .15s ease;
+}
+.tc > * { min-width: 0; }
+.tc:hover { transform: translate(-1px, -1px); box-shadow: 6px 6px 0 var(--brass); }
+.tc:has(.t-name:focus-visible) { outline: 3px solid var(--brass); outline-offset: 3px; }
+.tc .t-name { color: var(--ink); text-decoration: none; }
+.tc .t-name::after { content: ''; position: absolute; inset: 0; z-index: 0; }
+.tc .tc-cta, .tc .tc-photo { position: relative; z-index: 1; }
+.tc-photo { grid-area: photo; display: block; align-self: start; }
+.tc-img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; object-position: 50% 25%; border-radius: 0; border: 0; }
+.tc-head { grid-area: head; align-self: center; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.tc-name { margin: 0; font-family: var(--display); font-weight: 400; font-size: 22px; line-height: 1.15; }
+.tc-headline { flex-basis: 100%; margin: 0; font-size: 15px; font-weight: 600; color: var(--muted); line-height: 1.35; }
+.tc-head .t-topic { flex-basis: 100%; }
+.tc-quote {
+  grid-area: quote; margin: 0; position: relative; padding: 4px 0 0; padding-inline-start: 34px;
+  font-family: "Frank Ruhl Libre", var(--body); font-weight: 500; font-size: 18px; line-height: 1.45; color: var(--ink);
+}
+.tc-quote::before { content: '”'; position: absolute; inset-inline-start: 0; top: -10px; font-family: "Frank Ruhl Libre", serif; font-size: 58px; line-height: 1; color: var(--brass); }
+.tc-quote p { margin: 0; }
+.tc-quote p::after { content: '“'; color: var(--brass); font-weight: 700; margin-inline-start: 2px; }
+.tc-tags { grid-area: tags; list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.tc-tags li { font-size: 13.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--brass-soft); color: var(--ink); }
+.tc-tags .tc-place { background: none; border: 1px solid var(--line); color: var(--muted); font-weight: 600; }
+.tc-tags .hot { border-color: var(--ink); color: var(--ink); font-weight: 800; }
+.tc-side { grid-area: side; display: flex; align-items: center; gap: 18px; border-top: 1px dashed var(--line); padding-top: 12px; }
+.tc-stat { display: grid; line-height: 1.1; }
+.tc-stat b { font-family: var(--display); font-weight: 400; font-size: 26px; color: var(--ink); white-space: nowrap; }
+.tc-stat small { font-size: 13px; font-weight: 600; color: var(--muted); }
+.tc-rate b span { color: var(--brass); }
+.tc-new { font-size: 22px !important; }
+.tc-cta { margin-inline-start: auto; }
+@media (min-width: 860px) {
+  .tc { grid-template-columns: 170px minmax(0, 1fr) 190px; grid-template-areas: "photo head side" "photo quote side" "photo tags side"; grid-template-rows: auto 1fr auto; gap: 10px 24px; padding: 18px; }
+  .tc-head { align-self: start; }
+  .tc-name { font-size: 26px; }
+  .tc-quote { font-size: 19px; }
+  .tc-side { flex-direction: column; align-items: stretch; justify-content: center; gap: 14px; border-top: 0; border-inline-start: 1px dashed var(--line); padding: 0; padding-inline-start: 20px; text-align: center; }
+  .tc-stat b { font-size: 32px; }
+  .tc-cta { margin: 4px 0 0; }
+}
+@media (max-width: 420px) {
+  .tc { grid-template-columns: 88px minmax(0, 1fr); padding: 12px; }
+  .tc-name { font-size: 20px; }
+  .tc-quote { font-size: 16.5px; padding-inline-start: 28px; }
+  .tc-stat b { font-size: 22px; }
+  .tc-side { gap: 14px; }
+}
