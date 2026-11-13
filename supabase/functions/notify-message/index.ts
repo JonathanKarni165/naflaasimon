@@ -10,6 +10,29 @@ const env = (k: string) => Deno.env.get(k) || '';
 const SITE = (env('SITE_URL') || 'https://jonathankarni165.github.io/naflaasimon/').replace(/\/?$/, '/');
 const esc = (s: string) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 
+
+// WhatsApp (Meta Cloud API). Does nothing until WHATSAPP_TOKEN and WHATSAPP_PHONE_ID are set; never throws.
+// Only people who opted in (profiles.whatsapp_optin) with a phone number get a message, and only through approved templates.
+const toE164 = (p: string) => { const d = String(p || '').replace(/\D/g, ''); if (d.startsWith('972')) return d; if (d.startsWith('0')) return '972' + d.slice(1); return d.length >= 9 ? '972' + d : ''; };
+async function whatsapp(phone: string, template: string, params: string[]) {
+  const token = env('WHATSAPP_TOKEN'), id = env('WHATSAPP_PHONE_ID'), to = toE164(phone);
+  if (!token || !id || !to) return;
+  try {
+    const r = await fetch(`https://graph.facebook.com/v21.0/${id}/messages`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messaging_product: 'whatsapp', to, type: 'template', template: { name: template, language: { code: 'he' }, components: [{ type: 'body', parameters: params.map((text) => ({ type: 'text', text: String(text).slice(0, 300) })) }] } }),
+    });
+    if (!r.ok) console.error('whatsapp', r.status, await r.text());
+  } catch (e) { console.error('whatsapp', e); }
+}
+// Phone of a user who opted in to WhatsApp ('' if none). Tutors' private phone lives in tutor_contacts.
+async function waPhone(db: any, uid: string, tutorId?: string) {
+  const { data: p } = await db.from('profiles').select('phone, whatsapp_optin').eq('id', uid).maybeSingle();
+  if (!p?.whatsapp_optin) return '';
+  if (tutorId) { const { data: c } = await db.from('tutor_contacts').select('phone').eq('tutor_id', tutorId).maybeSingle(); if (c?.phone) return c.phone; }
+  return p.phone || '';
+}
+
 async function send(to: string[], bcc: string[], subject: string, html: string, text: string) {
   if (env('RESEND_API_KEY')) {
     const r = await fetch('https://api.resend.com/emails', {
@@ -55,6 +78,7 @@ Deno.serve(async (req) => {
       const subject = `הודעה חדשה בקבוצה "${title}"`;
       const text = `${first} כתב/ה בקבוצה "${title}":\n\n${(m as any).text}\n\nלצ׳אט הקבוצה: ${link}`;
       const html = frame(`<p><b>${esc(first)}</b> כתב/ה בקבוצה <b>${esc(title)}</b>:</p>${quote((m as any).text)}${button(link, 'לצ׳אט הקבוצה')}`, 'קיבלת את המייל כי נרשמת לקבוצה בנפל האסימון.');
+      await Promise.all(ids.map(async (u: string) => { const ph = await waPhone(db, u); if (ph) await whatsapp(ph, 'group_message', ['שלום', title, link]); })).catch(() => {});
       await send([], emails, subject, html, text);
       return new Response('sent', { status: 200 });
     }
@@ -79,6 +103,8 @@ Deno.serve(async (req) => {
     const subject = `הודעה חדשה מ${who}`;
     const text = `היי ${first},\n\n${who} שלח/ה לך הודעה בנפל האסימון:\n\n${(m as any).text}\n\nלתשובה: ${link}`;
     const html = frame(`<p>היי ${esc(first)},</p><p><b>${esc(who)}</b> שלח/ה לך הודעה בנפל האסימון:</p>${quote((m as any).text)}${button(link, 'לתשובה באתר')}`, 'קיבלת את המייל כי יש לך שיחה פעילה בנפל האסימון.');
+    const recipient = toTutor ? tutor?.owner_id : q?.user_id;
+    try { const ph = await waPhone(db, recipient, toTutor ? q?.tutor_id : undefined); if (ph) await whatsapp(ph, 'new_message', [first || 'שלום', who, link]); } catch (e) { console.error(e); }
     await send([to], [], subject, html, text);
     return new Response('sent', { status: 200 });
   } catch (e) {
