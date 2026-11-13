@@ -5,18 +5,24 @@ import { money, dateShort, dateLong, normalizePhone, isPhone } from '../lib/form
 import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, SpamNote, StatusTag, InquiryChat, ChatOverlay, VIA, viaOf, WeekGrid, ReportTutor, REPORT_REASONS } from '../components/ui.jsx';
 import { subtopicsOf } from '../data/topics.js';
 
-// Tutor-only tabs are hidden from students; a student sees only their own inquiries and details.
+// Two separate areas: "תלמיד" (my conversations and sign-ups) and "מורה" (my profile, inquiries, groups).
+// Personal details belong to both; admins get a third area.
 const TUTOR_TABS = ['panel', 'panel-inbox', 'panel-groups'];
 const TABS = [
-  ['panel', 'הפרופיל שלי'],
+  ['panel', 'פרופיל המורה שלי'],
   ['panel-inbox', 'פניות מתלמידים'],
-  ['panel-groups', 'קבוצות למידה'],
-  ['panel-seats', 'הפניות וההרשמות שלי'],
-  ['panel-me', 'הפרטים שלי'],
-  ['panel-admin', 'ניהול מורים'],
+  ['panel-groups', 'הקבוצות שלי'],
+  ['panel-seats', 'השיחות וההרשמות שלי'],
+  ['panel-me', 'הפרטים האישיים שלי'],
+  ['panel-admin', 'אישור וניהול מורים'],
   ['panel-reports', 'דיווחים'],
 ];
 const ADMIN_TABS = ['panel-admin', 'panel-reports'];
+const AREAS = {
+  student: { label: 'אזור התלמיד', home: 'panel-seats', tabs: ['panel-seats', 'panel-me'] },
+  tutor: { label: 'אזור המורה', home: 'panel', tabs: ['panel', 'panel-inbox', 'panel-groups', 'panel-me'] },
+  admin: { label: 'ניהול האתר', home: 'panel-admin', tabs: ['panel-admin', 'panel-reports'] },
+};
 
 export default function Panel() {
   const { user, setLoginOpen } = useApp();
@@ -51,25 +57,38 @@ function PanelTabs() {
   const { user, route } = useApp();
   const [mine, loading, , , loaded] = useMyTutor();
   const isTutor = !!mine;
-  const tabs = TABS.filter(([k]) => (!ADMIN_TABS.includes(k) || user.isAdmin) && (isTutor || !TUTOR_TABS.includes(k)));
   // A student who opened "פתיחת פרופיל מורה" (#panel) gets the sign-up form, without the tutor tabs.
   const becoming = !isTutor && route.name === 'panel';
-  // #chat-<inquiry id> opens that one conversation inside "הפניות וההרשמות שלי".
-  const tab = route.name === 'chat' ? 'panel-seats' : tabs.some(([k]) => k === route.name) ? route.name : becoming ? 'panel' : isTutor ? 'panel' : 'panel-seats';
+  // #chat-<inquiry id> opens that one conversation inside "השיחות וההרשמות שלי".
+  const allowed = (k) => (!ADMIN_TABS.includes(k) || user.isAdmin) && (isTutor || !TUTOR_TABS.includes(k) || (becoming && k === 'panel'));
+  const wanted = route.name === 'chat' ? 'panel-seats' : TABS.some(([k]) => k === route.name) && allowed(route.name) ? route.name : becoming ? 'panel' : isTutor ? 'panel' : 'panel-seats';
+  const tab = wanted;
+  // Personal details are shared, so remember which area the person came from.
+  const readLast = () => { try { return sessionStorage.getItem('naflaasimon-area') || ''; } catch { return ''; } };
+  let area = ADMIN_TABS.includes(tab) ? 'admin' : TUTOR_TABS.includes(tab) ? 'tutor' : tab === 'panel-seats' ? 'student' : (readLast() || (isTutor ? 'tutor' : 'student'));
+  if (area === 'tutor' && !isTutor && !becoming) area = 'student';
+  useEffect(() => { try { if (tab !== 'panel-me') sessionStorage.setItem('naflaasimon-area', area); } catch { /* private mode */ } }, [area, tab]);
+  const areaKeys = ['student', ...(isTutor || becoming ? ['tutor'] : []), ...(user.isAdmin ? ['admin'] : [])];
+  const tabs = TABS.filter(([k]) => AREAS[area].tabs.includes(k) && allowed(k));
   // On phones the tab row scrolls sideways: keep the open tab in view.
   useEffect(() => { document.querySelector('.tabs [aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }, [tab]);
   if (loading && mine == null && !loaded) return <main className="wrap page-pad"><Loading /></main>;
   return (
     <main className="wrap page-pad">
       <div className="page-head"><h1>האזור האישי</h1><p className="muted-text">שלום {user.name}{user.isAdmin ? ' · מנהל/ת האתר' : ''}</p></div>
-      <nav className="tabs" aria-label="פאנל">
+      {areaKeys.length > 1 || !isTutor ? (
+        <nav className="area-switch" aria-label="אזורים">
+          {areaKeys.map((k) => <a key={k} href={'#' + AREAS[k].home} aria-current={area === k ? 'page' : undefined}>{AREAS[k].label}</a>)}
+          {!isTutor && !becoming ? <a className="area-cta" href="#panel">מלמדים? פתיחת פרופיל מורה</a> : null}
+        </nav>
+      ) : null}
+      <nav className="tabs" aria-label={AREAS[area].label}>
         {tabs.map(([k, label]) => <a key={k} href={'#' + k} aria-current={tab === k ? 'page' : undefined}>{label}{k === 'panel-inbox' ? <FreshBadge /> : null}</a>)}
       </nav>
       {tab === 'panel' && <MyProfile />}
       {tab === 'panel-inbox' && <Inbox />}
       {tab === 'panel-groups' && <MyGroups />}
       {tab === 'panel-seats' && <MySeats openId={route.name === 'chat' ? route.id : null} />}
-      {tab === 'panel-seats' && !isTutor ? <p className="become-tutor muted-text">מלמדים בעצמכם? <a href="#panel">פתיחת פרופיל מורה</a></p> : null}
       {tab === 'panel-me' && <MyDetails />}
       {tab === 'panel-admin' && <AdminTutors />}
       {tab === 'panel-reports' && <AdminReports />}
