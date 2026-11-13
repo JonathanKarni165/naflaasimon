@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useApp, go } from '../state.jsx';
 import { LEVELS } from '../data/constants.js';
 import { filterTutors, sortTutors, globalMean } from '../lib/ranking.js';
@@ -59,7 +59,7 @@ export default function Home() {
           ) : null}
           <p className="lead">מורים פרטיים למתמטיקה ולשאר המקצועות. מחפשים לפי רמה ומיקום, משווים מחיר וביקורות, ופונים ישירות.</p>
           <figure className="hero-photo">
-            <img src="img/hero.jpg" fetchpriority="high" decoding="async" alt="סטודנטית עם משקפיים לומדת ליד שולחן עם מחשב ועפרונות צבעוניים" width="1200" height="800" />
+            <HeroSlides />
             {featured[0] ? (
               <div className="h-chip h-chip-tutor"><span className="dot" aria-hidden="true">★</span><span><b>{featured[0].name}{featured[0].subjects[0] ? `, מורה ל${featured[0].subjects[0]}` : ''}</b>{featured[0].ratingAvg.toFixed(1)} מתוך <bdi>{featured[0].ratingCount}</bdi> ביקורות</span></div>
             ) : null}
@@ -132,6 +132,10 @@ export default function Home() {
             <div><h2 id="groups-h">לומדים בקבוצה, משלמים פחות</h2><p className="sec-sub">מרתונים לבגרות וקבוצות קטנות עם מורה מאומת. בערך חצי מחיר משיעור פרטי.</p></div>
             <a href="#groups">כל הקבוצות</a>
           </div>
+          <figure className="group-photo">
+            <img src="img/group-park.jpg" loading="lazy" decoding="async" width="1400" height="700" alt="שלוש סטודנטיות יושבות על הדשא בקמפוס, מחייכות ולומדות יחד" />
+            <figcaption>לומדים יחד, בכיתה, בזום או על הדשא</figcaption>
+          </figure>
           <div className="groups">
             {upcoming.map((g) => <GroupCard key={g.id} group={g} />)}
             <article className="group open">
@@ -184,5 +188,35 @@ export default function Home() {
         </div>
       </section>
     </main>
+  );
+}
+
+// Warm, upbeat learning moments that change every few seconds (static for people who prefer less motion).
+const SLIDES = [
+  ['img/hero-1.jpg', 'שתי סטודנטיות יושבות על הדשא בפארק עם ספרים, צוחקות ולומדות יחד'],
+  ['img/hero-2.jpg', 'מורה פרטי מחייך עוזר לילד בשיעורי בית ליד מחשב נייד'],
+  ['img/hero-3.jpg', 'שלוש חברות לומדות ליד שולחן עם מחשבים וצוחקות'],
+  ['img/hero-4.jpg', 'קבוצת סטודנטים לומדת יחד בבית קפה בחיוך'],
+];
+function HeroSlides() {
+  const [i, setI] = useState(0);
+  const [paused, setPaused] = useState(false);
+  useEffect(() => {
+    if (paused || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
+    const t = setInterval(() => setI((x) => (x + 1) % SLIDES.length), 5000);
+    return () => clearInterval(t);
+  }, [paused]);
+  return (
+    <div className="hero-slides" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+      {SLIDES.map(([src, alt], k) => (
+        <img key={src} src={src} alt={alt} width="1200" height="960" decoding="async" aria-hidden={k !== i}
+          className={k === i ? 'on' : ''} fetchpriority={k === 0 ? 'high' : undefined} loading={k === 0 ? 'eager' : 'lazy'} />
+      ))}
+      <div className="slide-dots" role="group" aria-label="תמונות">
+        {SLIDES.map(([src], k) => (
+          <button key={src} type="button" aria-label={`תמונה ${k + 1}`} aria-pressed={k === i} onClick={() => { setI(k); setPaused(true); }} />
+        ))}
+      </div>
+    </div>
   );
 }
