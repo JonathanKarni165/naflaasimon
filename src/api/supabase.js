@@ -197,10 +197,9 @@ export async function sendInquiry({ tutorId, name, phone, email, contactVia, sub
 /** The signed-in person's saved contact details (private: only they and admins can read their profile row). */
 export async function saveMyContact({ name, phone, birthDate, area, whatsappOptin }) {
   const u = need();
-  // Once an account is set up the name is fixed, and so is a phone that was given; the database enforces the same.
-  const patch = { profile_done: true };
+  // Once an account is set up the name is fixed (the database enforces it); the phone can still change.
+  const patch = { profile_done: true, phone: (phone || '').trim() || null };
   if (!u.profileDone) patch.name = (name || u.name).trim();
-  if (!u.phone) patch.phone = (phone || '').trim() || null;
   if (whatsappOptin !== undefined) patch.whatsapp_optin = !!whatsappOptin;
   if (area !== undefined) patch.area = (area || '').trim() || null;
   // A birth date can be set once; after that the database keeps the first value.
