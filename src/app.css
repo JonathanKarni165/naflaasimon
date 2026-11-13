@@ -616,14 +616,10 @@ footer .linkish { color: inherit; font-weight: 600; }
 .report-form .form-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .spam-note { margin: 10px 0; padding: 10px 12px; background: var(--butter, #F4E29C); border-radius: 8px; font-size: 14px; line-height: 1.5; text-align: start; }
 
-/* Home hero: rotating photos */
+/* Home hero: one photo per day */
 .hero-slides { position: relative; aspect-ratio: 5 / 4; border-radius: 24px; border: 3px solid var(--ink); overflow: hidden; background: var(--brass-soft); }
-.hero-photo .hero-slides img { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; object-fit: cover; object-position: 50% 40%; border: 0; border-radius: 0; opacity: 0; transition: opacity .9s ease; }
+.hero-photo .hero-slides img { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; object-fit: cover; object-position: 50% 40%; border: 0; border-radius: 0; opacity: 0; }
 .hero-photo .hero-slides img.on { opacity: 1; }
-.slide-dots { position: absolute; inset-inline: 0; bottom: 12px; display: flex; justify-content: center; gap: 8px; }
-.slide-dots button { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--ink); background: var(--surface); padding: 0; cursor: pointer; opacity: .85; }
-.slide-dots button[aria-pressed="true"] { background: var(--brass); opacity: 1; width: 26px; border-radius: 999px; }
-@media (prefers-reduced-motion: reduce) { .hero-photo .hero-slides img { transition: none; } }
 
 /* Home: group-learning photo */
 .group-photo { position: relative; margin: 0 0 18px; }
