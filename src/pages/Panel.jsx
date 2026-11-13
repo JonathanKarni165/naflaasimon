@@ -54,7 +54,8 @@ function PanelTabs() {
   const tabs = TABS.filter(([k]) => (!ADMIN_TABS.includes(k) || user.isAdmin) && (isTutor || !TUTOR_TABS.includes(k)));
   // A student who opened "פתיחת פרופיל מורה" (#panel) gets the sign-up form, without the tutor tabs.
   const becoming = !isTutor && route.name === 'panel';
-  const tab = tabs.some(([k]) => k === route.name) ? route.name : becoming ? 'panel' : isTutor ? 'panel' : 'panel-seats';
+  // #chat-<inquiry id> opens that one conversation inside "הפניות וההרשמות שלי".
+  const tab = route.name === 'chat' ? 'panel-seats' : tabs.some(([k]) => k === route.name) ? route.name : becoming ? 'panel' : isTutor ? 'panel' : 'panel-seats';
   // On phones the tab row scrolls sideways: keep the open tab in view.
   useEffect(() => { document.querySelector('.tabs [aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }, [tab]);
   if (loading && mine == null && !loaded) return <main className="wrap page-pad"><Loading /></main>;
@@ -67,7 +68,7 @@ function PanelTabs() {
       {tab === 'panel' && <MyProfile />}
       {tab === 'panel-inbox' && <Inbox />}
       {tab === 'panel-groups' && <MyGroups />}
-      {tab === 'panel-seats' && <MySeats />}
+      {tab === 'panel-seats' && <MySeats openId={route.name === 'chat' ? route.id : null} />}
       {tab === 'panel-seats' && !isTutor ? <p className="become-tutor muted-text">מלמדים בעצמכם? <a href="#panel">פתיחת פרופיל מורה</a></p> : null}
       {tab === 'panel-me' && <MyDetails />}
       {tab === 'panel-admin' && <AdminTutors />}
@@ -615,10 +616,13 @@ function GroupForm({ initial, tutors, onSaved, onCancel }) {
   );
 }
 
-function MySeats() {
+function MySeats({ openId }) {
   const { api, user, groups, version } = useApp();
   const [seats, loading] = useLoad(() => api.mySeats(), [user.id, version]);
   const [inqs, loadingQ] = useLoad(() => api.myInquiries(), [user.id, version]);
+  // One conversation open at a time; a link from a tutor's page opens that tutor's conversation.
+  const [open, setOpen] = useState(openId);
+  useEffect(() => { if (openId) setOpen(openId); }, [openId]);
   if ((loading && !seats) || (loadingQ && !inqs)) return <Loading />;
   const list = (seats || []).map((s) => ({ s, g: (groups || []).find((g) => g.id === s.groupId) })).filter((x) => x.g);
   return (
@@ -627,19 +631,7 @@ function MySeats() {
         <h2 className="sub-h">פניות ששלחתי למורים</h2>
         {!(inqs || []).length ? <p className="muted-text">עוד לא שלחתם פנייה. <a href="#search">חיפוש מורה</a></p> : (
           <div className="inq-list">
-            {inqs.map((q) => (
-              <article key={q.id} className="inq">
-                <div className="inq-top">
-                  {q.tutor ? <a href={`#tutor-${q.tutorId}`} tabIndex={-1} aria-hidden="true"><Avatar tutor={q.tutor} className="inq-av" size={88} /></a> : null}
-                  {q.tutor ? <a className="inq-name t-name" href={`#tutor-${q.tutorId}`}>{q.tutor.name}</a> : <b className="inq-name">מורה שהוסר/ה</b>}
-                  <StatusTag status={q.status} />
-                  <span className="muted-text inq-date">{dateShort(q.createdAt)}</span>
-                </div>
-                {q.status === 'new' && !q.messageCount ? <p className="hint">המורה עוד לא ענה. בינתיים אפשר להוסיף הודעה.</p> : null}
-                <InquiryChat q={q} />
-                {q.tutor ? <ReportTutor tutor={q.tutor} /> : null}
-              </article>
-            ))}
+            {inqs.map((q) => <MyInquiry key={q.id} q={q} open={open === q.id} onToggle={() => setOpen(open === q.id ? null : q.id)} />)}
           </div>
         )}
       </section>
@@ -660,6 +652,41 @@ function MySeats() {
         )}
       </section>
     </div>
+  );
+}
+
+function MyInquiry({ q, open, onToggle }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open || !ref.current) return;
+    const r = ref.current.getBoundingClientRect();
+    if (r.top < 80 || r.top > window.innerHeight * 0.5) window.scrollTo({ top: window.scrollY + r.top - 90, behavior: 'smooth' });
+  }, [open]);
+  const name = q.tutor ? q.tutor.name : 'מורה שהוסר/ה';
+  return (
+    <article ref={ref} className={'inq my-inq' + (open ? ' is-open' : '')}>
+      <button type="button" className="inq-head" aria-expanded={open} onClick={onToggle}>
+        <span className="inq-top">
+          <Avatar tutor={q.tutor || { name }} className="inq-av" size={88} />
+          <span className="my-inq-who">
+            <b className="inq-name">{name}</b>
+            <span className="my-inq-sub"><StatusTag status={q.status} /> <span className="muted-text">{dateShort(q.createdAt)}</span></span>
+          </span>
+        </span>
+        {!open ? <span className="inq-preview-line">{q.status === 'new' && !q.messageCount ? 'המורה עוד לא ענה' : (q.message || '').split('\n')[0]}</span> : null}
+        <span className="inq-toggle">{open ? 'סגירה ▲' : 'פתיחת השיחה ▼'}</span>
+      </button>
+      {open ? (
+        <>
+          {q.status === 'new' && !q.messageCount ? <p className="hint">המורה עוד לא ענה. בינתיים אפשר להוסיף הודעה.</p> : null}
+          <InquiryChat q={q} />
+          <div className="my-inq-links">
+            {q.tutor ? <a className="linkish small" href={`#tutor-${q.tutorId}`}>לפרופיל של {q.tutor.name.split(' ')[0]}</a> : null}
+            {q.tutor ? <ReportTutor tutor={q.tutor} /> : null}
+          </div>
+        </>
+      ) : null}
+    </article>
   );
 }
 

@@ -23,7 +23,7 @@ function Router() {
     case 'login': return <Auth mode="login" />;
     case 'signup': return <Auth mode="signup" />;
     default:
-      if (route.name.startsWith('panel')) return <Panel />;
+      if (route.name.startsWith('panel') || route.name === 'chat') return <Panel />;
       return <Home />;
   }
 }

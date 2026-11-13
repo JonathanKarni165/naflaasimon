@@ -639,3 +639,9 @@ footer .linkish { color: inherit; font-weight: 600; }
 .t-row .t-cta, .t-row .t-row-photo { position: relative; z-index: 1; }
 .t-row:hover { background: #FBF6E6; }
 .t-row:has(.t-name:focus-visible) { outline: 3px solid var(--brass); outline-offset: -3px; }
+
+/* Student's own inquiries: one conversation open at a time */
+.my-inq .inq-top { flex-wrap: nowrap; }
+.my-inq-who { display: grid; gap: 4px; min-width: 0; }
+.my-inq-sub { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14px; }
+.my-inq-links { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
