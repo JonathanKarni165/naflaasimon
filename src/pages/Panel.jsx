@@ -213,6 +213,7 @@ function InquiryItem({ q, onChange, showTutor, open, onToggle }) {
     <article ref={ref} className={'inq' + (q.status === 'new' ? ' is-new' : '') + (open ? ' is-open' : '')}>
       <button type="button" className="inq-head" aria-expanded={open} onClick={onToggle}>
         <span className="inq-top">
+          <Avatar tutor={{ name: q.name }} className="inq-av" size={64} />
           <b className="inq-name">{q.name}</b>
           <StatusTag status={q.status} />
           <span className="muted-text inq-date">{dateShort(q.createdAt)}</span>
@@ -624,6 +625,7 @@ function MySeats() {
             {inqs.map((q) => (
               <article key={q.id} className="inq">
                 <div className="inq-top">
+                  {q.tutor ? <a href={`#tutor-${q.tutorId}`} tabIndex={-1} aria-hidden="true"><Avatar tutor={q.tutor} className="inq-av" size={88} /></a> : null}
                   {q.tutor ? <a className="inq-name t-name" href={`#tutor-${q.tutorId}`}>{q.tutor.name}</a> : <b className="inq-name">מורה שהוסר/ה</b>}
                   <StatusTag status={q.status} />
                   <span className="muted-text inq-date">{dateShort(q.createdAt)}</span>
