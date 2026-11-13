@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '../state.jsx';
 import { LEVELS } from '../data/constants.js';
-import { filterTutors, sortTutors, topicFirst } from '../lib/ranking.js';
+import { filterTutors, sortTutors, topicFirst, queryFirst, blendedRank } from '../lib/ranking.js';
 import { optionLabel } from '../data/topics.js';
 import { TutorRow, Seg, Loading, Empty, WherePicker, resolveWhere, TopicPicker } from '../components/ui.jsx';
 
@@ -19,7 +19,9 @@ export default function Search() {
 
   const results = useMemo(() => {
     if (!tutors) return null;
-    return topicFirst(sortTutors(filterTutors(tutors, f), f.sort, { origin: f.origin, mode: f.mode }), f.topic);
+    return f.sort === 'best'
+      ? blendedRank(filterTutors(tutors, f), { q: f.q, topic: f.topic, origin: f.origin, mode: f.mode })
+      : queryFirst(topicFirst(sortTutors(filterTutors(tutors, f), f.sort, { origin: f.origin, mode: f.mode }), f.topic), f.q);
   }, [tutors, f]);
 
   const [whereText, setWhereText] = useState(f.mode === 'online' ? 'online' : f.city === 'המיקום שלי' ? '' : f.city || f.place || '');
@@ -105,7 +107,7 @@ export default function Search() {
             </div>
           </div>
           <p className="sort-note">
-            {f.sort === 'best' && 'דירוג משוקלל: מורה עם 40 ביקורות של 4.8 יופיע לפני מורה עם ביקורת אחת של 5, כי דירוג על סמך מעט ביקורות פחות אמין.'}
+            {f.sort === 'best' && 'מדורג לפי ציון משוקלל: התאמה למה שחיפשתם, דירוג, כמות ביקורות ופניות, ומרחק אם בחרתם מיקום. מורה עם 40 ביקורות של 4.8 יופיע לפני מורה עם ביקורת אחת של 5.'}
             {f.sort === 'near' && (f.origin ? 'המורים הקרובים אליכם קודם. מורים שמלמדים רק אונליין מופיעים בסוף.' : 'בחרו עיר או השתמשו במיקום הנוכחי כדי למיין לפי מרחק.')}
             {f.sort === 'popular' && 'המורים שהכי הרבה תלמידים פנו אליהם וכתבו עליהם ביקורת.'}
           </p>
