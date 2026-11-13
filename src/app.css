@@ -646,16 +646,23 @@ footer .linkish { color: inherit; font-weight: 600; }
 .my-inq-sub { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14px; }
 .my-inq-links { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 
-/* Search, desktop: filters become one bar above the results, and the tutor list uses the full width */
+/* Search, desktop: the tutor list is first and full width; "סינון" opens a bar of filters above it */
 .f-field { display: grid; gap: 6px; align-content: start; }
 .f-field .field-label { margin: 0; }
 .filters-inner .f-field + .f-field { margin-top: 8px; }
+.filter-btn { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.head-meta { margin: 8px 0 0; }
+.head-meta .marathon-link { font-size: inherit; font-weight: 600; margin: 0; }
 @media (min-width: 1024px) {
-  .search-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
-  .filters, .filters.open { position: static; }
+  .search-layout { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .filters { display: none; }
+  .filters.open { display: block; position: static; inset: auto; background: none; padding: 0; overflow: visible; z-index: 1; margin-top: 12px; }
   .filters-inner { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); align-items: start; gap: 14px 18px; padding: 16px 18px; }
   .filters-inner .f-field + .f-field { margin-top: 0; }
   .filters-top { grid-column: 1 / -1; }
   .filters-top h2 { font-size: 20px; }
   .filters-inner .loc-btn { justify-self: start; }
+  .page-head:has(.topic-search) { display: grid; grid-template-columns: auto minmax(0, 560px); justify-content: space-between; align-items: end; column-gap: 32px; }
+  .page-head:has(.topic-search) .topic-search { margin-top: 0; }
+  .page-head:has(.topic-search) .head-meta { grid-column: 1 / -1; }
 }
