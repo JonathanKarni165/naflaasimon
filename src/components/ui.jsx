@@ -64,33 +64,66 @@ export function placeLabel(t) {
   return parts.join(' ');
 }
 
-/** Tutor row: medium photo, caption, what they teach, rating. Used on home + search. */
+/** First sentence of the tutor's own bio, cut at a word near 140 characters; falls back to the headline. */
+export function tutorQuote(t) {
+  const src = (t.about || '').replace(/\s+/g, ' ').trim();
+  if (!src) return '';
+  const first = (src.match(/^.+?[.!?](\s|$)/) || [src])[0].trim();
+  if (first.length <= 140) return first.replace(/[.]$/, '');
+  const cut = first.slice(0, 140);
+  return cut.slice(0, Math.max(cut.lastIndexOf(' '), 100)).replace(/[,;:\s]+$/, '') + '…';
+}
+
+/** Photo, or a soft silhouette when the tutor has none (never initials). */
+export function TutorPhoto({ tutor, className = 'tc-img' }) {
+  if (tutor?.photo) return <img className={className} src={tutor.photo} alt="" width="520" height="520" loading="lazy" decoding="async" />;
+  return (
+    <svg className={className + ' tc-ph'} viewBox="0 0 120 120" aria-hidden="true" preserveAspectRatio="xMidYMax slice">
+      <rect width="120" height="120" fill="#F4E29C" />
+      <circle cx="96" cy="22" r="34" fill="#DFC166" opacity=".45" />
+      <circle cx="60" cy="48" r="21" fill="#3A3130" opacity=".82" />
+      <path d="M18 120c2-27 19-44 42-44s40 17 42 44z" fill="#3A3130" opacity=".82" />
+    </svg>
+  );
+}
+
+function priceRange(t) {
+  const list = [t.teachesFrontal && t.priceFrontal, t.teachesOnline && t.priceOnline].filter(Boolean).map(Number);
+  if (!list.length) return null;
+  const lo = Math.min(...list), hi = Math.max(...list);
+  return lo === hi ? money(lo) : `${lo}–${money(hi)}`;
+}
+
+/** Tutor card on the search page: separate card, clean photo, big rating + price, a quote from the bio. */
 export function TutorRow({ tutor, sort, topic }) {
   const href = `#tutor-${tutor.id}`;
-  const levels = (tutor.levels || []).slice(0, 4);
+  const quote = tutorQuote(tutor);
+  const price = priceRange(tutor);
+  const subjects = (tutor.subjects || []).slice(0, 4);
   return (
-    <article className="t-row">
-      <a href={href} className="t-row-photo" tabIndex={-1} aria-hidden="true"><Avatar tutor={tutor} className="avatar-sq" /></a>
-      <div className="t-row-main">
-        <div className="t-row-title">
-          <a className="t-name" href={href}>{tutor.name}</a> <Verified tutor={tutor} />
-        </div>
-        <p className="t-caption">{tutor.headline}</p>
+    <article className="tc">
+      <a href={href} className="tc-photo" tabIndex={-1} aria-hidden="true"><TutorPhoto tutor={tutor} /></a>
+      <div className="tc-head">
+        <h3 className="tc-name"><a className="t-name" href={href}>{tutor.name}</a></h3>
+        <Verified tutor={tutor} />
+        {tutor.headline ? <p className="tc-headline">{tutor.headline}</p> : null}
         {topic && topicMatch(tutor, topic) ? <p className="t-topic">✓ מלמד/ת {topic}</p> : null}
-        <p className="t-teaches">
-          <span className="t-label">מלמד/ת:</span> {(tutor.subjects || []).join(', ')}
-          {levels.length ? <span className="t-levels"> · {levels.join(', ')}</span> : null}
-        </p>
-        <p className="t-meta">
-          {placeLabel(tutor)}
-          {tutor.distance != null && tutor.teachesFrontal ? <b className={'dist' + (sort === 'near' ? ' hot' : '')}> · {km(tutor.distance)}</b> : null}
-          {tutor.contactCount && sort ? <span className={'demand' + (sort === 'popular' ? ' hot' : '')}> · <bdi>{tutor.contactCount}</bdi> פניות</span> : null}
-        </p>
       </div>
-      <div className="t-row-side">
-        <div className="t-rating"><Stars avg={tutor.ratingAvg} count={tutor.ratingCount} /></div>
-        <PriceLines tutor={tutor} />
-        <a className="btn btn-brand t-cta" href={href}>לפרופיל</a>
+      {quote ? <blockquote className="tc-quote"><p>{quote}</p></blockquote> : null}
+      <ul className="tc-tags">
+        {subjects.map((s) => <li key={s}>{s}</li>)}
+        {placeLabel(tutor) ? <li className="tc-place">{placeLabel(tutor)}</li> : null}
+        {tutor.distance != null && tutor.teachesFrontal ? <li className={'tc-place' + (sort === 'near' ? ' hot' : '')}>{km(tutor.distance)}</li> : null}
+        {tutor.contactCount && sort ? <li className={'tc-place' + (sort === 'popular' ? ' hot' : '')}><bdi>{tutor.contactCount}</bdi> פניות</li> : null}
+      </ul>
+      <div className="tc-side">
+        <div className="tc-stat tc-rate">
+          {tutor.ratingCount
+            ? <><b><span aria-hidden="true">★</span> <bdi>{rating1(tutor.ratingAvg)}</bdi></b><small>{reviewsLabel(tutor.ratingCount)}</small></>
+            : <><b className="tc-new">חדש</b><small>עוד אין ביקורות</small></>}
+        </div>
+        {price ? <div className="tc-stat tc-price"><b><bdi>{price}</bdi></b><small>לשעה</small></div> : null}
+        <a className="btn btn-brand tc-cta" href={href}>לפרופיל</a>
       </div>
     </article>
   );

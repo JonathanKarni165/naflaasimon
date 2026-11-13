@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useApp, go } from '../state.jsx';
 import { LEVELS } from '../data/constants.js';
 import { filterTutors, sortTutors, globalMean } from '../lib/ranking.js';
-import { TutorRow, GroupCard, Avatar, Loading, WherePicker, resolveWhere, TopicPicker } from '../components/ui.jsx';
+import { GroupCard, Avatar, WherePicker, resolveWhere, TopicPicker } from '../components/ui.jsx';
 import { optionLabel } from '../data/topics.js';
 
 const TRACKS = [
@@ -113,16 +113,6 @@ export default function Home() {
               </button>
             ))}
           </div>
-        </div>
-      </section>
-
-      <section className="block" aria-labelledby="tutors-h">
-        <div className="wrap">
-          <div className="sec-head">
-            <div><h2 id="tutors-h">מורים מומלצים</h2><p className="sec-sub">מדורגים לפי ציון משוקלל: גם כמה כוכבים וגם כמה ביקורות.</p></div>
-            <a href="#search">לכל המורים</a>
-          </div>
-          {tutors ? <div className="t-rows">{featured.map((t) => <TutorRow key={t.id} tutor={t} />)}</div> : <Loading />}
         </div>
       </section>
 
