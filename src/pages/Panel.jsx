@@ -19,8 +19,8 @@ const TABS = [
 ];
 const ADMIN_TABS = ['panel-admin', 'panel-reports'];
 const AREAS = {
-  student: { label: 'אזור התלמיד', home: 'panel-seats', tabs: ['panel-seats', 'panel-me'] },
-  tutor: { label: 'אזור המורה', home: 'panel', tabs: ['panel', 'panel-inbox', 'panel-groups', 'panel-me'] },
+  student: { label: 'פאנל תלמיד', home: 'panel-seats', tabs: ['panel-seats', 'panel-me'] },
+  tutor: { label: 'פאנל מורה', home: 'panel', tabs: ['panel', 'panel-inbox', 'panel-groups', 'panel-me'] },
   admin: { label: 'ניהול האתר', home: 'panel-admin', tabs: ['panel-admin', 'panel-reports'] },
 };
 
@@ -76,10 +76,9 @@ function PanelTabs() {
   return (
     <main className="wrap page-pad">
       <div className="page-head"><h1>האזור האישי</h1><p className="muted-text">שלום {user.name}{user.isAdmin ? ' · מנהל/ת האתר' : ''}</p></div>
-      {areaKeys.length > 1 || !isTutor ? (
+      {areaKeys.length > 1 ? (
         <nav className="area-switch" aria-label="אזורים">
           {areaKeys.map((k) => <a key={k} href={'#' + AREAS[k].home} aria-current={area === k ? 'page' : undefined}>{AREAS[k].label}</a>)}
-          {!isTutor && !becoming ? <a className="area-cta" href="#panel">מלמדים? פתיחת פרופיל מורה</a> : null}
         </nav>
       ) : null}
       <nav className="tabs" aria-label={AREAS[area].label}>
