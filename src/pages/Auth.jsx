@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useApp, go } from '../state.jsx';
-import { Coin, GOOGLE_ICON, rememberReturn } from '../components/ui.jsx';
+import { Coin, GOOGLE_ICON, SpamNote, rememberReturn } from '../components/ui.jsx';
 import { CITIES } from '../data/constants.js';
 import { isEmail, isPhone } from '../lib/format.js';
 
@@ -53,7 +53,8 @@ export default function Auth({ mode }) {
       <main className="auth-page"><div className="auth-card">
         <Coin size={52} />
         <h1>בדקו את המייל</h1>
-        <p className="muted-text">שלחנו קישור אישור אל <bdi>{f.email}</bdi>. לחצו עליו כדי להשלים את פתיחת החשבון. אם לא הגיע, בדקו גם בספאם.</p>
+        <p className="muted-text">שלחנו קישור אישור אל <bdi>{f.email}</bdi>. לחצו עליו כדי להשלים את פתיחת החשבון. אם לא הגיע תוך דקה, בדקו בתיקיית הספאם.</p>
+        <SpamNote />
         <button type="button" className="btn btn-line" onClick={() => go('login')}>לדף הכניסה</button>
       </div></main>
     );

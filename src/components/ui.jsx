@@ -260,6 +260,15 @@ const slotSort = (a, b) => { const [d1, h1] = a.split('-').map(Number); const [d
 
 /** Contact a tutor through the site. The tutor's phone is never shown; the request lands in their panel. */
 /** Link under a CTA: "just leave a phone number". Opens the shared dialog (GuestDialog). */
+/** Mails from us often land in spam while the sender is new: ask people to rescue them. */
+export function SpamNote({ who = 'student' }) {
+  return (
+    <p className="spam-note" role="note">
+      <b>טיפ חשוב:</b> {who === 'tutor' ? 'הודעות על פניות חדשות' : 'המיילים שלנו'} עלולים להגיע לתיקיית הספאם. אם מצאתם מייל מנפל האסימון שם, סמנו אותו <b>״לא ספאם״</b> והוסיפו את <bdi dir="ltr">nafalaasimon@gmail.com</bdi> לאנשי הקשר, כדי שלא תפספסו עדכונים.
+    </p>
+  );
+}
+
 export function GuestRequest({ tutor, group }) {
   const { user, api, openGuest } = useApp();
   if (user || api.mode === 'demo' || !api.sendGuestRequest || !tutor) return null;
@@ -300,6 +309,7 @@ export function GuestDialog() {
             <Coin size={44} />
             <h2>הפנייה נשלחה</h2>
             <p>{tutor.name.split(' ')[0]} יקבל/תקבל את הטלפון שלכם ויחזור אליכם.</p>
+            <SpamNote />
             {signin ? <AuthFlow api={api} onBack={() => setSignin(false)} /> : (
               <>
                 <p className="note">בלי חשבון המורה מקבל/ת רק מספר טלפון: אין צ׳אט באתר ואין מעקב אחרי התשובה. עם חשבון אפשר לדבר בצ׳אט בלי למסור טלפון.</p>
@@ -405,6 +415,7 @@ export function InquiryBox({ tutor }) {
             <Coin size={48} />
             <h2 id="iq-title">הפנייה נשלחה ל{tutor.name.split(' ')[0]}</h2>
             <p className="muted-text">המורה קיבל/ה אותה בפאנל{f.via.includes('phone') || f.via.includes('email') ? ' יחד עם פרטי הקשר שבחרתם' : ''}. התשובה והשיחה איתו/ה יופיעו באזור האישי.</p>
+            <SpamNote />
             <a className="btn btn-brand go" href="#panel-seats" onClick={close}>לשיחה באזור האישי</a>
             <button type="button" className="btn btn-ghost" onClick={close}>סגירה</button>
           </div>
