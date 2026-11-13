@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, useLoad, useMyTutor, go } from '../state.jsx';
 import { SUBJECTS, LEVELS, CITIES, GOALS, LESSON_COUNTS, labelOf } from '../data/constants.js';
 import { money, dateShort, dateLong, normalizePhone, isPhone } from '../lib/format.js';
-import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, StatusTag, InquiryChat, VIA, viaOf, WeekGrid, ReportTutor, REPORT_REASONS } from '../components/ui.jsx';
+import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, SpamNote, StatusTag, InquiryChat, VIA, viaOf, WeekGrid, ReportTutor, REPORT_REASONS } from '../components/ui.jsx';
 import { subtopicsOf } from '../data/topics.js';
 
 // Tutor-only tabs are hidden from students; a student sees only their own inquiries and details.
@@ -176,6 +176,7 @@ function Inbox() {
   const n = (st) => all.filter((q) => q.status === st).length;
   return (
     <div className="inbox">
+      <SpamNote who="tutor" />
       <GuestInbox />
       <p className="muted-text">תלמידים שולחים לכם פנייה מהפרופיל. הטלפון שלכם לא מוצג באתר. עונים בצ׳אט כאן, או בטלפון ובמייל אם התלמיד בחר לשתף אותם.</p>
       <div className="chips wrap-chips" role="group" aria-label="סינון פניות">
