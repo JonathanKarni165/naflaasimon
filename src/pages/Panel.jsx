@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, useLoad, useMyTutor, go } from '../state.jsx';
 import { SUBJECTS, LEVELS, CITIES, GOALS, LESSON_COUNTS, labelOf } from '../data/constants.js';
 import { money, dateShort, dateLong, normalizePhone, isPhone } from '../lib/format.js';
-import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, SpamNote, StatusTag, InquiryChat, VIA, viaOf, WeekGrid, ReportTutor, REPORT_REASONS } from '../components/ui.jsx';
+import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, SpamNote, StatusTag, InquiryChat, ChatOverlay, VIA, viaOf, WeekGrid, ReportTutor, REPORT_REASONS } from '../components/ui.jsx';
 import { subtopicsOf } from '../data/topics.js';
 
 // Tutor-only tabs are hidden from students; a student sees only their own inquiries and details.
@@ -222,12 +222,12 @@ function InquiryItem({ q, onChange, showTutor, open, onToggle }) {
         <span className="t-meta">{[q.subject, q.level, q.mode != null ? MODE_LABEL[q.mode] : ''].filter(Boolean).join(' · ')}{showTutor && q.tutor ? ` · אל ${q.tutor.name}` : ''}</span>
         {q.goal || q.lessons ? <span className="inq-tags">{q.goal ? <span className="tag">{labelOf(GOALS, q.goal)}</span> : null}{q.lessons ? <span className="tag">{labelOf(LESSON_COUNTS, q.lessons)}</span> : null}</span> : null}
         {!open ? <span className="inq-preview-line">{(q.message || '').split('\n').slice(1).join(' · ') || q.message}</span> : null}
-        <span className="inq-toggle">{open ? 'סגירה ▲' : 'פתיחת השיחה ▼'}</span>
+        <span className="inq-toggle">{open ? 'פתיחת השיחה' : 'פתיחת השיחה'}</span>
       </button>
-      {open ? (<>
-      <p className="via-line">מעדיף/ה: {VIA.filter(([v]) => via.includes(v)).map(([, l]) => l).join(' · ')}</p>
+      {open ? (<ChatOverlay who={q.name} avatar={{ name: q.name }} status={q.status} onClose={onToggle}>
+      <p className="via-line chat-win-info">מעדיף/ה: {VIA.filter(([v]) => via.includes(v)).map(([, l]) => l).join(' · ')}</p>
       <InquiryChat q={q} asTutor />
-      <div className="inq-actions">
+      <div className="inq-actions chat-win-foot">
         {wa ? <a className="btn btn-wa btn-sm" href={wa} target="_blank" rel="noreferrer">וואטסאפ</a> : null}
         {q.phone ? <a className="btn btn-line btn-sm" href={`tel:${q.phone.replace(/[^\d+]/g, '')}`}><bdi>{q.phone}</bdi></a> : null}
         {mail ? <a className="btn btn-line btn-sm" href={mail}><bdi>{q.email}</bdi></a> : null}
@@ -235,7 +235,7 @@ function InquiryItem({ q, onChange, showTutor, open, onToggle }) {
         {q.status !== 'declined' ? <button type="button" className="linkish small" onClick={() => onChange({ status: 'declined' }, 'הפנייה סומנה כלא מתאימה')}>לא מתאים</button>
           : <button type="button" className="linkish small" onClick={() => onChange({ status: q.messageCount || q.reply ? 'replied' : 'new' }, 'הפנייה הוחזרה לפתוחות')}>החזרה לפתוחות</button>}
       </div>
-      </>) : null}
+      </ChatOverlay>) : null}
     </article>
   );
 }
@@ -673,17 +673,17 @@ function MyInquiry({ q, open, onToggle }) {
           </span>
         </span>
         {!open ? <span className="inq-preview-line">{q.status === 'new' && !q.messageCount ? 'המורה עוד לא ענה' : (q.message || '').split('\n')[0]}</span> : null}
-        <span className="inq-toggle">{open ? 'סגירה ▲' : 'פתיחת השיחה ▼'}</span>
+        <span className="inq-toggle">{open ? 'פתיחת השיחה' : 'פתיחת השיחה'}</span>
       </button>
       {open ? (
-        <>
-          {q.status === 'new' && !q.messageCount ? <p className="hint">המורה עוד לא ענה. בינתיים אפשר להוסיף הודעה.</p> : null}
+        <ChatOverlay who={name} avatar={q.tutor || { name }} status={q.status} onClose={onToggle} label={`שיחה עם ${name}`}>
+          {q.status === 'new' && !q.messageCount ? <p className="hint chat-win-hint">המורה עוד לא ענה. בינתיים אפשר להוסיף הודעה.</p> : null}
           <InquiryChat q={q} />
-          <div className="my-inq-links">
+          <div className="my-inq-links chat-win-foot">
             {q.tutor ? <a className="linkish small" href={`#tutor-${q.tutorId}`}>לפרופיל של {q.tutor.name.split(' ')[0]}</a> : null}
             {q.tutor ? <ReportTutor tutor={q.tutor} /> : null}
           </div>
-        </>
+        </ChatOverlay>
       ) : null}
     </article>
   );

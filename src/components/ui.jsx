@@ -547,23 +547,35 @@ export function InquiryBox({ tutor }) {
   );
 }
 
-/** A floating chat window over the tutor's page: tutor photo and name on top, the conversation below. */
-function ChatWindow({ q, onClose }) {
-  const t = q.tutor;
+/** Every chat opens in a window of its own that covers the site: photo and name on top, the conversation below. */
+export function ChatOverlay({ who, avatar, status, onClose, children, label }) {
   useEffect(() => {
     const esc = (e) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', esc); return () => document.removeEventListener('keydown', esc);
+    document.addEventListener('keydown', esc);
+    const prev = document.body.style.overflow; document.body.style.overflow = 'hidden';
+    return () => { document.removeEventListener('keydown', esc); document.body.style.overflow = prev; };
   }, [onClose]);
   return (
-    <section className="chat-win" role="dialog" aria-label={`שיחה עם ${t.name}`}>
-      <header className="chat-win-head">
-        <Avatar tutor={t} className="chat-win-av" size={56} />
-        <div className="chat-win-who"><b>{t.name}</b><StatusTag status={q.status} /></div>
-        <button type="button" className="chat-win-x" onClick={onClose} aria-label="סגירת הצ׳אט">×</button>
-      </header>
+    <div className="chat-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <section className="chat-win" role="dialog" aria-modal="true" aria-label={label || `שיחה עם ${who}`}>
+        <header className="chat-win-head">
+          <Avatar tutor={avatar || { name: who }} className="chat-win-av" size={56} />
+          <div className="chat-win-who"><b>{who}</b>{status ? <StatusTag status={status} /> : null}</div>
+          <button type="button" className="chat-win-x" onClick={onClose} aria-label="סגירת הצ׳אט">×</button>
+        </header>
+        {children}
+      </section>
+    </div>
+  );
+}
+
+function ChatWindow({ q, onClose }) {
+  const t = q.tutor;
+  return (
+    <ChatOverlay who={t.name} avatar={t} status={q.status} onClose={onClose}>
       {q.status === 'new' && !q.messageCount ? <p className="hint chat-win-hint">המורה עוד לא ענה. בינתיים אפשר להוסיף הודעה.</p> : null}
       <InquiryChat q={q} />
-    </section>
+    </ChatOverlay>
   );
 }
 
