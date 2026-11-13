@@ -397,7 +397,9 @@ footer .linkish { color: inherit; font-weight: 600; }
 .inq-sent { background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; gap: 4px; justify-items: start; }
 .inq-sent-top { display: flex; gap: 8px; align-items: center; }
 .inq-reply { margin: 0; padding: 8px 12px; background: var(--purple-soft); color: var(--purple-ink); border-radius: 10px; }
-.inq-sent .chat { justify-self: stretch; }
+.inq-sent .chat, .inq-sent .btn { justify-self: stretch; }
+.inq-sent { gap: 8px; }
+.inq-sent .hint { margin: 0; }
 .my-details { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
 .my-details > div { display: grid; min-width: 0; }
 .my-details .muted-text { font-size: 14px; overflow-wrap: anywhere; }
@@ -604,3 +606,11 @@ footer .linkish { color: inherit; font-weight: 600; }
 .auth-card > .link-btn { justify-self: center; margin-top: 4px; }
 .wg-skip-hint { margin: 0 0 8px; }
 .wg-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+/* Report a tutor */
+.report-link { justify-self: start; display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; padding: 6px 0; color: var(--muted); font: inherit; font-size: 14px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.report-link:hover { color: var(--ink); }
+.report-body { text-align: start; justify-items: stretch; }
+.report-body h2 { font-size: 24px; }
+.report-form { display: grid; gap: 10px; }
+.report-form fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 6px; }
+.report-form .form-actions { display: flex; gap: 8px; flex-wrap: wrap; }
