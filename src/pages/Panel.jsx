@@ -242,7 +242,7 @@ function InquiryItem({ q, onChange, showTutor, open, onToggle }) {
 /** Saved contact details: filled in automatically when contacting a tutor or joining a group. */
 function MyDetails() {
   const { api, user, notify } = useApp();
-  const [f, setF] = useState({ name: user.name || '', phone: user.phone || '', birthDate: user.birthDate || '', area: user.area || '' });
+  const [f, setF] = useState({ name: user.name || '', phone: user.phone || '', birthDate: user.birthDate || '', area: user.area || '', whatsappOptin: !!user.whatsappOptin });
   const [busy, setBusy] = useState(false);
   const lockName = user.profileDone !== false;
   const lockPhone = !!user.phone;
@@ -251,7 +251,7 @@ function MyDetails() {
     if (!f.name.trim()) { notify('כתבו שם', true); return; }
     if (f.phone.trim() && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל 050-1234567', true); return; }
     setBusy(true);
-    try { await api.saveMyContact({ name: f.name.trim(), phone: f.phone.trim(), birthDate: f.birthDate, area: f.area }); notify('הפרטים נשמרו'); } catch (err) { notify(err.message, true); }
+    try { await api.saveMyContact({ name: f.name.trim(), phone: f.phone.trim(), birthDate: f.birthDate, area: f.area, whatsappOptin: f.whatsappOptin }); notify('הפרטים נשמרו'); } catch (err) { notify(err.message, true); }
     setBusy(false);
   };
   return (
@@ -268,6 +268,7 @@ function MyDetails() {
       <label className="field-label" htmlFor="me-area">אזור מגורים</label>
       <input id="me-area" className="input" list="me-cities" autoComplete="off" placeholder="עיר או שכונה (לא חובה)" value={f.area} onChange={(e) => setF({ ...f, area: e.target.value })} />
       <datalist id="me-cities">{CITIES.map((c) => <option key={c.name} value={c.name} />)}</datalist>
+      <label className="check-row"><input type="checkbox" checked={f.whatsappOptin} disabled={!user.phone && !f.phone.trim()} onChange={(e) => setF({ ...f, whatsappOptin: e.target.checked })} /> לקבל עדכונים גם בוואטסאפ למספר שלי (הודעות חדשות ופניות)</label>
       <span className="field-label">מייל</span>
       <p className="me-email"><bdi>{user.email || 'לא ידוע'}</bdi> <small className="muted-text">המייל הוא ההתחברות שלכם ולא ניתן לשינוי כאן</small></p>
       <div className="form-actions"><button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'שומרים…' : 'שמירת הפרטים'}</button></div>

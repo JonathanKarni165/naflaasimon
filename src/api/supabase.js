@@ -18,7 +18,7 @@ const listeners = new Set();
 async function loadProfile(session) {
   if (!session?.user) return null;
   const u = session.user;
-  const cols = 'name, is_admin, avatar, phone, birth_date, area, profile_done';
+  const cols = 'name, is_admin, avatar, phone, birth_date, area, profile_done, whatsapp_optin';
   let { data, error } = await sb.from('profiles').select(cols).eq('id', u.id).maybeSingle();
   // Before supabase/accounts.sql (or contact.sql) has run some columns don't exist yet.
   if (error) ({ data } = await sb.from('profiles').select('name, is_admin, avatar').eq('id', u.id).maybeSingle());
@@ -30,6 +30,7 @@ async function loadProfile(session) {
     avatar: data?.avatar || u.user_metadata?.avatar_url || null,
     birthDate: data?.birth_date || '', area: data?.area || '',
     profileDone: data ? data.profile_done !== false : true,
+    whatsappOptin: !!data?.whatsapp_optin,
     isAdmin: !!(data?.is_admin || adminFlag),
   };
 }
@@ -194,17 +195,18 @@ export async function sendInquiry({ tutorId, name, phone, email, contactVia, sub
 }
 
 /** The signed-in person's saved contact details (private: only they and admins can read their profile row). */
-export async function saveMyContact({ name, phone, birthDate, area }) {
+export async function saveMyContact({ name, phone, birthDate, area, whatsappOptin }) {
   const u = need();
   // Once an account is set up the name is fixed, and so is a phone that was given; the database enforces the same.
   const patch = { profile_done: true };
   if (!u.profileDone) patch.name = (name || u.name).trim();
   if (!u.phone) patch.phone = (phone || '').trim() || null;
+  if (whatsappOptin !== undefined) patch.whatsapp_optin = !!whatsappOptin;
   if (area !== undefined) patch.area = (area || '').trim() || null;
   // A birth date can be set once; after that the database keeps the first value.
   if (birthDate && !u.birthDate) patch.birth_date = birthDate;
   check(await sb.from('profiles').update(patch).eq('id', u.id));
-  user = { ...u, name: patch.name ?? u.name, phone: patch.phone !== undefined ? patch.phone || '' : u.phone, area: patch.area ?? u.area, birthDate: u.birthDate || birthDate || '', profileDone: true };
+  user = { ...u, name: patch.name ?? u.name, phone: patch.phone !== undefined ? patch.phone || '' : u.phone, area: patch.area ?? u.area, whatsappOptin: patch.whatsapp_optin ?? u.whatsappOptin, birthDate: u.birthDate || birthDate || '', profileDone: true };
   listeners.forEach((cb) => cb(user));
   return user;
 }

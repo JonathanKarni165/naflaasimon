@@ -615,6 +615,7 @@ footer .linkish { color: inherit; font-weight: 600; }
 .report-form fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 6px; }
 .report-form .form-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .spam-note { margin: 10px 0; padding: 10px 12px; background: var(--butter, #F4E29C); border-radius: 8px; font-size: 14px; line-height: 1.5; text-align: start; }
+.check-row { display: flex; gap: 8px; align-items: flex-start; margin: 12px 0; line-height: 1.5; }
 
 /* Home hero: rotating photos */
 .hero-slides { position: relative; aspect-ratio: 5 / 4; border-radius: 24px; border: 3px solid var(--ink); overflow: hidden; background: var(--brass-soft); }
