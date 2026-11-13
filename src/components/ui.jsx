@@ -361,6 +361,7 @@ export function InquiryBox({ tutor }) {
     api.myInquiries().then((list) => live && setMine(list.filter((q) => q.tutorId === tutor.id)), () => {});
     return () => { live = false; };
   }, [user?.id, tutor.id, version, api]);
+  useEffect(() => { setOpen(false); }, [tutor.id]); // leaving for another tutor's page closes the form
   useEffect(() => {
     const d = dlg.current; if (!d) return;
     if (open && !d.open) d.showModal();
@@ -416,7 +417,7 @@ export function InquiryBox({ tutor }) {
             <h2 id="iq-title">הפנייה נשלחה ל{tutor.name.split(' ')[0]}</h2>
             <p className="muted-text">המורה קיבל/ה אותה בפאנל{f.via.includes('phone') || f.via.includes('email') ? ' יחד עם פרטי הקשר שבחרתם' : ''}. התשובה והשיחה איתו/ה יופיעו באזור האישי.</p>
             <SpamNote />
-            <a className="btn btn-brand go" href="#panel-seats" onClick={close}>לשיחה באזור האישי</a>
+            <a className="btn btn-brand go" href={last ? `#chat-${last.id}` : '#panel-seats'} onClick={close}>לשיחה באזור האישי</a>
             <button type="button" className="btn btn-ghost" onClick={close}>סגירה</button>
           </div>
         ) : (
@@ -533,7 +534,7 @@ export function InquiryBox({ tutor }) {
         <div className="inq-sent">
           <div className="inq-sent-top"><b>כבר פניתם ל{tutor.name.split(' ')[0]}</b><StatusTag status={last.status} /></div>
           <p className="hint">{last.status === 'new' && !last.messageCount ? 'המורה עוד לא ענה. בדרך כלל עונים תוך יום. התשובה תגיע לאזור האישי.' : 'השיחה עם המורה נמצאת באזור האישי.'}</p>
-          <a className="btn btn-brand go" href="#panel-seats">לשיחה באזור האישי</a>
+          <a className="btn btn-brand go" href={`#chat-${last.id}`}>לשיחה עם {tutor.name.split(' ')[0]}</a>
         </div>
       ) : null}
       <button type="button" className={'btn go ' + (last ? 'btn-ghost btn-sm' : 'btn-brand')} onClick={start}>{last ? 'פנייה חדשה' : 'שליחת פנייה למורה'}</button>

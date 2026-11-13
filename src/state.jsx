@@ -6,7 +6,7 @@ export const useApp = () => useContext(Ctx);
 
 export function parseRoute(hash) {
   const h = (hash || '').replace(/^#/, '');
-  const m = h.match(/^(tutor|group)-(.+)$/);
+  const m = h.match(/^(tutor|group|chat)-(.+)$/);
   if (m) return { name: m[1], id: m[2] };
   return { name: h || 'home' };
 }
