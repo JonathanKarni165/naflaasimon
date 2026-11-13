@@ -1,6 +1,5 @@
--- Locked personal details (2026-11-13): once an account is set up, the person cannot change their name or phone.
--- Phone can be added once if it was left empty. Birth date was already locked. Admins can still fix details.
--- Tutors: name, phone and birth date are locked after approval.
+-- Locked personal details (2026-11-13): once an account is set up, the person cannot change their name (birth date was already locked). The phone number stays editable. Admins can still fix details.
+-- Tutors: name and birth date are locked after approval.
 create or replace function public.protect_profile_fields() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
@@ -9,7 +8,6 @@ begin
   if old.birth_date is not null then new.birth_date := old.birth_date; end if;
   if old.profile_done then
     new.name := old.name;
-    if coalesce(btrim(old.phone), '') <> '' then new.phone := old.phone; end if;
   end if;
   return new;
 end $$;
@@ -36,7 +34,7 @@ language plpgsql security definer set search_path = public as $$
 begin
   if public.is_admin() or current_setting('app.bypass', true) = 'on' then return new; end if;
   if exists (select 1 from public.tutors t where t.id = old.tutor_id and t.approval = 'approved') then
-    new.phone := old.phone; new.birth_date := old.birth_date;
+    new.birth_date := old.birth_date;
   end if;
   return new;
 end $$;

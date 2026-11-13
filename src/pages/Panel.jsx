@@ -246,7 +246,6 @@ function MyDetails() {
   const [f, setF] = useState({ name: user.name || '', phone: user.phone || '', birthDate: user.birthDate || '', area: user.area || '', whatsappOptin: !!user.whatsappOptin });
   const [busy, setBusy] = useState(false);
   const lockName = user.profileDone !== false;
-  const lockPhone = !!user.phone;
   const save = async (e) => {
     e.preventDefault();
     if (!f.name.trim()) { notify('כתבו שם', true); return; }
@@ -260,9 +259,9 @@ function MyDetails() {
       <p className="muted-text">הפרטים האלה ימולאו לבד כשתפנו למורה או תירשמו לקבוצה. הם לא מוצגים באתר. מורה רואה את הטלפון שלכם רק אם בחרתם לשתף אותו בפנייה.</p>
       <label className="field-label" htmlFor="me-name">שם</label>
       <input id="me-name" className="input" autoComplete="name" disabled={lockName} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
-      {lockName ? <p className="hint">שם וטלפון אי אפשר לשנות אחרי פתיחת החשבון. לתיקון פנו אלינו.</p> : null}
+      {lockName ? <p className="hint">שם אי אפשר לשנות אחרי פתיחת החשבון. לתיקון פנו אלינו.</p> : null}
       <label className="field-label" htmlFor="me-phone">טלפון</label>
-      <input id="me-phone" className="input" type="tel" autoComplete="tel" inputMode="tel" dir="ltr" placeholder="050-1234567" disabled={lockPhone} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+      <input id="me-phone" className="input" type="tel" autoComplete="tel" inputMode="tel" dir="ltr" placeholder="050-1234567" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
       <label className="field-label" htmlFor="me-birth">תאריך לידה</label>
       <input id="me-birth" className="input" type="date" disabled={!!user.birthDate} max={new Date().toISOString().slice(0, 10)} value={f.birthDate} onChange={(e) => setF({ ...f, birthDate: e.target.value })} />
       <p className="hint">{user.birthDate ? 'תאריך לידה אי אפשר לשנות אחרי שנקבע. לתיקון פנו אלינו.' : 'לא חובה. אחרי השמירה אי אפשר לשנות אותו.'}</p>
@@ -351,8 +350,8 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
           </div>
         </div>
         <div className="f2">
-          <div><label className="field-label" htmlFor="tf-name">שם מלא</label><input id="tf-name" className="input" disabled={locked} value={t.name} onChange={(e) => set({ name: e.target.value })} /><Err k="name" />{locked ? <p className="hint">שם, טלפון ותאריך לידה לא ניתנים לשינוי אחרי אישור. לתיקון פנו אלינו.</p> : null}</div>
-          <div><label className="field-label" htmlFor="tf-phone">טלפון (לא מוצג באתר, רק לצוות)</label><input id="tf-phone" className="input" dir="ltr" inputMode="tel" placeholder="050-1234567" disabled={locked} value={t.phone} onChange={(e) => set({ phone: e.target.value })} /><Err k="phone" /></div>
+          <div><label className="field-label" htmlFor="tf-name">שם מלא</label><input id="tf-name" className="input" disabled={locked} value={t.name} onChange={(e) => set({ name: e.target.value })} /><Err k="name" />{locked ? <p className="hint">שם ותאריך לידה לא ניתנים לשינוי אחרי אישור. לתיקון פנו אלינו.</p> : null}</div>
+          <div><label className="field-label" htmlFor="tf-phone">טלפון (לא מוצג באתר, רק לצוות)</label><input id="tf-phone" className="input" dir="ltr" inputMode="tel" placeholder="050-1234567" value={t.phone} onChange={(e) => set({ phone: e.target.value })} /><Err k="phone" /></div>
         </div>
         <div className="f2">
           <div><label className="field-label" htmlFor="tf-birth">תאריך לידה (לא מוצג באתר)</label><input id="tf-birth" className="input" type="date" disabled={locked} max={new Date().toISOString().slice(0, 10)} value={t.birthDate || ''} onChange={(e) => set({ birthDate: e.target.value })} /><Err k="birthDate" /></div>
