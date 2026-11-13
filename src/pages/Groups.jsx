@@ -231,7 +231,7 @@ export function Group({ id }) {
             {activeSeat ? (
               <div className={'joined' + (activeSeat.status === 'pending' ? ' pending' : '')}>
                 <b>{activeSeat.status === 'pending' ? '⏳ הבקשה ממתינה לאישור המורה' : '✓ אתם בקבוצה'}</b>
-                <p className="hint">{activeSeat.status === 'pending' ? `שלחתם בקשה ב־${dateShort(activeSeat.createdAt)}. ברגע שהמורה יאשר, תראו את זה כאן וב״הפניות וההרשמות שלי״.` : `נרשמתם ב־${dateShort(activeSeat.createdAt)}. המורה יקבל את הטלפון שלכם ויצור קשר לתיאום תשלום.`}</p>
+                <p className="hint">{activeSeat.status === 'pending' ? `שלחתם בקשה ב־${dateShort(activeSeat.createdAt)}. ברגע שהמורה יאשר, תראו את זה כאן וב״השיחות וההרשמות שלי״.` : `נרשמתם ב־${dateShort(activeSeat.createdAt)}. המורה יקבל את הטלפון שלכם ויצור קשר לתיאום תשלום.`}</p>
                 <button type="button" className="btn btn-line btn-sm" onClick={leave} disabled={busy}>{activeSeat.status === 'pending' ? 'ביטול הבקשה' : 'ביטול ההרשמה'}</button>
               </div>
             ) : joining ? (
