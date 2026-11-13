@@ -61,22 +61,27 @@ export default function Search() {
           <div className="filters-inner">
             <div className="filters-top"><h2>סינון</h2><button type="button" className="linkish" onClick={() => { resetFilters(); setWhereText(''); }}>ניקוי</button></div>
 
+            <div className="f-field">
             <label className="field-label" htmlFor="q">חיפוש לפי שם או מילה</label>
             <input id="q" className="input" type="search" placeholder="שם מורה, עיר, מילה מהפרופיל…" value={f.q} onChange={(e) => set({ q: e.target.value })} />
+            </div>
 
             {f.subject && (f.topic || f.level) ? null : (
-              <>
+              <div className="f-field">
                 <label className="field-label" htmlFor="f-level">רמה</label>
                 <select id="f-level" className="select" value={f.level} onChange={(e) => set({ level: e.target.value })}>
                   <option value="">כל הרמות</option>
                   {LEVELS.map((l) => <option key={l}>{l}</option>)}
                 </select>
-              </>
+              </div>
             )}
 
+            <div className="f-field">
             <span className="field-label" id="f-mode">איך לומדים</span>
             <Seg label="f-mode" value={f.mode} onChange={(mode) => set({ mode })} options={[['any', 'הכול'], ['frontal', 'פרונטלי'], ['online', 'אונליין']]} />
+            </div>
 
+            <div className="f-field">
             <label className="field-label" htmlFor="f-city">אני נמצא/ת ב…</label>
             <WherePicker id="f-city" value={whereText} onChange={pickWhere} placeholder={f.city === 'המיקום שלי' ? 'המיקום הנוכחי שלי' : 'עיר או שכונה'} />
             <button type="button" className="btn btn-line btn-sm loc-btn" onClick={useMyLocation}>
@@ -84,16 +89,19 @@ export default function Search() {
               להשתמש במיקום הנוכחי
             </button>
             {locMsg ? <p className="hint">{locMsg}</p> : null}
+            </div>
 
             {f.origin && f.mode !== 'online' ? (
-              <>
+              <div className="f-field">
                 <label className="field-label" htmlFor="f-km">מרחק מקסימלי: {f.maxKm ? `${f.maxKm} ק״מ` : 'ללא הגבלה'}</label>
                 <input id="f-km" type="range" min="0" max="60" step="5" value={f.maxKm} onChange={(e) => set({ maxKm: Number(e.target.value) })} />
-              </>
+              </div>
             ) : null}
 
+            <div className="f-field">
             <label className="field-label" htmlFor="f-price">מחיר לשעה עד: {f.maxPrice ? `${f.maxPrice} ₪` : 'ללא הגבלה'}</label>
             <input id="f-price" type="range" min="0" max="250" step="10" value={f.maxPrice} onChange={(e) => set({ maxPrice: Number(e.target.value) })} />
+            </div>
 
             <button type="button" className="btn btn-brand go only-sm" onClick={() => setShowFilters(false)}>הצגת {results?.length ?? ''} מורים</button>
           </div>
