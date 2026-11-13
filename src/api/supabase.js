@@ -196,12 +196,15 @@ export async function sendInquiry({ tutorId, name, phone, email, contactVia, sub
 /** The signed-in person's saved contact details (private: only they and admins can read their profile row). */
 export async function saveMyContact({ name, phone, birthDate, area }) {
   const u = need();
-  const patch = { name: (name || u.name).trim(), phone: (phone || '').trim() || null, profile_done: true };
+  // Once an account is set up the name is fixed, and so is a phone that was given; the database enforces the same.
+  const patch = { profile_done: true };
+  if (!u.profileDone) patch.name = (name || u.name).trim();
+  if (!u.phone) patch.phone = (phone || '').trim() || null;
   if (area !== undefined) patch.area = (area || '').trim() || null;
   // A birth date can be set once; after that the database keeps the first value.
   if (birthDate && !u.birthDate) patch.birth_date = birthDate;
   check(await sb.from('profiles').update(patch).eq('id', u.id));
-  user = { ...u, name: patch.name, phone: patch.phone || '', area: patch.area ?? u.area, birthDate: u.birthDate || birthDate || '', profileDone: true };
+  user = { ...u, name: patch.name ?? u.name, phone: patch.phone !== undefined ? patch.phone || '' : u.phone, area: patch.area ?? u.area, birthDate: u.birthDate || birthDate || '', profileDone: true };
   listeners.forEach((cb) => cb(user));
   return user;
 }
