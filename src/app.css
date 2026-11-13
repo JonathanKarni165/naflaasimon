@@ -687,3 +687,11 @@ footer .linkish { color: inherit; font-weight: 600; }
 .area-switch a[aria-current="page"] { background: var(--ink); color: var(--bg); }
 .area-switch .area-cta { border-style: dashed; font-weight: 700; margin-inline-start: auto; }
 .pop-head { display: block; padding: 8px 12px 2px; color: var(--muted); font-weight: 700; }
+.g-tutor { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 18px; align-items: center; text-decoration: none; color: inherit; background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 16px; margin: 4px 0 20px; }
+.g-tutor:hover { border-color: var(--brass); }
+.g-tutor-photo { width: 112px; height: 112px; border-radius: 18px; object-fit: cover; font-size: 40px; }
+.g-tutor-info { display: grid; gap: 4px; justify-items: start; }
+.g-tutor-info small { color: var(--muted); font-weight: 700; }
+.g-tutor-info b { font-size: 24px; line-height: 1.2; }
+.g-tutor-cta { font-weight: 800; color: var(--good); margin-top: 4px; }
+@media (max-width: 520px) { .g-tutor { grid-template-columns: 84px minmax(0, 1fr); gap: 12px; padding: 12px; } .g-tutor-photo { width: 84px; height: 84px; } .g-tutor-info b { font-size: 20px; } }

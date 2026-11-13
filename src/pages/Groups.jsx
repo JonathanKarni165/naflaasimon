@@ -184,6 +184,18 @@ export function Group({ id }) {
             <h1>{group.title}</h1>
             <p className="p-headline">{group.subject}{group.level && group.level !== group.subject ? ` · ${group.level}` : ''}</p>
           </header>
+          {t ? (
+            <a className="g-tutor" href={`#tutor-${t.id}`} aria-label={`המורה ${t.name}, לפרופיל המלא`}>
+              <Avatar tutor={t} className="g-tutor-photo" size={112} />
+              <span className="g-tutor-info">
+                <small>המורה בקבוצה</small>
+                <b>{t.name} <Verified tutor={t} /></b>
+                <span className="t-meta">{t.headline}</span>
+                <Stars avg={t.ratingAvg} count={t.ratingCount} />
+                <span className="g-tutor-cta">לפרופיל המלא ←</span>
+              </span>
+            </a>
+          ) : null}
           <dl className="facts facts-grid">
             <div><dt>תאריך התחלה</dt><dd>{dateLong(group.startDate)}</dd></div>
             <div><dt>מתי</dt><dd>{group.time || 'יתואם עם המורה'}</dd></div>
@@ -191,16 +203,6 @@ export function Group({ id }) {
             <div><dt>איפה</dt><dd>{group.mode === 'online' ? 'אונליין (קישור יישלח לנרשמים)' : group.location || group.city}</dd></div>
           </dl>
           {group.description ? <section className="p-sec"><h2>מה עושים בקבוצה</h2><p className="p-about">{group.description}</p></section> : null}
-
-          {t ? (
-            <section className="p-sec">
-              <h2>המורה</h2>
-              <a className="mini-tutor" href={`#tutor-${t.id}`}>
-                <Avatar tutor={t} className="mini-photo" size={72} />
-                <span><b>{t.name}</b> <Verified tutor={t} /><span className="t-meta">{t.headline}</span><Stars avg={t.ratingAvg} count={t.ratingCount} /></span>
-              </a>
-            </section>
-          ) : null}
 
           {joinMsg && (isTutor || (activeSeat && activeSeat.status === 'approved')) ? (
             <section className="p-sec join-msg" aria-labelledby="jm-h">
