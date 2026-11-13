@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useApp, useLoad } from '../state.jsx';
 import { optionLabel, norm } from '../data/topics.js';
 import { money, dateLong, relDays, dateShort, isPhone } from '../lib/format.js';
-import { GroupCard, GuestRequest, Seg, TopicPicker, SeatDots, Avatar, Verified, Stars, Loading, Empty } from '../components/ui.jsx';
+import { GroupCard, GuestRequest, Seg, TopicPicker, SeatDots, Avatar, Verified, Stars, Loading, Empty, ChatOverlay } from '../components/ui.jsx';
 
 export const isMarathon = (g) => Number(g.sessions) <= 1 || /מרתון/.test(g.title || '');
 
@@ -132,6 +132,7 @@ export function Group({ id }) {
   const [seats, , , refreshSeats] = useLoad(() => api.mySeats(), [user?.id, version]);
   const [messages, , , refreshMsgs] = useLoad(() => api.listGroupMessages(id), [id, version]);
   const [joinMsg] = useLoad(() => (api.getGroupJoinMessage ? api.getGroupJoinMessage(id) : ''), [id, user?.id, version]);
+  const [chatOpen, setChatOpen] = useState(false);
   const [joining, setJoining] = useState(false);
   const [form, setForm] = useState({ name: '', phone: '', note: '' });
   const [msg, setMsg] = useState('');
@@ -211,7 +212,13 @@ export function Group({ id }) {
           <section className="p-sec" aria-labelledby="qa-h">
             <h2 id="qa-h">צ׳אט הקבוצה</h2>
             <p className="muted-text">שאלות ותשובות גלויות לכל מי שמתעניין בקבוצה. כל הודעה של המורה נשלחת גם במייל לנרשמים.</p>
-            <Comments messages={messages} isTutor={isTutor} tutorPlaceholder="הודעה לנרשמים…" onSend={sendComment} />
+            <button type="button" className="btn btn-brand" onClick={() => setChatOpen(true)}>פתיחת צ׳אט הקבוצה{(messages || []).length ? ` (${messages.length})` : ''}</button>
+            {chatOpen ? (
+              <ChatOverlay who={t?.name || group.title} avatar={t || { name: group.title }} onClose={() => setChatOpen(false)} label={`צ׳אט הקבוצה ${group.title}`}>
+                <p className="hint chat-win-info">צ׳אט הקבוצה: {group.title}. כל הודעה של המורה נשלחת גם במייל לנרשמים.</p>
+                <Comments messages={messages} isTutor={isTutor} tutorPlaceholder="הודעה לנרשמים…" onSend={sendComment} />
+              </ChatOverlay>
+            ) : null}
           </section>
         </div>
 
