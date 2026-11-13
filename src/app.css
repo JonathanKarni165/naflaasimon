@@ -666,3 +666,16 @@ footer .linkish { color: inherit; font-weight: 600; }
   .page-head:has(.topic-search) .topic-search { margin-top: 0; }
   .page-head:has(.topic-search) .head-meta { grid-column: 1 / -1; }
 }
+
+/* Floating chat window on a tutor's page */
+.chat-win { position: fixed; z-index: 60; inset-inline-start: 24px; bottom: 24px; width: min(440px, calc(100vw - 32px)); max-height: min(640px, calc(100vh - 120px)); display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 10px; background: var(--surface); border: 2px solid var(--ink); border-radius: 20px; padding: 14px; box-shadow: 0 18px 50px rgba(58,49,48,.28); }
+.chat-win-head { display: flex; align-items: center; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.chat-win-av { width: 56px; height: 56px; flex: none; object-fit: cover; border-radius: 14px; border: 2px solid var(--ink); background: var(--brass-soft); }
+.chat-win-av.avatar-initials { display: grid; place-items: center; font-size: 22px; color: var(--ink); }
+.chat-win-who { display: grid; gap: 4px; justify-items: start; flex: 1; min-width: 0; }
+.chat-win-who b { font-size: 18px; }
+.chat-win-x { background: none; border: 0; font-size: 30px; line-height: 1; cursor: pointer; color: var(--muted); padding: 4px 8px; align-self: start; }
+.chat-win-hint { margin: 0; }
+.chat-win .chat { min-height: 0; grid-template-rows: minmax(0, 1fr) auto; }
+.chat-win .chat-list { max-height: none; min-height: 180px; }
+@media (max-width: 600px) { .chat-win { inset: auto 8px 8px 8px; width: auto; max-height: calc(100vh - 80px); } }

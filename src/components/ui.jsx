@@ -346,6 +346,7 @@ export function InquiryBox({ tutor }) {
   const [sent, setSent] = useState(false);
   const [editDetails, setEditDetails] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [chat, setChat] = useState(false); // the floating chat window over the tutor's page
   const dlg = useRef(null);
   const both = tutor.teachesFrontal && tutor.teachesOnline;
   const blank = () => ({
@@ -417,7 +418,7 @@ export function InquiryBox({ tutor }) {
             <h2 id="iq-title">הפנייה נשלחה ל{tutor.name.split(' ')[0]}</h2>
             <p className="muted-text">המורה קיבל/ה אותה בפאנל{f.via.includes('phone') || f.via.includes('email') ? ' יחד עם פרטי הקשר שבחרתם' : ''}. התשובה והשיחה איתו/ה יופיעו באזור האישי.</p>
             <SpamNote />
-            <a className="btn btn-brand go" href={last ? `#chat-${last.id}` : '#panel-seats'} onClick={close}>לשיחה באזור האישי</a>
+            <button type="button" className="btn btn-brand go" onClick={() => { close(); if (last) setChat(true); }}>פתיחת הצ׳אט עם {tutor.name.split(' ')[0]}</button>
             <button type="button" className="btn btn-ghost" onClick={close}>סגירה</button>
           </div>
         ) : (
@@ -533,15 +534,36 @@ export function InquiryBox({ tutor }) {
         // The conversation itself lives in the personal area; here only a short status and a way there.
         <div className="inq-sent">
           <div className="inq-sent-top"><b>כבר פניתם ל{tutor.name.split(' ')[0]}</b><StatusTag status={last.status} /></div>
-          <p className="hint">{last.status === 'new' && !last.messageCount ? 'המורה עוד לא ענה. בדרך כלל עונים תוך יום. התשובה תגיע לאזור האישי.' : 'השיחה עם המורה נמצאת באזור האישי.'}</p>
-          <a className="btn btn-brand go" href={`#chat-${last.id}`}>לשיחה עם {tutor.name.split(' ')[0]}</a>
+          <p className="hint">{last.status === 'new' && !last.messageCount ? 'המורה עוד לא ענה. בדרך כלל עונים תוך יום.' : 'אפשר להמשיך את השיחה כאן.'}</p>
+          <button type="button" className="btn btn-brand go" onClick={() => setChat(true)} aria-expanded={chat}>לשיחה עם {tutor.name.split(' ')[0]}</button>
         </div>
       ) : null}
+      {last && chat ? <ChatWindow q={{ ...last, tutor }} onClose={() => setChat(false)} /> : null}
       <button type="button" className={'btn go ' + (last ? 'btn-ghost btn-sm' : 'btn-brand')} onClick={start}>{last ? 'פנייה חדשה' : 'שליחת פנייה למורה'}</button>
       {!user ? <p className="hint">כניסה מהירה עם Google או עם מייל. אפשר לדבר עם המורה בצ׳אט באתר, בלי למסור טלפון.</p> : null}
       <GuestRequest tutor={tutor} />
       {wizard}
     </div>
+  );
+}
+
+/** A floating chat window over the tutor's page: tutor photo and name on top, the conversation below. */
+function ChatWindow({ q, onClose }) {
+  const t = q.tutor;
+  useEffect(() => {
+    const esc = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', esc); return () => document.removeEventListener('keydown', esc);
+  }, [onClose]);
+  return (
+    <section className="chat-win" role="dialog" aria-label={`שיחה עם ${t.name}`}>
+      <header className="chat-win-head">
+        <Avatar tutor={t} className="chat-win-av" size={56} />
+        <div className="chat-win-who"><b>{t.name}</b><StatusTag status={q.status} /></div>
+        <button type="button" className="chat-win-x" onClick={onClose} aria-label="סגירת הצ׳אט">×</button>
+      </header>
+      {q.status === 'new' && !q.messageCount ? <p className="hint chat-win-hint">המורה עוד לא ענה. בינתיים אפשר להוסיף הודעה.</p> : null}
+      <InquiryChat q={q} />
+    </section>
   );
 }
 
