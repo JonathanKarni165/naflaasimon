@@ -722,7 +722,7 @@ footer .linkish { color: inherit; font-weight: 600; }
 }
 .tc-quote::before { content: '”'; position: absolute; inset-inline-start: 0; top: -10px; font-family: "Frank Ruhl Libre", serif; font-size: 58px; line-height: 1; color: var(--brass); }
 .tc-quote p { margin: 0; }
-.tc-quote p::after { content: '“'; color: var(--brass); font-weight: 700; margin-inline-start: 2px; }
+.tc-quote p::after { content: '“'; display: inline-block; font-family: "Frank Ruhl Libre", serif; font-size: 46px; line-height: 0; vertical-align: -0.42em; color: var(--brass); margin-inline-start: 6px; }
 .tc-tags { grid-area: tags; list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .tc-tags li { font-size: 13.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--brass-soft); color: var(--ink); }
 .tc-tags .tc-place { background: none; border: 1px solid var(--line); color: var(--muted); font-weight: 600; }
@@ -750,3 +750,6 @@ footer .linkish { color: inherit; font-weight: 600; }
   .tc-stat b { font-size: 22px; }
   .tc-side { gap: 14px; }
 }
+.tc-edu, .p-edu { flex-basis: 100%; margin: 0; display: flex; align-items: center; gap: 6px; font-size: 14.5px; font-weight: 700; color: var(--ink); }
+.p-edu { font-size: 16px; margin-top: 2px; }
+.edu-ic { flex: none; color: var(--brass); stroke: #A88A2C; }

@@ -98,7 +98,7 @@ function check({ data, error }) {
 }
 
 const tutorFromRow = (r, stats = {}) => ({
-  id: r.id, ownerId: r.owner_id, name: r.name, photo: r.photo, headline: r.headline, about: r.about,
+  id: r.id, ownerId: r.owner_id, name: r.name, photo: r.photo, headline: r.headline, about: r.about, education: r.education || '',
   subjects: r.subjects || [], levels: r.levels || [], topics: r.topics || [], availability: r.availability || [], city: r.city, area: r.area, lat: r.lat, lng: r.lng,
   teachesOnline: r.teaches_online, teachesFrontal: r.teaches_frontal, priceOnline: r.price_online, priceFrontal: r.price_frontal,
   experienceYears: r.experience_years, verified: r.verified, contactCount: r.contact_count, createdAt: r.created_at,
@@ -109,6 +109,7 @@ const tutorToRow = (t) => {
   const c = cityByName(t.city);
   return {
     name: t.name, photo: t.photo || null, headline: t.headline || null, about: t.about || null,
+    ...(t.education ? { education: t.education.trim().slice(0, 100) } : {}), // column from supabase/education.sql
     subjects: t.subjects || [], levels: t.levels || [], city: t.city || null, area: t.area || null,
     topics: t.topics || [], availability: t.availability || [], // columns from supabase/contact.sql
     lat: c?.lat ?? null, lng: c?.lng ?? null,
