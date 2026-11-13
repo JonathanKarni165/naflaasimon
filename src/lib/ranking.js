@@ -52,6 +52,34 @@ export function topicFirst(list, topic) {
   return [...list.filter((t) => topicMatch(t, topic)), ...list.filter((t) => !topicMatch(t, topic))];
 }
 
+
+const FINALS = { 'ך': 'כ', 'ם': 'מ', 'ן': 'נ', 'ף': 'פ', 'ץ': 'צ' };
+/** Lower-case, drop niqqud/punctuation/geresh, unify final letters, collapse spaces. */
+export function normText(x) {
+  return String(x || '').toLowerCase().normalize('NFKD')
+    .replace(/[\u0591-\u05C7\u0300-\u036f]/g, '')
+    .replace(/[ךםןףץ]/g, (c) => FINALS[c])
+    .replace(/[׳'"”“״`´.,\-_()]/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+}
+function within1(a, b) { // edit distance <= 1
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0, j = 0, edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { i++; j++; continue; }
+    if (++edits > 1) return false;
+    if (a.length > b.length) i++; else if (a.length < b.length) j++; else { i++; j++; }
+  }
+  return edits + (a.length - i) + (b.length - j) <= 1;
+}
+/** Every word the person typed must appear (any order, any part of a word); long words may have one typo. */
+export function smartMatch(haystack, query) {
+  const hay = normText(haystack);
+  const words = hay.split(' ');
+  return normText(query).split(' ').filter(Boolean).every((tok) =>
+    hay.includes(tok) || (tok.length >= 4 && words.some((w) => within1(tok, w.slice(0, tok.length)) || within1(tok, w))));
+}
+
 export function filterTutors(tutors, f) {
   const q = (f.q || '').trim();
   return tutors.filter((t) => {
@@ -60,8 +88,8 @@ export function filterTutors(tutors, f) {
     if (f.mode === 'online' && !t.teachesOnline) return false;
     if (f.mode === 'frontal' && !t.teachesFrontal) return false;
     if (f.maxPrice) { const p = priceFor(t, f.mode); if (p == null || p > f.maxPrice) return false; }
-    if (f.place && !`${t.city || ''} ${t.area || ''}`.includes(f.place.trim())) return false;
-    if (q && !`${t.name} ${t.headline || ''} ${t.about || ''} ${t.city || ''} ${(t.subjects || []).join(' ')} ${(t.topics || []).join(' ')}`.includes(q)) return false;
+    if (f.place && !smartMatch(`${t.city || ''} ${t.area || ''}`, f.place)) return false;
+    if (q && !smartMatch(`${t.name} ${t.headline || ''} ${t.about || ''} ${t.city || ''} ${t.area || ''} ${(t.subjects || []).join(' ')} ${(t.topics || []).join(' ')}`, q)) return false;
     if (f.maxKm && f.origin && f.mode !== 'online') {
       const d = distanceKm(f.origin, tutorPoint(t));
       if (d == null || d > f.maxKm) return false;
