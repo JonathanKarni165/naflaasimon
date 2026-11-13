@@ -173,7 +173,8 @@ function Inbox() {
   if (loading && !list) return <Loading />;
   if (error) return <p className="err">{error.message}</p>;
   const all = list || [];
-  const shown = all.filter((q) => (filter === 'open' ? q.status === 'new' || q.status === 'replied' : filter === 'all' ? true : q.status === filter));
+  const byRecent = (a, b) => (b.lastAt || b.createdAt || '').localeCompare(a.lastAt || a.createdAt || ''); // newest message first
+  const shown = all.filter((q) => (filter === 'open' ? q.status === 'new' || q.status === 'replied' : filter === 'all' ? true : q.status === filter)).sort(byRecent);
   const n = (st) => all.filter((q) => q.status === st).length;
   return (
     <div className="inbox">
@@ -630,7 +631,7 @@ function MySeats({ openId }) {
         <h2 className="sub-h">פניות ששלחתי למורים</h2>
         {!(inqs || []).length ? <p className="muted-text">עוד לא שלחתם פנייה. <a href="#search">חיפוש מורה</a></p> : (
           <div className="inq-list">
-            {inqs.map((q) => <MyInquiry key={q.id} q={q} open={open === q.id} onToggle={() => setOpen(open === q.id ? null : q.id)} />)}
+            {[...inqs].sort((a, b) => (b.lastAt || b.createdAt || '').localeCompare(a.lastAt || a.createdAt || '')).map((q) => <MyInquiry key={q.id} q={q} open={open === q.id} onToggle={() => setOpen(open === q.id ? null : q.id)} />)}
           </div>
         )}
       </section>
