@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useApp, useLoad } from '../state.jsx';
 import { optionLabel, norm } from '../data/topics.js';
 import { money, dateLong, relDays, dateShort, isPhone } from '../lib/format.js';
-import { GroupCard, GuestRequest, Seg, TopicPicker, SeatDots, Avatar, Verified, Stars, Loading, Empty } from '../components/ui.jsx';
+import { GroupCard, GuestRequest, Seg, TopicPicker, SeatDots, Avatar, Verified, Stars, Loading, Empty, ChatOverlay } from '../components/ui.jsx';
 
 export const isMarathon = (g) => Number(g.sessions) <= 1 || /מרתון/.test(g.title || '');
 
@@ -132,6 +132,7 @@ export function Group({ id }) {
   const [seats, , , refreshSeats] = useLoad(() => api.mySeats(), [user?.id, version]);
   const [messages, , , refreshMsgs] = useLoad(() => api.listGroupMessages(id), [id, version]);
   const [joinMsg] = useLoad(() => (api.getGroupJoinMessage ? api.getGroupJoinMessage(id) : ''), [id, user?.id, version]);
+  const [chatOpen, setChatOpen] = useState(false);
   const [joining, setJoining] = useState(false);
   const [form, setForm] = useState({ name: '', phone: '', note: '' });
   const [msg, setMsg] = useState('');
@@ -183,6 +184,18 @@ export function Group({ id }) {
             <h1>{group.title}</h1>
             <p className="p-headline">{group.subject}{group.level && group.level !== group.subject ? ` · ${group.level}` : ''}</p>
           </header>
+          {t ? (
+            <a className="g-tutor" href={`#tutor-${t.id}`} aria-label={`המורה ${t.name}, לפרופיל המלא`}>
+              <Avatar tutor={t} className="g-tutor-photo" size={112} />
+              <span className="g-tutor-info">
+                <small>המורה בקבוצה</small>
+                <b>{t.name} <Verified tutor={t} /></b>
+                <span className="t-meta">{t.headline}</span>
+                <Stars avg={t.ratingAvg} count={t.ratingCount} />
+                <span className="g-tutor-cta">לפרופיל המלא ←</span>
+              </span>
+            </a>
+          ) : null}
           <dl className="facts facts-grid">
             <div><dt>תאריך התחלה</dt><dd>{dateLong(group.startDate)}</dd></div>
             <div><dt>מתי</dt><dd>{group.time || 'יתואם עם המורה'}</dd></div>
@@ -190,16 +203,6 @@ export function Group({ id }) {
             <div><dt>איפה</dt><dd>{group.mode === 'online' ? 'אונליין (קישור יישלח לנרשמים)' : group.location || group.city}</dd></div>
           </dl>
           {group.description ? <section className="p-sec"><h2>מה עושים בקבוצה</h2><p className="p-about">{group.description}</p></section> : null}
-
-          {t ? (
-            <section className="p-sec">
-              <h2>המורה</h2>
-              <a className="mini-tutor" href={`#tutor-${t.id}`}>
-                <Avatar tutor={t} className="mini-photo" size={72} />
-                <span><b>{t.name}</b> <Verified tutor={t} /><span className="t-meta">{t.headline}</span><Stars avg={t.ratingAvg} count={t.ratingCount} /></span>
-              </a>
-            </section>
-          ) : null}
 
           {joinMsg && (isTutor || (activeSeat && activeSeat.status === 'approved')) ? (
             <section className="p-sec join-msg" aria-labelledby="jm-h">
@@ -211,7 +214,13 @@ export function Group({ id }) {
           <section className="p-sec" aria-labelledby="qa-h">
             <h2 id="qa-h">צ׳אט הקבוצה</h2>
             <p className="muted-text">שאלות ותשובות גלויות לכל מי שמתעניין בקבוצה. כל הודעה של המורה נשלחת גם במייל לנרשמים.</p>
-            <Comments messages={messages} isTutor={isTutor} tutorPlaceholder="הודעה לנרשמים…" onSend={sendComment} />
+            <button type="button" className="btn btn-brand" onClick={() => setChatOpen(true)}>פתיחת צ׳אט הקבוצה{(messages || []).length ? ` (${messages.length})` : ''}</button>
+            {chatOpen ? (
+              <ChatOverlay who={t?.name || group.title} avatar={t || { name: group.title }} onClose={() => setChatOpen(false)} label={`צ׳אט הקבוצה ${group.title}`}>
+                <p className="hint chat-win-info">צ׳אט הקבוצה: {group.title}. כל הודעה של המורה נשלחת גם במייל לנרשמים.</p>
+                <Comments messages={messages} isTutor={isTutor} tutorPlaceholder="הודעה לנרשמים…" onSend={sendComment} />
+              </ChatOverlay>
+            ) : null}
           </section>
         </div>
 
@@ -224,7 +233,7 @@ export function Group({ id }) {
             {activeSeat ? (
               <div className={'joined' + (activeSeat.status === 'pending' ? ' pending' : '')}>
                 <b>{activeSeat.status === 'pending' ? '⏳ הבקשה ממתינה לאישור המורה' : '✓ אתם בקבוצה'}</b>
-                <p className="hint">{activeSeat.status === 'pending' ? `שלחתם בקשה ב־${dateShort(activeSeat.createdAt)}. ברגע שהמורה יאשר, תראו את זה כאן וב״הפניות וההרשמות שלי״.` : `נרשמתם ב־${dateShort(activeSeat.createdAt)}. המורה יקבל את הטלפון שלכם ויצור קשר לתיאום תשלום.`}</p>
+                <p className="hint">{activeSeat.status === 'pending' ? `שלחתם בקשה ב־${dateShort(activeSeat.createdAt)}. ברגע שהמורה יאשר, תראו את זה כאן וב״השיחות וההרשמות שלי״.` : `נרשמתם ב־${dateShort(activeSeat.createdAt)}. המורה יקבל את הטלפון שלכם ויצור קשר לתיאום תשלום.`}</p>
                 <button type="button" className="btn btn-line btn-sm" onClick={leave} disabled={busy}>{activeSeat.status === 'pending' ? 'ביטול הבקשה' : 'ביטול ההרשמה'}</button>
               </div>
             ) : joining ? (

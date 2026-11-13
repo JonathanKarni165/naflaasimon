@@ -2,21 +2,27 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, useLoad, useMyTutor, go } from '../state.jsx';
 import { SUBJECTS, LEVELS, CITIES, GOALS, LESSON_COUNTS, labelOf } from '../data/constants.js';
 import { money, dateShort, dateLong, normalizePhone, isPhone } from '../lib/format.js';
-import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, SpamNote, StatusTag, InquiryChat, VIA, viaOf, WeekGrid, ReportTutor, REPORT_REASONS } from '../components/ui.jsx';
+import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, SpamNote, StatusTag, InquiryChat, ChatOverlay, VIA, viaOf, WeekGrid, ReportTutor, REPORT_REASONS } from '../components/ui.jsx';
 import { subtopicsOf } from '../data/topics.js';
 
-// Tutor-only tabs are hidden from students; a student sees only their own inquiries and details.
+// Two separate areas: "תלמיד" (my conversations and sign-ups) and "מורה" (my profile, inquiries, groups).
+// Personal details belong to both; admins get a third area.
 const TUTOR_TABS = ['panel', 'panel-inbox', 'panel-groups'];
 const TABS = [
-  ['panel', 'הפרופיל שלי'],
+  ['panel', 'פרופיל המורה שלי'],
   ['panel-inbox', 'פניות מתלמידים'],
-  ['panel-groups', 'קבוצות למידה'],
-  ['panel-seats', 'הפניות וההרשמות שלי'],
-  ['panel-me', 'הפרטים שלי'],
-  ['panel-admin', 'ניהול מורים'],
+  ['panel-groups', 'הקבוצות שלי'],
+  ['panel-seats', 'השיחות וההרשמות שלי'],
+  ['panel-me', 'הפרטים האישיים שלי'],
+  ['panel-admin', 'אישור וניהול מורים'],
   ['panel-reports', 'דיווחים'],
 ];
 const ADMIN_TABS = ['panel-admin', 'panel-reports'];
+const AREAS = {
+  student: { label: 'פאנל תלמיד', home: 'panel-seats', tabs: ['panel-seats', 'panel-me'] },
+  tutor: { label: 'פאנל מורה', home: 'panel', tabs: ['panel', 'panel-inbox', 'panel-groups', 'panel-me'] },
+  admin: { label: 'ניהול האתר', home: 'panel-admin', tabs: ['panel-admin', 'panel-reports'] },
+};
 
 export default function Panel() {
   const { user, setLoginOpen } = useApp();
@@ -51,25 +57,37 @@ function PanelTabs() {
   const { user, route } = useApp();
   const [mine, loading, , , loaded] = useMyTutor();
   const isTutor = !!mine;
-  const tabs = TABS.filter(([k]) => (!ADMIN_TABS.includes(k) || user.isAdmin) && (isTutor || !TUTOR_TABS.includes(k)));
   // A student who opened "פתיחת פרופיל מורה" (#panel) gets the sign-up form, without the tutor tabs.
   const becoming = !isTutor && route.name === 'panel';
-  // #chat-<inquiry id> opens that one conversation inside "הפניות וההרשמות שלי".
-  const tab = route.name === 'chat' ? 'panel-seats' : tabs.some(([k]) => k === route.name) ? route.name : becoming ? 'panel' : isTutor ? 'panel' : 'panel-seats';
+  // #chat-<inquiry id> opens that one conversation inside "השיחות וההרשמות שלי".
+  const allowed = (k) => (!ADMIN_TABS.includes(k) || user.isAdmin) && (isTutor || !TUTOR_TABS.includes(k) || (becoming && k === 'panel'));
+  const wanted = route.name === 'chat' ? 'panel-seats' : TABS.some(([k]) => k === route.name) && allowed(route.name) ? route.name : becoming ? 'panel' : isTutor ? 'panel' : 'panel-seats';
+  const tab = wanted;
+  // Personal details are shared, so remember which area the person came from.
+  const readLast = () => { try { return sessionStorage.getItem('naflaasimon-area') || ''; } catch { return ''; } };
+  let area = ADMIN_TABS.includes(tab) ? 'admin' : TUTOR_TABS.includes(tab) ? 'tutor' : tab === 'panel-seats' ? 'student' : (readLast() || (isTutor ? 'tutor' : 'student'));
+  if (area === 'tutor' && !isTutor && !becoming) area = 'student';
+  useEffect(() => { try { if (tab !== 'panel-me') sessionStorage.setItem('naflaasimon-area', area); } catch { /* private mode */ } }, [area, tab]);
+  const areaKeys = ['student', ...(isTutor || becoming ? ['tutor'] : []), ...(user.isAdmin ? ['admin'] : [])];
+  const tabs = TABS.filter(([k]) => AREAS[area].tabs.includes(k) && allowed(k));
   // On phones the tab row scrolls sideways: keep the open tab in view.
   useEffect(() => { document.querySelector('.tabs [aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }, [tab]);
   if (loading && mine == null && !loaded) return <main className="wrap page-pad"><Loading /></main>;
   return (
     <main className="wrap page-pad">
       <div className="page-head"><h1>האזור האישי</h1><p className="muted-text">שלום {user.name}{user.isAdmin ? ' · מנהל/ת האתר' : ''}</p></div>
-      <nav className="tabs" aria-label="פאנל">
+      {areaKeys.length > 1 ? (
+        <nav className="area-switch" aria-label="אזורים">
+          {areaKeys.map((k) => <a key={k} href={'#' + AREAS[k].home} aria-current={area === k ? 'page' : undefined}>{AREAS[k].label}</a>)}
+        </nav>
+      ) : null}
+      <nav className="tabs" aria-label={AREAS[area].label}>
         {tabs.map(([k, label]) => <a key={k} href={'#' + k} aria-current={tab === k ? 'page' : undefined}>{label}{k === 'panel-inbox' ? <FreshBadge /> : null}</a>)}
       </nav>
       {tab === 'panel' && <MyProfile />}
       {tab === 'panel-inbox' && <Inbox />}
       {tab === 'panel-groups' && <MyGroups />}
       {tab === 'panel-seats' && <MySeats openId={route.name === 'chat' ? route.id : null} />}
-      {tab === 'panel-seats' && !isTutor ? <p className="become-tutor muted-text">מלמדים בעצמכם? <a href="#panel">פתיחת פרופיל מורה</a></p> : null}
       {tab === 'panel-me' && <MyDetails />}
       {tab === 'panel-admin' && <AdminTutors />}
       {tab === 'panel-reports' && <AdminReports />}
@@ -173,7 +191,8 @@ function Inbox() {
   if (loading && !list) return <Loading />;
   if (error) return <p className="err">{error.message}</p>;
   const all = list || [];
-  const shown = all.filter((q) => (filter === 'open' ? q.status === 'new' || q.status === 'replied' : filter === 'all' ? true : q.status === filter));
+  const byRecent = (a, b) => (b.lastAt || b.createdAt || '').localeCompare(a.lastAt || a.createdAt || ''); // newest message first
+  const shown = all.filter((q) => (filter === 'open' ? q.status === 'new' || q.status === 'replied' : filter === 'all' ? true : q.status === filter)).sort(byRecent);
   const n = (st) => all.filter((q) => q.status === st).length;
   return (
     <div className="inbox">
@@ -222,12 +241,12 @@ function InquiryItem({ q, onChange, showTutor, open, onToggle }) {
         <span className="t-meta">{[q.subject, q.level, q.mode != null ? MODE_LABEL[q.mode] : ''].filter(Boolean).join(' · ')}{showTutor && q.tutor ? ` · אל ${q.tutor.name}` : ''}</span>
         {q.goal || q.lessons ? <span className="inq-tags">{q.goal ? <span className="tag">{labelOf(GOALS, q.goal)}</span> : null}{q.lessons ? <span className="tag">{labelOf(LESSON_COUNTS, q.lessons)}</span> : null}</span> : null}
         {!open ? <span className="inq-preview-line">{(q.message || '').split('\n').slice(1).join(' · ') || q.message}</span> : null}
-        <span className="inq-toggle">{open ? 'סגירה ▲' : 'פתיחת השיחה ▼'}</span>
+        <span className="inq-toggle">{open ? 'פתיחת השיחה' : 'פתיחת השיחה'}</span>
       </button>
-      {open ? (<>
-      <p className="via-line">מעדיף/ה: {VIA.filter(([v]) => via.includes(v)).map(([, l]) => l).join(' · ')}</p>
+      {open ? (<ChatOverlay who={q.name} avatar={{ name: q.name }} status={q.status} onClose={onToggle}>
+      <p className="via-line chat-win-info">מעדיף/ה: {VIA.filter(([v]) => via.includes(v)).map(([, l]) => l).join(' · ')}</p>
       <InquiryChat q={q} asTutor />
-      <div className="inq-actions">
+      <div className="inq-actions chat-win-foot">
         {wa ? <a className="btn btn-wa btn-sm" href={wa} target="_blank" rel="noreferrer">וואטסאפ</a> : null}
         {q.phone ? <a className="btn btn-line btn-sm" href={`tel:${q.phone.replace(/[^\d+]/g, '')}`}><bdi>{q.phone}</bdi></a> : null}
         {mail ? <a className="btn btn-line btn-sm" href={mail}><bdi>{q.email}</bdi></a> : null}
@@ -235,7 +254,7 @@ function InquiryItem({ q, onChange, showTutor, open, onToggle }) {
         {q.status !== 'declined' ? <button type="button" className="linkish small" onClick={() => onChange({ status: 'declined' }, 'הפנייה סומנה כלא מתאימה')}>לא מתאים</button>
           : <button type="button" className="linkish small" onClick={() => onChange({ status: q.messageCount || q.reply ? 'replied' : 'new' }, 'הפנייה הוחזרה לפתוחות')}>החזרה לפתוחות</button>}
       </div>
-      </>) : null}
+      </ChatOverlay>) : null}
     </article>
   );
 }
@@ -246,7 +265,6 @@ function MyDetails() {
   const [f, setF] = useState({ name: user.name || '', phone: user.phone || '', birthDate: user.birthDate || '', area: user.area || '', whatsappOptin: !!user.whatsappOptin });
   const [busy, setBusy] = useState(false);
   const lockName = user.profileDone !== false;
-  const lockPhone = !!user.phone;
   const save = async (e) => {
     e.preventDefault();
     if (!f.name.trim()) { notify('כתבו שם', true); return; }
@@ -260,9 +278,9 @@ function MyDetails() {
       <p className="muted-text">הפרטים האלה ימולאו לבד כשתפנו למורה או תירשמו לקבוצה. הם לא מוצגים באתר. מורה רואה את הטלפון שלכם רק אם בחרתם לשתף אותו בפנייה.</p>
       <label className="field-label" htmlFor="me-name">שם</label>
       <input id="me-name" className="input" autoComplete="name" disabled={lockName} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
-      {lockName ? <p className="hint">שם וטלפון אי אפשר לשנות אחרי פתיחת החשבון. לתיקון פנו אלינו.</p> : null}
+      {lockName ? <p className="hint">שם אי אפשר לשנות אחרי פתיחת החשבון. לתיקון פנו אלינו.</p> : null}
       <label className="field-label" htmlFor="me-phone">טלפון</label>
-      <input id="me-phone" className="input" type="tel" autoComplete="tel" inputMode="tel" dir="ltr" placeholder="050-1234567" disabled={lockPhone} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+      <input id="me-phone" className="input" type="tel" autoComplete="tel" inputMode="tel" dir="ltr" placeholder="050-1234567" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
       <label className="field-label" htmlFor="me-birth">תאריך לידה</label>
       <input id="me-birth" className="input" type="date" disabled={!!user.birthDate} max={new Date().toISOString().slice(0, 10)} value={f.birthDate} onChange={(e) => setF({ ...f, birthDate: e.target.value })} />
       <p className="hint">{user.birthDate ? 'תאריך לידה אי אפשר לשנות אחרי שנקבע. לתיקון פנו אלינו.' : 'לא חובה. אחרי השמירה אי אפשר לשנות אותו.'}</p>
@@ -351,8 +369,8 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
           </div>
         </div>
         <div className="f2">
-          <div><label className="field-label" htmlFor="tf-name">שם מלא</label><input id="tf-name" className="input" disabled={locked} value={t.name} onChange={(e) => set({ name: e.target.value })} /><Err k="name" />{locked ? <p className="hint">שם, טלפון ותאריך לידה לא ניתנים לשינוי אחרי אישור. לתיקון פנו אלינו.</p> : null}</div>
-          <div><label className="field-label" htmlFor="tf-phone">טלפון (לא מוצג באתר, רק לצוות)</label><input id="tf-phone" className="input" dir="ltr" inputMode="tel" placeholder="050-1234567" disabled={locked} value={t.phone} onChange={(e) => set({ phone: e.target.value })} /><Err k="phone" /></div>
+          <div><label className="field-label" htmlFor="tf-name">שם מלא</label><input id="tf-name" className="input" disabled={locked} value={t.name} onChange={(e) => set({ name: e.target.value })} /><Err k="name" />{locked ? <p className="hint">שם ותאריך לידה לא ניתנים לשינוי אחרי אישור. לתיקון פנו אלינו.</p> : null}</div>
+          <div><label className="field-label" htmlFor="tf-phone">טלפון (לא מוצג באתר, רק לצוות)</label><input id="tf-phone" className="input" dir="ltr" inputMode="tel" placeholder="050-1234567" value={t.phone} onChange={(e) => set({ phone: e.target.value })} /><Err k="phone" /></div>
         </div>
         <div className="f2">
           <div><label className="field-label" htmlFor="tf-birth">תאריך לידה (לא מוצג באתר)</label><input id="tf-birth" className="input" type="date" disabled={locked} max={new Date().toISOString().slice(0, 10)} value={t.birthDate || ''} onChange={(e) => set({ birthDate: e.target.value })} /><Err k="birthDate" /></div>
@@ -631,7 +649,7 @@ function MySeats({ openId }) {
         <h2 className="sub-h">פניות ששלחתי למורים</h2>
         {!(inqs || []).length ? <p className="muted-text">עוד לא שלחתם פנייה. <a href="#search">חיפוש מורה</a></p> : (
           <div className="inq-list">
-            {inqs.map((q) => <MyInquiry key={q.id} q={q} open={open === q.id} onToggle={() => setOpen(open === q.id ? null : q.id)} />)}
+            {[...inqs].sort((a, b) => (b.lastAt || b.createdAt || '').localeCompare(a.lastAt || a.createdAt || '')).map((q) => <MyInquiry key={q.id} q={q} open={open === q.id} onToggle={() => setOpen(open === q.id ? null : q.id)} />)}
           </div>
         )}
       </section>
@@ -674,17 +692,17 @@ function MyInquiry({ q, open, onToggle }) {
           </span>
         </span>
         {!open ? <span className="inq-preview-line">{q.status === 'new' && !q.messageCount ? 'המורה עוד לא ענה' : (q.message || '').split('\n')[0]}</span> : null}
-        <span className="inq-toggle">{open ? 'סגירה ▲' : 'פתיחת השיחה ▼'}</span>
+        <span className="inq-toggle">{open ? 'פתיחת השיחה' : 'פתיחת השיחה'}</span>
       </button>
       {open ? (
-        <>
-          {q.status === 'new' && !q.messageCount ? <p className="hint">המורה עוד לא ענה. בינתיים אפשר להוסיף הודעה.</p> : null}
+        <ChatOverlay who={name} avatar={q.tutor || { name }} status={q.status} onClose={onToggle} label={`שיחה עם ${name}`}>
+          {q.status === 'new' && !q.messageCount ? <p className="hint chat-win-hint">המורה עוד לא ענה. בינתיים אפשר להוסיף הודעה.</p> : null}
           <InquiryChat q={q} />
-          <div className="my-inq-links">
+          <div className="my-inq-links chat-win-foot">
             {q.tutor ? <a className="linkish small" href={`#tutor-${q.tutorId}`}>לפרופיל של {q.tutor.name.split(' ')[0]}</a> : null}
             {q.tutor ? <ReportTutor tutor={q.tutor} /> : null}
           </div>
-        </>
+        </ChatOverlay>
       ) : null}
     </article>
   );

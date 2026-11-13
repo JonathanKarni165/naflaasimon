@@ -668,7 +668,8 @@ footer .linkish { color: inherit; font-weight: 600; }
 }
 
 /* Floating chat window on a tutor's page */
-.chat-win { position: fixed; z-index: 60; inset-inline-start: 24px; bottom: 24px; width: min(440px, calc(100vw - 32px)); max-height: min(640px, calc(100vh - 120px)); display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 10px; background: var(--surface); border: 2px solid var(--ink); border-radius: 20px; padding: 14px; box-shadow: 0 18px 50px rgba(58,49,48,.28); }
+.chat-overlay { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 16px; background: rgba(58,49,48,.62); }
+.chat-win { width: min(560px, 100%); max-height: min(720px, calc(100vh - 32px)); overflow-y: auto; display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 10px; background: var(--surface); border: 2px solid var(--ink); border-radius: 20px; padding: 16px; box-shadow: 0 18px 50px rgba(0,0,0,.35); }
 .chat-win-head { display: flex; align-items: center; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 .chat-win-av { width: 56px; height: 56px; flex: none; object-fit: cover; border-radius: 14px; border: 2px solid var(--ink); background: var(--brass-soft); }
 .chat-win-av.avatar-initials { display: grid; place-items: center; font-size: 22px; color: var(--ink); }
@@ -678,4 +679,19 @@ footer .linkish { color: inherit; font-weight: 600; }
 .chat-win-hint { margin: 0; }
 .chat-win .chat { min-height: 0; grid-template-rows: minmax(0, 1fr) auto; }
 .chat-win .chat-list { max-height: none; min-height: 180px; }
-@media (max-width: 600px) { .chat-win { inset: auto 8px 8px 8px; width: auto; max-height: calc(100vh - 80px); } }
+@media (max-width: 600px) { .chat-overlay { padding: 0; } .chat-win { width: 100%; height: 100%; max-height: none; border-radius: 0; border-width: 0; } }
+.chat-win-foot { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-top: 8px; border-top: 1px solid var(--line); }
+.chat-win-info { margin: 0; }
+.area-switch { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.area-switch a { text-decoration: none; font-weight: 800; padding: 10px 18px; border: 2px solid var(--ink); border-radius: 999px; color: var(--ink); background: var(--surface); }
+.area-switch a[aria-current="page"] { background: var(--ink); color: var(--bg); }
+.area-switch .area-cta { border-style: dashed; font-weight: 700; margin-inline-start: auto; }
+.pop-head { display: block; padding: 8px 12px 2px; color: var(--muted); font-weight: 700; }
+.g-tutor { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 18px; align-items: center; text-decoration: none; color: inherit; background: var(--surface); border: 2px solid var(--ink); border-radius: 18px; padding: 16px; margin: 4px 0 20px; }
+.g-tutor:hover { border-color: var(--brass); }
+.g-tutor-photo { width: 112px; height: 112px; border-radius: 18px; object-fit: cover; font-size: 40px; }
+.g-tutor-info { display: grid; gap: 4px; justify-items: start; }
+.g-tutor-info small { color: var(--muted); font-weight: 700; }
+.g-tutor-info b { font-size: 24px; line-height: 1.2; }
+.g-tutor-cta { font-weight: 800; color: var(--good); margin-top: 4px; }
+@media (max-width: 520px) { .g-tutor { grid-template-columns: 84px minmax(0, 1fr); gap: 12px; padding: 12px; } .g-tutor-photo { width: 84px; height: 84px; } .g-tutor-info b { font-size: 20px; } }
