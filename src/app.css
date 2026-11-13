@@ -616,3 +616,30 @@ footer .linkish { color: inherit; font-weight: 600; }
 .report-form .form-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .spam-note { margin: 10px 0; padding: 10px 12px; background: var(--butter, #F4E29C); border-radius: 8px; font-size: 14px; line-height: 1.5; text-align: start; }
 .check-row { display: flex; gap: 8px; align-items: flex-start; margin: 12px 0; line-height: 1.5; }
+
+/* Home hero: rotating photos */
+.hero-slides { position: relative; aspect-ratio: 5 / 4; border-radius: 24px; border: 3px solid var(--ink); overflow: hidden; background: var(--brass-soft); }
+.hero-photo .hero-slides img { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; object-fit: cover; object-position: 50% 40%; border: 0; border-radius: 0; opacity: 0; transition: opacity .9s ease; }
+.hero-photo .hero-slides img.on { opacity: 1; }
+.slide-dots { position: absolute; inset-inline: 0; bottom: 12px; display: flex; justify-content: center; gap: 8px; }
+.slide-dots button { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--ink); background: var(--surface); padding: 0; cursor: pointer; opacity: .85; }
+.slide-dots button[aria-pressed="true"] { background: var(--brass); opacity: 1; width: 26px; border-radius: 999px; }
+@media (prefers-reduced-motion: reduce) { .hero-photo .hero-slides img { transition: none; } }
+
+/* Home: group-learning photo */
+.group-photo { position: relative; margin: 0 0 18px; }
+.group-photo img { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; max-height: 360px; object-fit: cover; object-position: 50% 85%; border-radius: 20px; border: 2px solid var(--ink); }
+.group-photo figcaption { position: absolute; inset-inline-start: 16px; bottom: 16px; background: var(--brass-soft); color: var(--ink); border: 2px solid var(--ink); border-radius: 12px; padding: 6px 14px; font-weight: 800; font-family: var(--display); font-size: 18px; }
+
+/* Inquiries: a bigger face next to the name */
+.inq-av { width: 72px; height: 72px; flex: none; object-fit: cover; border-radius: 16px; border: 2px solid var(--ink); background: var(--brass-soft); }
+.inq-av.avatar-initials { display: grid; place-items: center; font-family: var(--display); font-size: 26px; color: var(--ink); }
+.inq-top:has(.inq-av) { gap: 12px; }
+@media (min-width: 760px) { .my-requests .inq-av { width: 88px; height: 88px; } }
+
+/* Tutor rows: the whole row opens the profile (the name link stretches over it) */
+.t-row { position: relative; cursor: pointer; }
+.t-row .t-name::after { content: ''; position: absolute; inset: 0; z-index: 0; }
+.t-row .t-cta, .t-row .t-row-photo { position: relative; z-index: 1; }
+.t-row:hover { background: #FBF6E6; }
+.t-row:has(.t-name:focus-visible) { outline: 3px solid var(--brass); outline-offset: -3px; }
