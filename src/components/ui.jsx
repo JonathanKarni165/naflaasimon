@@ -873,13 +873,13 @@ export function UserMenu() {
           <b>{user.name}</b>{user.isAdmin ? <span className="tag brass">מנהל</span> : null}
           {isTutor ? (
             <>
-              <small className="pop-head">אזור המורה</small>
+              <small className="pop-head">פאנל מורה</small>
               <a href="#panel" onClick={() => setOpen(false)}>פרופיל המורה שלי</a>
               <a href="#panel-inbox" onClick={() => setOpen(false)}>פניות מתלמידים</a>
               <a href="#panel-groups" onClick={() => setOpen(false)}>הקבוצות שלי</a>
             </>
           ) : null}
-          <small className="pop-head">{isTutor ? 'אזור התלמיד' : 'החשבון שלי'}</small>
+          <small className="pop-head">{isTutor ? 'פאנל תלמיד' : 'החשבון שלי'}</small>
           <a href="#panel-seats" onClick={() => setOpen(false)}>השיחות וההרשמות שלי</a>
           <a href="#panel-me" onClick={() => setOpen(false)}>הפרטים האישיים שלי</a>
           {user.isAdmin ? <><small className="pop-head">ניהול האתר</small><a href="#panel-admin" onClick={() => setOpen(false)}>אישור וניהול מורים</a></> : null}
