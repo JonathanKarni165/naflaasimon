@@ -80,6 +80,18 @@ export function smartMatch(haystack, query) {
     hay.includes(tok) || (tok.length >= 4 && words.some((w) => within1(tok, w.slice(0, tok.length)) || within1(tok, w))));
 }
 
+/** 2 = typed words are in the name, 1 = only elsewhere in the profile, 0 = no text typed. */
+export function nameRelevance(t, q) {
+  if (!q || !normText(q)) return 0;
+  return smartMatch(t.name, q) ? 2 : 1;
+}
+
+/** Name matches first; inside each group the existing order (rating-weighted for "best") is kept. */
+export function queryFirst(list, q) {
+  if (!q || !normText(q)) return list;
+  return list.map((t, i) => [t, i]).sort((a, b) => nameRelevance(b[0], q) - nameRelevance(a[0], q) || a[1] - b[1]).map((x) => x[0]);
+}
+
 export function filterTutors(tutors, f) {
   const q = (f.q || '').trim();
   return tutors.filter((t) => {
@@ -114,6 +126,28 @@ export function sortTutors(tutors, sort, { origin, mode } = {}) {
     popular: (a, b) => popularity(b) - popularity(a) || byScore(a, b),
   }[sort] || byScore;
   return withScore.sort(cmp);
+}
+
+/**
+ * One weighted score per tutor (a linear objective): score = sum(w_i * x_i) / sum(w_i of the signals that apply).
+ * Signals, each scaled 0..1: text match (name > profile), chosen topic, rating (Bayesian, so few reviews count less),
+ * review volume + demand (log scale) and distance (when a location is chosen). Signals that don't apply are left out,
+ * so the same formula works for every search.
+ */
+export const SEARCH_WEIGHTS = { text: 0.30, topic: 0.20, rating: 0.30, volume: 0.10, near: 0.10 };
+export function blendedRank(list, { q, topic, origin, mode } = {}) {
+  const m = globalMean(list);
+  const hasQ = !!(q && normText(q));
+  const W = SEARCH_WEIGHTS;
+  return list.map((t) => {
+    const parts = [[W.rating, Math.max(0, Math.min(1, bayesScore(t.ratingAvg || 0, t.ratingCount || 0, m) / 5))],
+      [W.volume, Math.min(1, Math.log1p(popularity(t)) / Math.log1p(60))]];
+    if (hasQ) parts.push([W.text, nameRelevance(t, q) === 2 ? 1 : 0.4]);
+    if (topic) parts.push([W.topic, topicMatch(t, topic) ? 1 : 0]);
+    if (origin && mode !== 'online') { const d = distanceKm(origin, tutorPoint(t)); parts.push([W.near, d == null ? 0 : Math.max(0, 1 - d / 40)]); }
+    const wsum = parts.reduce((a, [w]) => a + w, 0);
+    return { ...t, rank: parts.reduce((a, [w, x]) => a + w * x, 0) / wsum };
+  }).sort((a, b) => b.rank - a.rank);
 }
 
 /** Demand: inquiries sent through the site plus reviewers (each review is a lesson that happened). */
