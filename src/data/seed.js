@@ -21,7 +21,7 @@ const T = (o) => {
 };
 
 export const SEED_TUTORS = [
-  T({ id: 't1', name: 'דנה לוי', photo: 'img/face0.jpg', ownerId: 'u-dana', headline: 'סטודנטית לתואר שני במתמטיקה', city: 'רמת גן', area: 'ליד הבורסה',
+  T({ id: 't1', name: 'דנה לוי', photo: 'img/face0.jpg', ownerId: 'u-dana', headline: 'סטודנטית לתואר שני במתמטיקה', education: 'אוניברסיטת בר־אילן, תואר שני במתמטיקה', city: 'רמת גן', area: 'ליד הבורסה',
     subjects: ['מתמטיקה', 'סטטיסטיקה'], levels: ['4 יח״ל', '5 יח״ל', 'אקדמיה'], priceFrontal: 150, priceOnline: 140, experienceYears: 6, phone: '050-0000101', contactCount: 212,
     about: 'מלמדת מתמטיקה כבר שש שנים, בעיקר 5 יח״ל ושנה א׳ באוניברסיטה. אני מתחילה כל שיעור מהשאלה שתקועה לכם, ובונה משם את ההבנה עד שזה יושב. בין התלמידים שלי יש כאלה שעלו מ־60 ל־95 בבגרות.' }),
   T({ id: 't2', name: 'מיכאל רוזן', photo: 'img/face2.jpg', headline: 'מורה למתמטיקה בתיכון, 22 שנות ניסיון', city: 'חיפה', area: 'כרמל',

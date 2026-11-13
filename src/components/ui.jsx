@@ -19,11 +19,7 @@ export function Avatar({ tutor, className = 'avatar', size }) {
   if (tutor?.photo) {
     return <img className={className} src={tutor.photo} alt={tutor.name} width={size || 520} height={size || 520} loading="lazy" decoding="async" />;
   }
-  return (
-    <span className={className + ' avatar-initials'} aria-hidden="true">
-      {initials(tutor?.name)}
-    </span>
-  );
+  return <TutorPhoto tutor={tutor} className={className + ' avatar-initials'} />;
 }
 
 export function Stars({ avg, count, compact }) {
@@ -74,6 +70,15 @@ export function tutorQuote(t) {
   return cut.slice(0, Math.max(cut.lastIndexOf(' '), 100)).replace(/[,;:\s]+$/, '') + '…';
 }
 
+/** Graduation cap, next to the tutor's place of study. */
+export function EduIcon() {
+  return (
+    <svg className="edu-ic" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
+      <path d="M2 9l10-5 10 5-10 5z" /><path d="M6 11v5c3 2.5 9 2.5 12 0v-5" /><path d="M22 9v6" />
+    </svg>
+  );
+}
+
 /** Photo, or a soft silhouette when the tutor has none (never initials). */
 export function TutorPhoto({ tutor, className = 'tc-img' }) {
   if (tutor?.photo) return <img className={className} src={tutor.photo} alt="" width="520" height="520" loading="lazy" decoding="async" />;
@@ -107,6 +112,7 @@ export function TutorRow({ tutor, sort, topic }) {
         <h3 className="tc-name"><a className="t-name" href={href}>{tutor.name}</a></h3>
         <Verified tutor={tutor} />
         {tutor.headline ? <p className="tc-headline">{tutor.headline}</p> : null}
+        {tutor.education ? <p className="tc-edu"><EduIcon /> {tutor.education}</p> : null}
         {topic && topicMatch(tutor, topic) ? <p className="t-topic">✓ מלמד/ת {topic}</p> : null}
       </div>
       {quote ? <blockquote className="tc-quote"><p>{quote}</p></blockquote> : null}

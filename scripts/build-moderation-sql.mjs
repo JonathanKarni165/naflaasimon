@@ -128,7 +128,7 @@ create trigger moderate before insert or update on public.group_messages
   for each row execute function public.moderate_content('text', 'user_name:private');
 drop trigger if exists moderate on public.tutors;
 create trigger moderate before insert or update on public.tutors
-  for each row execute function public.moderate_content('name:private', 'headline', 'about', 'city:private', 'area:private');
+  for each row execute function public.moderate_content('name:private', 'headline', 'about', 'education', 'city:private', 'area:private');
 drop trigger if exists moderate on public.groups;
 create trigger moderate before insert or update on public.groups
   for each row execute function public.moderate_content('title', 'description', 'location:private', 'time:private');

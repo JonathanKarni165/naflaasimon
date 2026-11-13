@@ -296,7 +296,7 @@ function MyDetails() {
 }
 
 const EMPTY_TUTOR = {
-  name: '', photo: '', headline: '', about: '', subjects: ['מתמטיקה'], levels: [], topics: [], city: '', area: '',
+  name: '', photo: '', headline: '', about: '', education: '', subjects: ['מתמטיקה'], levels: [], topics: [], city: '', area: '',
   teachesFrontal: true, priceFrontal: '', teachesOnline: true, priceOnline: '', experienceYears: '', phone: '', birthDate: '', address: '', verified: false, availability: [],
 };
 
@@ -379,6 +379,8 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
         <p className="hint">המייל שלכם הוא המייל של החשבון: <bdi>{user.email}</bdi>. כל הפרטים האלה נחוצים לאימות, ורק הצוות רואה אותם.</p>
         <label className="field-label" htmlFor="tf-headline">שורה אחת עליכם</label>
         <input id="tf-headline" className="input" maxLength={80} placeholder="למשל: סטודנטית לתואר שני במתמטיקה" value={t.headline} onChange={(e) => set({ headline: e.target.value })} />
+        <label className="field-label" htmlFor="tf-edu">מוסד לימודים (לא חובה)</label>
+        <input id="tf-edu" className="input" maxLength={100} placeholder="למשל: האוניברסיטה העברית, תואר במתמטיקה" value={t.education || ''} onChange={(e) => set({ education: e.target.value })} />
         <label className="field-label" htmlFor="tf-about">על השיעורים שלכם</label>
         <textarea id="tf-about" className="input" rows={5} maxLength={1500} placeholder="איך אתם מלמדים, למי זה מתאים, הישגים של תלמידים…" value={t.about} onChange={(e) => set({ about: e.target.value })} />
         <div className="f2">
