@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useApp, go } from '../state.jsx';
 import { LEVELS } from '../data/constants.js';
 import { filterTutors, sortTutors, globalMean } from '../lib/ranking.js';
@@ -191,7 +191,7 @@ export default function Home() {
   );
 }
 
-// Warm, upbeat learning moments that change every few seconds (static for people who prefer less motion).
+// Warm, upbeat learning moments: one photo per day, a different one each day.
 const SLIDES = [
   ['img/hero-1.jpg', 'שתי סטודנטיות יושבות על הדשא בפארק עם ספרים, צוחקות ולומדות יחד'],
   ['img/hero-2.jpg', 'מורה פרטי מחייך עוזר לילד בשיעורי בית ליד מחשב נייד'],
@@ -199,24 +199,12 @@ const SLIDES = [
   ['img/hero-4.jpg', 'קבוצת סטודנטים לומדת יחד בבית קפה בחיוך'],
 ];
 function HeroSlides() {
-  const [i, setI] = useState(0);
-  const [paused, setPaused] = useState(false);
-  useEffect(() => {
-    if (paused || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
-    const t = setInterval(() => setI((x) => (x + 1) % SLIDES.length), 5000);
-    return () => clearInterval(t);
-  }, [paused]);
+  const now = new Date();
+  const day = Math.floor((now.getTime() - now.getTimezoneOffset() * 60000) / 86400000);
+  const [src, alt] = SLIDES[day % SLIDES.length];
   return (
-    <div className="hero-slides" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
-      {SLIDES.map(([src, alt], k) => (
-        <img key={src} src={src} alt={alt} width="1200" height="960" decoding="async" aria-hidden={k !== i}
-          className={k === i ? 'on' : ''} fetchpriority={k === 0 ? 'high' : undefined} loading={k === 0 ? 'eager' : 'lazy'} />
-      ))}
-      <div className="slide-dots" role="group" aria-label="תמונות">
-        {SLIDES.map(([src], k) => (
-          <button key={src} type="button" aria-label={`תמונה ${k + 1}`} aria-pressed={k === i} onClick={() => { setI(k); setPaused(true); }} />
-        ))}
-      </div>
+    <div className="hero-slides">
+      <img className="on" src={src} alt={alt} width="1200" height="960" decoding="async" fetchpriority="high" />
     </div>
   );
 }
