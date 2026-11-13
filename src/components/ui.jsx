@@ -404,8 +404,9 @@ export function InquiryBox({ tutor }) {
           <div className="inq-done">
             <Coin size={48} />
             <h2 id="iq-title">הפנייה נשלחה ל{tutor.name.split(' ')[0]}</h2>
-            <p className="muted-text">המורה קיבל/ה אותה בפאנל{f.via.includes('phone') || f.via.includes('email') ? ' יחד עם פרטי הקשר שבחרתם' : ''}. התשובה תופיע כאן בפרופיל וב״הפניות שלי״.</p>
-            <button type="button" className="btn btn-brand go" onClick={close}>סגירה</button>
+            <p className="muted-text">המורה קיבל/ה אותה בפאנל{f.via.includes('phone') || f.via.includes('email') ? ' יחד עם פרטי הקשר שבחרתם' : ''}. התשובה והשיחה איתו/ה יופיעו באזור האישי.</p>
+            <a className="btn btn-brand go" href="#panel-seats" onClick={close}>לשיחה באזור האישי</a>
+            <button type="button" className="btn btn-ghost" onClick={close}>סגירה</button>
           </div>
         ) : (
           <>
@@ -517,14 +518,14 @@ export function InquiryBox({ tutor }) {
   return (
     <div className="inq-box">
       {last ? (
+        // The conversation itself lives in the personal area; here only a short status and a way there.
         <div className="inq-sent">
-          <div className="inq-sent-top"><b>השיחה שלכם עם {tutor.name.split(' ')[0]}</b><StatusTag status={last.status} /></div>
-          {last.status === 'new' && !last.messageCount ? <p className="hint">המורה עוד לא ענה. בדרך כלל עונים תוך יום.</p> : null}
-          <InquiryChat q={{ ...last, tutor }} />
-          <a className="linkish small" href="#panel-seats">לכל הפניות שלי</a>
+          <div className="inq-sent-top"><b>כבר פניתם ל{tutor.name.split(' ')[0]}</b><StatusTag status={last.status} /></div>
+          <p className="hint">{last.status === 'new' && !last.messageCount ? 'המורה עוד לא ענה. בדרך כלל עונים תוך יום. התשובה תגיע לאזור האישי.' : 'השיחה עם המורה נמצאת באזור האישי.'}</p>
+          <a className="btn btn-brand go" href="#panel-seats">לשיחה באזור האישי</a>
         </div>
       ) : null}
-      <button type="button" className={'btn go ' + (last ? 'btn-line' : 'btn-brand')} onClick={start}>{last ? 'פנייה חדשה' : 'שליחת פנייה למורה'}</button>
+      <button type="button" className={'btn go ' + (last ? 'btn-ghost btn-sm' : 'btn-brand')} onClick={start}>{last ? 'פנייה חדשה' : 'שליחת פנייה למורה'}</button>
       {!user ? <p className="hint">כניסה מהירה עם Google או עם מייל. אפשר לדבר עם המורה בצ׳אט באתר, בלי למסור טלפון.</p> : null}
       <GuestRequest tutor={tutor} />
       {wizard}

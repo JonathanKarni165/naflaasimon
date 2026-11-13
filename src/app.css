@@ -397,7 +397,9 @@ footer .linkish { color: inherit; font-weight: 600; }
 .inq-sent { background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; gap: 4px; justify-items: start; }
 .inq-sent-top { display: flex; gap: 8px; align-items: center; }
 .inq-reply { margin: 0; padding: 8px 12px; background: var(--purple-soft); color: var(--purple-ink); border-radius: 10px; }
-.inq-sent .chat { justify-self: stretch; }
+.inq-sent .chat, .inq-sent .btn { justify-self: stretch; }
+.inq-sent { gap: 8px; }
+.inq-sent .hint { margin: 0; }
 .my-details { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
 .my-details > div { display: grid; min-width: 0; }
 .my-details .muted-text { font-size: 14px; overflow-wrap: anywhere; }
