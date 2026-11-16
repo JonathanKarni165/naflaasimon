@@ -44,7 +44,7 @@ export default function Tutor({ id }) {
           </section>
 
           <section className="p-sec">
-            <h2>מה אני מלמד/ת</h2>
+            <h2>מה מלמדים כאן</h2>
             <dl className="facts">
               <div><dt>מקצועות</dt><dd className="t-tags">{(tutor.subjects || []).map((s) => <span key={s} className="tag brass">{s}</span>)}</dd></div>
               {topicsBySubject(tutor.subjects, tutor.topics).map(([s, list]) => (

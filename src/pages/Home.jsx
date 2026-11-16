@@ -3,6 +3,7 @@ import { useApp, go } from '../state.jsx';
 import { filterTutors, sortTutors, globalMean } from '../lib/ranking.js';
 import { GroupCard, Avatar, WherePicker, resolveWhere, TopicPicker } from '../components/ui.jsx';
 import { optionLabel } from '../data/topics.js';
+import { groupEnded } from '../lib/format.js';
 
 // Each tile opens the search on one course: [badge, title, line, subject, course].
 const TRACKS = [
@@ -29,7 +30,7 @@ export default function Home() {
   }, [tutors, groups, subject, topic, where, kind]);
 
   const featured = useMemo(() => (tutors ? sortTutors(tutors, 'best').filter((t) => t.ratingCount >= 10 && t.photo).slice(0, 3) : []), [tutors]);
-  const upcoming = useMemo(() => (groups ? [...groups].filter((g) => g.seatsTaken < g.maxSeats).sort((a, b) => a.startDate.localeCompare(b.startDate)).slice(0, 3) : []), [groups]);
+  const upcoming = useMemo(() => (groups ? [...groups].filter((g) => g.seatsTaken < g.maxSeats && !groupEnded(g)).sort((a, b) => a.startDate.localeCompare(b.startDate)).slice(0, 3) : []), [groups]);
   const proof = useMemo(() => {
     if (!tutors) return null;
     const n = tutors.reduce((a, t) => a + (t.ratingCount || 0), 0);
@@ -50,7 +51,7 @@ export default function Home() {
       <div className="hero">
         <div className="wrap hero-grid">
           <h1>השיעור שבו <span className="hl">נופל האסימון</span></h1>
-          {proof && proof.n ? (
+          {proof && proof.n >= 20 ? (
             <div className="proof-row">
               <span className="faces" aria-hidden="true">{proof.faces.map((t) => <Avatar key={t.id} tutor={t} className="face" size={48} />)}</span>
               <span><b>{proof.avg.toFixed(1)}</b> ממוצע מתוך <bdi>{proof.n.toLocaleString('he-IL')}</bdi> ביקורות</span>
@@ -112,7 +113,7 @@ export default function Home() {
             <a href="#groups">כל הקבוצות</a>
           </div>
           <figure className="group-photo">
-            <img src="img/group-park.jpg" loading="lazy" decoding="async" width="1400" height="700" alt="שלוש סטודנטיות יושבות על הדשא בקמפוס, מחייכות ולומדות יחד" />
+            <img src="img/group-park.jpg" loading="lazy" decoding="async" width="1400" height="525" alt="שלוש סטודנטיות יושבות על הדשא בקמפוס, מחייכות ולומדות יחד" />
             <figcaption>לומדים יחד, בכיתה, בזום או על הדשא</figcaption>
           </figure>
           <div className="groups">
@@ -131,7 +132,7 @@ export default function Home() {
           <div className="sec-head"><h2 id="why-h">למה לסמוך עלינו</h2></div>
           <div className="why-list">
             <div className="why-item"><div className="why-art"><img className="art" loading="lazy" decoding="async" src="img/art-verified.svg" alt="" /></div><div><h3>מורים מאומתים</h3><p>מורה עם סימן ✓ עבר בדיקה של תעודת זהות ותארים או תעודות הוראה.</p></div></div>
-            <div className="why-item"><div className="why-art"><img className="art" loading="lazy" decoding="async" src="img/art-reviews.svg" alt="" /></div><div><h3>דירוג שאי אפשר לנפח</h3><p>ביקורת אחת לכל חשבון Google, והדירוג מתחשב בכמות: חמישה כוכבים מביקורת אחת לא עוקפים 40 ביקורות טובות.</p></div></div>
+            <div className="why-item"><div className="why-art"><img className="art" loading="lazy" decoding="async" src="img/art-reviews.svg" alt="" /></div><div><h3>דירוג שאי אפשר לנפח</h3><p>ביקורת אחת לכל חשבון, והדירוג מתחשב בכמות: חמישה כוכבים מביקורת אחת לא עוקפים 40 ביקורות טובות.</p></div></div>
             <div className="why-item"><div className="why-art"><img className="art" loading="lazy" decoding="async" src="img/art-phone.svg" alt="" /></div><div><h3>ישר למורה, בלי עמלה</h3><p>שולחים פנייה מהפרופיל, המורה עונה לכם באתר או בטלפון, ומשלמים לו ישירות.</p></div></div>
           </div>
         </div>
@@ -143,7 +144,7 @@ export default function Home() {
           <ol className="steps">
             <li className="step"><span className="n">1</span><div><h3>מחפשים</h3><p>מקצוע, רמה ועיר. ממיינים לפי המומלצים, הכי קרוב או הכי מבוקש.</p></div></li>
             <li className="step"><span className="n">2</span><div><h3>משווים</h3><p>מחיר פרונטלי ואונליין, ניסיון וביקורות של תלמידים.</p></div></li>
-            <li className="step"><span className="n">3</span><div><h3>שולחים פנייה</h3><p>נכנסים עם Google ושולחים למורה פנייה. התשובה מחכה לכם באזור האישי.</p></div></li>
+            <li className="step"><span className="n">3</span><div><h3>שולחים פנייה</h3><p>נכנסים לחשבון (Google או מייל) ושולחים למורה פנייה. התשובה מחכה לכם באזור האישי.</p></div></li>
           </ol>
         </div>
       </section>

@@ -47,9 +47,11 @@ export default function Search() {
         <h1>מורים פרטיים{f.subject ? ` ל${f.subject}` : ''}{f.topic ? `, ${f.topic}` : ''}</h1>
         <div className="topic-search">
           <label className="field-label" htmlFor="topic">מה רוצים ללמוד?</label>
-          <TopicPicker id="topic" value={optionLabel(f)} onPick={(o) => set(o
-            ? { subject: o.subject, topic: o.topic }
-            : { subject: '', topic: '' })} />
+          {/* Free text that is not a subject searches names and profiles (the same "q" as in the filter panel). */}
+          <TopicPicker id="topic" value={optionLabel(f) || f.q} onPick={(o) => set(o
+            ? { subject: o.subject, topic: o.topic, q: optionLabel(f) ? f.q : '' }
+            : { subject: '', topic: '', q: '' })}
+            onFree={(q) => set({ subject: '', topic: '', q })} />
         </div>
         <p className="muted-text head-meta">{results ? `${results.length} מורים` : ''}{f.city && f.origin ? ` · מרחקים מ${f.city === 'המיקום שלי' ? 'המיקום שלכם' : f.city}` : ''} · <span className="marathon-link">מחפשים מרתון או קבוצה? <a href="#groups-marathons">לחיפוש מרתונים</a></span></p>
       </div>
@@ -81,7 +83,7 @@ export default function Search() {
               </div>
 
               <div className="f-field">
-              <label className="field-label" htmlFor="f-city">אני נמצא/ת ב…</label>
+              <label className="field-label" htmlFor="f-city">המיקום שלי</label>
               <WherePicker id="f-city" value={whereText} onChange={pickWhere} placeholder={f.city === 'המיקום שלי' ? 'המיקום הנוכחי שלי' : 'עיר או שכונה'} />
               <button type="button" className="btn btn-line btn-sm loc-btn" onClick={useMyLocation}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /><circle cx="12" cy="12" r="8" /></svg>
@@ -110,18 +112,18 @@ export default function Search() {
             {f.sort === 'near' && (f.origin ? 'המורים הקרובים אליכם קודם. מורים שמלמדים רק אונליין מופיעים בסוף.' : 'בחרו עיר או השתמשו במיקום הנוכחי כדי למיין לפי מרחק.')}
             {f.sort === 'popular' && 'המורים שהכי הרבה תלמידים פנו אליהם וכתבו עליהם ביקורת.'}
           </p>
-          {f.sort === 'near' ? (
+          {f.sort === 'near' && !showFilters ? (
             <div className="inline-pick">
               <label className="sr-only" htmlFor="near-where">איפה אתם?</label>
-              {/* Type a city or neighbourhood (same field as "אני נמצא/ת ב…"), not only pick from a long list. */}
+              {/* Type a city or neighbourhood (same field as "המיקום שלי"; hidden while the filter panel shows it), not only pick from a long list. */}
               <WherePicker id="near-where" value={whereText === 'online' ? '' : whereText} onChange={pickWhere} placeholder="הקלידו עיר או שכונה, למשל חולון" />
               <button type="button" className="btn btn-line" onClick={useMyLocation}>מיקום נוכחי</button>
             </div>
           ) : null}
 
           {!results ? <Loading /> : results.length === 0 ? (
-            <Empty title="לא מצאנו מורים שמתאימים לכל הסינונים">
-              <p>נסו להסיר את הגבלת המחיר או המרחק, או לבחור רמה אחרת.</p>
+            <Empty title={f.q ? `לא מצאנו מורים עם „${f.q}”` : 'לא מצאנו מורים שמתאימים לכל הסינונים'}>
+              <p>{f.q ? 'נסו לבחור מקצוע או קורס מהרשימה, או לחפש מילה אחרת.' : 'נסו להסיר את הגבלת המחיר או המרחק, או לבחור רמה אחרת.'}</p>
               <button type="button" className="btn btn-brand" onClick={() => { resetFilters(); setWhereText(''); }}>ניקוי הסינון</button>
             </Empty>
           ) : (

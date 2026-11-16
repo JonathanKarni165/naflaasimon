@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useApp, useLoad } from '../state.jsx';
 import { optionLabel, norm } from '../data/topics.js';
-import { money, dateLong, relDays, dateShort, isPhone } from '../lib/format.js';
+import { money, dateLong, relDays, dateShort, isPhone, groupEnded } from '../lib/format.js';
 import { GroupCard, GuestRequest, Seg, TopicPicker, SeatDots, Avatar, Verified, Stars, Loading, Empty, ChatOverlay } from '../components/ui.jsx';
 
 export const isMarathon = (g) => Number(g.sessions) <= 1 || /מרתון/.test(g.title || '');
@@ -18,6 +18,7 @@ export function Groups({ initialKind = 'any' }) {
   const list = useMemo(() => {
     const words = q.trim().split(/\s+/).filter(Boolean);
     const out = (groups || [])
+      .filter((g) => !groupEnded(g))
       .filter((g) => (!subject || g.subject === subject) && (mode === 'any' || g.mode === mode) && (!onlyOpen || g.seatsTaken < g.maxSeats))
       .filter((g) => kind === 'any' || (kind === 'marathon') === isMarathon(g))
       .filter((g) => {
@@ -31,6 +32,9 @@ export function Groups({ initialKind = 'any' }) {
     const hit = (g) => norm([g.title, g.description, g.level].filter(Boolean).join(' ')).includes(norm(topic).replace(/^שאלון /, ''));
     return [...out.filter(hit), ...out.filter((g) => !hit(g))];
   }, [groups, subject, topic, mode, onlyOpen, kind, q]);
+  // How many groups the "רק עם מקום פנוי" box hides from the current results.
+  const hiddenFull = useMemo(() => (onlyOpen ? (groups || []).filter((g) => !groupEnded(g) && g.seatsTaken >= g.maxSeats
+    && (!subject || g.subject === subject) && (mode === 'any' || g.mode === mode) && (kind === 'any' || (kind === 'marathon') === isMarathon(g))).length : 0), [groups, onlyOpen, subject, mode, kind]);
 
   return (
     <main className="wrap page-pad">
@@ -58,7 +62,7 @@ export function Groups({ initialKind = 'any' }) {
           <Seg label="g-mode" value={mode} onChange={setMode} options={[['any', 'הכול'], ['online', 'אונליין'], ['frontal', 'פרונטלי']]} />
           <label className="check"><input type="checkbox" checked={onlyOpen} onChange={(e) => setOnlyOpen(e.target.checked)} /> רק עם מקום פנוי</label>
         </div>
-        {groups ? <p className="muted-text gf-count"><bdi>{list.length}</bdi> {list.length === 1 ? 'קבוצה' : 'קבוצות'}</p> : null}
+        {groups ? <p className="muted-text gf-count"><bdi>{list.length}</bdi> {list.length === 1 ? 'קבוצה' : 'קבוצות'}{onlyOpen && hiddenFull ? ` (${hiddenFull === 1 ? 'מוסתרת קבוצה מלאה אחת' : `מוסתרות ${hiddenFull} קבוצות מלאות`})` : ''}</p> : null}
       </div>
       {!groups ? <Loading /> : list.length === 0 ? (
         <Empty title={subject ? `אין כרגע קבוצות ב${optionLabel(pick).replace(' - הכל', '')}` : 'אין כרגע קבוצות שמתאימות'}>
@@ -143,7 +147,8 @@ export function Group({ id }) {
 
   const t = group.tutor;
   const mine = (seats || []).find((s) => s.groupId === id);
-  const full = group.seatsTaken >= group.maxSeats;
+  const ended = groupEnded(group);
+  const full = group.seatsTaken >= group.maxSeats || ended;
   const approval = group.joinMode === 'approval';
   const activeSeat = mine && mine.status !== 'declined' ? mine : null;
   const isTutor = user && t && (user.id === t.ownerId || user.isAdmin);
@@ -226,7 +231,7 @@ export function Group({ id }) {
 
         <aside className="profile-side">
           <div className="side-card">
-            <div className="side-price"><b><bdi>{money(group.pricePerPerson)}</bdi></b><span>{group.sessions > 1 ? 'לתלמיד לכל מפגש' : 'לתלמיד'}</span></div>
+            <div className="side-price"><b><bdi>{money(group.pricePerPerson)}</bdi></b><span>{group.sessions > 1 ? 'לתלמיד למפגש' : 'לתלמיד, מפגש אחד'}</span></div>
             {group.sessions > 1 ? <p className="hint">סה״כ <bdi>{money(group.pricePerPerson * group.sessions)}</bdi> ל־{group.sessions} מפגשים</p> : null}
             <SeatDots taken={group.seatsTaken} max={group.maxSeats} />
             <p className="join-mode">{approval ? 'הצטרפות באישור המורה: שולחים בקשה, והמורה מאשר.' : 'הרשמה פתוחה: נרשמים ונכנסים מיד.'}</p>
@@ -252,7 +257,7 @@ export function Group({ id }) {
             ) : (
               <>
                 {mine?.status === 'declined' ? <p className="hint">המורה לא אישר/ה את הבקשה הקודמת שלכם. אפשר לשאול אותו/ה למטה למה, או לשלוח שוב.</p> : null}
-                <button type="button" className="btn btn-brand go" onClick={startJoin} disabled={full}>{full ? 'הקבוצה מלאה' : approval ? 'בקשת הצטרפות' : 'אני נכנס/ת, שמרו לי מקום'}</button>
+                <button type="button" className="btn btn-brand go" onClick={startJoin} disabled={full}>{ended ? 'הקבוצה כבר הסתיימה' : full ? 'הקבוצה מלאה' : approval ? 'בקשת הצטרפות' : 'שמרו לי מקום'}</button>
                 {t && !full ? <GuestRequest tutor={t} group={group} /> : null}
               </>
             )}

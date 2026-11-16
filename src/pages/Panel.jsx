@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, useLoad, useMyTutor, go } from '../state.jsx';
-import { SUBJECTS, CITIES, GOALS, LESSON_COUNTS, labelOf } from '../data/constants.js';
-import { money, dateShort, dateLong, normalizePhone, isPhone } from '../lib/format.js';
-import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, SpamNote, StatusTag, InquiryChat, ChatOverlay, VIA, viaOf, WeekGrid, ReportTutor, REPORT_REASONS } from '../components/ui.jsx';
+import { SUBJECTS, CITIES, GOALS, LESSON_COUNTS, labelOf, WEEK_DAYS, WEEK_DAY_NAMES } from '../data/constants.js';
+import { money, dateShort, dateLong, normalizePhone, isPhone, weekdayMismatch } from '../lib/format.js';
+import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, SpamNote, StatusTag, InquiryChat, ChatOverlay, VIA, viaOf, WeekGrid, ReportTutor, REPORT_REASONS, BirthDateInput } from '../components/ui.jsx';
 import { subtopicsOf, schoolCoursesOf, TOPICS } from '../data/topics.js';
 
 // Two separate areas: "תלמיד" (my conversations and sign-ups) and "מורה" (my profile, inquiries, groups).
 // Personal details belong to both; admins get a third area.
+const PRICE_MIN = 40, PRICE_MAX = 500;
 const TUTOR_TABS = ['panel', 'panel-inbox', 'panel-groups'];
 const TABS = [
   ['panel', 'פרופיל המורה שלי'],
@@ -32,13 +33,13 @@ export default function Panel() {
         <div className="panel-gate">
           <Coin size={56} />
           <h1>פאנל מורה</h1>
-          <p className="muted-text">כאן פותחים פרופיל מורה, מעדכנים מחירים ומיקום, ומעלים קבוצות למידה ומרתונים. מתחילים בכניסה עם Google.</p>
+          <p className="muted-text">כאן פותחים פרופיל מורה, מעדכנים מחירים ומיקום, ומעלים קבוצות למידה ומרתונים. מתחילים בכניסה לחשבון, עם Google או עם מייל וסיסמה.</p>
           <ul className="check-list">
             <li>פרופיל עם מקצועות, רמות, מיקום ומחיר פרונטלי ואונליין</li>
             <li>פניות מתלמידים מגיעות לתיבה אישית בפאנל, בלי לחשוף את הטלפון שלכם ובלי עמלה</li>
             <li>קבוצות עם הרשמה, שמירת מקום ושאלות מתלמידים</li>
           </ul>
-          <button type="button" className="btn btn-brand go" onClick={() => setLoginOpen(true)}>כניסה עם Google</button>
+          <button type="button" className="btn btn-brand go" onClick={() => setLoginOpen(true)}>כניסה / הרשמה</button>
         </div>
       </main>
     );
@@ -75,7 +76,7 @@ function PanelTabs() {
   if (loading && mine == null && !loaded) return <main className="wrap page-pad"><Loading /></main>;
   return (
     <main className="wrap page-pad">
-      <div className="page-head"><h1>האזור האישי</h1><p className="muted-text">שלום {user.name}{user.isAdmin ? ' · מנהל/ת האתר' : ''}</p></div>
+      <div className="page-head"><h1>האזור האישי</h1><p className="muted-text">שלום {user.name}{user.isAdmin ? ' · ניהול האתר' : ''}</p></div>
       {areaKeys.length > 1 ? (
         <nav className="area-switch" aria-label="אזורים">
           {areaKeys.map((k) => <a key={k} href={'#' + AREAS[k].home} aria-current={area === k ? 'page' : undefined}>{AREAS[k].label}</a>)}
@@ -282,7 +283,7 @@ function MyDetails() {
       <label className="field-label" htmlFor="me-phone">טלפון</label>
       <input id="me-phone" className="input" type="tel" autoComplete="tel" inputMode="tel" dir="ltr" placeholder="050-1234567" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
       <label className="field-label" htmlFor="me-birth">תאריך לידה</label>
-      <input id="me-birth" className="input" type="date" disabled={!!user.birthDate} max={new Date().toISOString().slice(0, 10)} value={f.birthDate} onChange={(e) => setF({ ...f, birthDate: e.target.value })} />
+      <BirthDateInput id="me-birth" disabled={!!user.birthDate} value={f.birthDate} onChange={(v) => setF((x) => ({ ...x, birthDate: v }))} />
       <p className="hint">{user.birthDate ? 'תאריך לידה אי אפשר לשנות אחרי שנקבע. לתיקון פנו אלינו.' : 'לא חובה. אחרי השמירה אי אפשר לשנות אותו.'}</p>
       <label className="field-label" htmlFor="me-area">אזור מגורים</label>
       <input id="me-area" className="input" list="me-cities" autoComplete="off" placeholder="עיר או שכונה (לא חובה)" value={f.area} onChange={(e) => setF({ ...f, area: e.target.value })} />
@@ -323,8 +324,10 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
     if (!t.subjects.length) e.subjects = 'בחרו לפחות מקצוע אחד';
     if (!t.teachesFrontal && !t.teachesOnline) e.mode = 'בחרו פרונטלי, אונליין או את שניהם';
     if (t.teachesFrontal && !t.city) e.city = 'בחרו עיר לשיעורים פרונטליים';
-    if (t.teachesFrontal && !(Number(t.priceFrontal) > 0)) e.priceFrontal = 'כתבו מחיר לשעה';
-    if (t.teachesOnline && !(Number(t.priceOnline) > 0)) e.priceOnline = 'כתבו מחיר לשעה';
+    // Hourly price must be realistic (QA: a tutor entered 4 ₪).
+    const priceErr = (v) => (!(Number(v) > 0) ? 'כתבו מחיר לשעה' : Number(v) < PRICE_MIN || Number(v) > PRICE_MAX ? `מחיר לשעה בין ${PRICE_MIN} ל-${PRICE_MAX} ₪` : '');
+    if (t.teachesFrontal && priceErr(t.priceFrontal)) e.priceFrontal = priceErr(t.priceFrontal);
+    if (t.teachesOnline && priceErr(t.priceOnline)) e.priceOnline = priceErr(t.priceOnline);
     if (strict || t.phone) { if (!/^0\d{1,2}-?\d{7}$/.test((t.phone || '').replace(/\s/g, ''))) e.phone = 'מספר טלפון ישראלי, למשל 050-1234567'; }
     setErrors(e);
     return !Object.keys(e).length;
@@ -372,7 +375,7 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
           <div><label className="field-label" htmlFor="tf-phone">טלפון (לא מוצג באתר, רק לצוות)</label><input id="tf-phone" className="input" dir="ltr" inputMode="tel" placeholder="050-1234567" value={t.phone} onChange={(e) => set({ phone: e.target.value })} /><Err k="phone" /></div>
         </div>
         <div className="f2">
-          <div><label className="field-label" htmlFor="tf-birth">תאריך לידה (לא מוצג באתר)</label><input id="tf-birth" className="input" type="date" disabled={locked} max={new Date().toISOString().slice(0, 10)} value={t.birthDate || ''} onChange={(e) => set({ birthDate: e.target.value })} /><Err k="birthDate" /></div>
+          <div><label className="field-label" htmlFor="tf-birth">תאריך לידה (לא מוצג באתר)</label><BirthDateInput id="tf-birth" disabled={locked} value={t.birthDate || ''} onChange={(v) => set({ birthDate: v })} /><Err k="birthDate" /></div>
           <div><label className="field-label" htmlFor="tf-address">כתובת מגורים (לא מוצגת באתר)</label><input id="tf-address" className="input" autoComplete="street-address" placeholder="רחוב, מספר, עיר" value={t.address || ''} onChange={(e) => set({ address: e.target.value })} /><Err k="address" /></div>
         </div>
         <p className="hint">המייל שלכם הוא המייל של החשבון: <bdi>{user.email}</bdi>. כל הפרטים האלה נחוצים לאימות, ורק הצוות רואה אותם.</p>
@@ -427,14 +430,14 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
                 <div><label className="field-label" htmlFor="tf-city">עיר</label>
                   <select id="tf-city" className="select" value={t.city} onChange={(e) => set({ city: e.target.value })}><option value="">בחרו עיר</option>{CITIES.map((c) => <option key={c.name}>{c.name}</option>)}</select><Err k="city" /></div>
                 <div><label className="field-label" htmlFor="tf-area">שכונה או אזור (לא חובה)</label><input id="tf-area" className="input" placeholder="למשל: ליד הבורסה" value={t.area} onChange={(e) => set({ area: e.target.value })} /></div>
-                <div><label className="field-label" htmlFor="tf-pf">מחיר לשעה, פרונטלי (₪)</label><input id="tf-pf" className="input" type="number" min="0" max="2000" inputMode="numeric" value={t.priceFrontal ?? ''} onChange={(e) => set({ priceFrontal: e.target.value })} /><Err k="priceFrontal" /></div>
+                <div><label className="field-label" htmlFor="tf-pf">מחיר לשעה, פרונטלי (₪)</label><input id="tf-pf" className="input" type="number" min={PRICE_MIN} max={PRICE_MAX} inputMode="numeric" value={t.priceFrontal ?? ''} onChange={(e) => set({ priceFrontal: e.target.value })} /><Err k="priceFrontal" /></div>
               </div>
             ) : null}
           </div>
           <div className={'mode-row' + (t.teachesOnline ? ' on' : '')}>
             <label className="check"><input type="checkbox" checked={t.teachesOnline} onChange={(e) => set({ teachesOnline: e.target.checked })} /> שיעורים אונליין</label>
             {t.teachesOnline ? (
-              <div className="f3"><div><label className="field-label" htmlFor="tf-po">מחיר לשעה, אונליין (₪)</label><input id="tf-po" className="input" type="number" min="0" max="2000" inputMode="numeric" value={t.priceOnline ?? ''} onChange={(e) => set({ priceOnline: e.target.value })} /><Err k="priceOnline" /></div></div>
+              <div className="f3"><div><label className="field-label" htmlFor="tf-po">מחיר לשעה, אונליין (₪)</label><input id="tf-po" className="input" type="number" min={PRICE_MIN} max={PRICE_MAX} inputMode="numeric" value={t.priceOnline ?? ''} onChange={(e) => set({ priceOnline: e.target.value })} /><Err k="priceOnline" /></div></div>
             ) : null}
           </div>
           <Err k="mode" />
@@ -483,7 +486,7 @@ function MyGroups() {
   return (
     <div className="my-groups">
       <div className="mg-head">
-        <p className="muted-text">{user.isAdmin ? 'כמנהל/ת אתם רואים את הקבוצות של כל המורים.' : 'כאן מעלים מרתונים וקבוצות קבועות ורואים מי נרשם.'}</p>
+        <p className="muted-text">{user.isAdmin ? 'בניהול האתר רואים את הקבוצות של כל המורים.' : 'כאן מעלים מרתונים וקבוצות קבועות ורואים מי נרשם.'}</p>
         <button type="button" className="btn btn-brand" onClick={() => setEditing({})}>+ קבוצה חדשה</button>
       </div>
       {!list.length ? (
@@ -511,7 +514,7 @@ function MyGroups() {
   );
 }
 
-const SEAT_STATUS = { approved: ['מאושר/ת', 'st-booked'], pending: ['ממתין/ה לאישור', 'st-new'], declined: ['נדחה', 'st-declined'] };
+const SEAT_STATUS = { approved: ['אושר', 'st-booked'], pending: ['ממתין לאישור', 'st-new'], declined: ['נדחה', 'st-declined'] };
 
 function SeatList({ groupId }) {
   const { api, version, reload, notify } = useApp();
@@ -562,6 +565,8 @@ function GroupForm({ initial, tutors, onSaved, onCancel }) {
     if (!g.tutorId) e.tutorId = 'בחרו מורה';
     if (!g.title.trim()) e.title = 'כתבו את מטרת הקבוצה';
     if (!g.startDate) e.startDate = 'בחרו תאריך';
+    const wrongDay = weekdayMismatch(g.startDate, g.time);
+    if (wrongDay) e.time = `המפגש הראשון (${dateLong(g.startDate)}) לא נופל באחד מימי המפגש שכתבתם. שנו את התאריך או את הימים.`;
     if (!(Number(g.pricePerPerson) >= 0) || g.pricePerPerson === '') e.pricePerPerson = 'כתבו מחיר לתלמיד';
     if (!(Number(g.maxSeats) >= 1)) e.maxSeats = 'לפחות מקום אחד';
     if (g.mode === 'frontal' && !g.city) e.city = 'בחרו עיר';
@@ -601,7 +606,7 @@ function GroupForm({ initial, tutors, onSaved, onCancel }) {
         <legend>מתי ואיפה</legend>
         <div className="f3">
           <div><label className="field-label" htmlFor="gf-date">תאריך (מפגש ראשון)</label><input id="gf-date" className="input" type="date" value={g.startDate} onChange={(e) => set({ startDate: e.target.value })} /><Err k="startDate" /></div>
-          <div><label className="field-label" htmlFor="gf-time">שעות או ימים</label><input id="gf-time" className="input" placeholder="למשל: 09:00–15:00 או ימי ג׳ 18:00" value={g.time} onChange={(e) => set({ time: e.target.value })} /></div>
+          <div><label className="field-label" htmlFor="gf-time">שעות או ימים</label><input id="gf-time" className="input" placeholder="למשל: 09:00–15:00 או ימי ג׳ 18:00" value={g.time} onChange={(e) => set({ time: e.target.value })} /><Err k="time" />{Number(g.sessions) > 1 && g.startDate ? <p className="hint">המפגש הראשון ביום {WEEK_DAY_NAMES[new Date(g.startDate + 'T12:00:00').getDay()]}, אז כתבו למשל ״ימי {WEEK_DAYS[new Date(g.startDate + 'T12:00:00').getDay()]} 18:00״.</p> : null}</div>
           <div><label className="field-label" htmlFor="gf-sess">מספר מפגשים</label><input id="gf-sess" className="input" type="number" min="1" max="100" value={g.sessions} onChange={(e) => set({ sessions: e.target.value })} /></div>
         </div>
         <span className="field-label" id="gf-mode">איך מתקיימת</span>
