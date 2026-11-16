@@ -8,9 +8,9 @@ export const isMarathon = (g) => Number(g.sessions) <= 1 || /מרתון/.test(g.
 
 export function Groups({ initialKind = 'any' }) {
   const { groups, filters } = useApp();
-  // Same "מה רוצים ללמוד?" field as the tutor search: subject, level, exam code or course.
-  const [pick, setPick] = useState({ subject: filters.subject || '', level: filters.level || '', topic: filters.topic || '' });
-  const { subject, level, topic } = pick;
+  // Same "מה רוצים ללמוד?" field as the tutor search: a subject or one of its courses.
+  const [pick, setPick] = useState({ subject: filters.subject || '', topic: filters.topic || '' });
+  const { subject, topic } = pick;
   const [mode, setMode] = useState('any');
   const [kind, setKind] = useState(initialKind);
   const [q, setQ] = useState('');
@@ -18,7 +18,7 @@ export function Groups({ initialKind = 'any' }) {
   const list = useMemo(() => {
     const words = q.trim().split(/\s+/).filter(Boolean);
     const out = (groups || [])
-      .filter((g) => (!subject || g.subject === subject) && (!level || !g.level || g.level === level) && (mode === 'any' || g.mode === mode) && (!onlyOpen || g.seatsTaken < g.maxSeats))
+      .filter((g) => (!subject || g.subject === subject) && (mode === 'any' || g.mode === mode) && (!onlyOpen || g.seatsTaken < g.maxSeats))
       .filter((g) => kind === 'any' || (kind === 'marathon') === isMarathon(g))
       .filter((g) => {
         if (!words.length) return true;
@@ -30,12 +30,12 @@ export function Groups({ initialKind = 'any' }) {
     // Groups that name the chosen course or exam come first; the rest of the subject follows.
     const hit = (g) => norm([g.title, g.description, g.level].filter(Boolean).join(' ')).includes(norm(topic).replace(/^שאלון /, ''));
     return [...out.filter(hit), ...out.filter((g) => !hit(g))];
-  }, [groups, subject, level, topic, mode, onlyOpen, kind, q]);
+  }, [groups, subject, topic, mode, onlyOpen, kind, q]);
 
   return (
     <main className="wrap page-pad">
       <div className="page-head">
-        <h1>קבוצות למידה ומרתונים{subject ? ` ב${subject}` : ''}{topic ? `: ${topic}` : level ? `, ${level}` : ''}</h1>
+        <h1>קבוצות למידה ומרתונים{subject ? ` ב${subject}` : ''}{topic ? `, ${topic}` : ''}</h1>
         <p className="muted-text">מורים מעלים קבוצה עם מטרה, תאריך ומחיר לתלמיד. שומרים מקום בלחיצה ושואלים את המורה ישירות.</p>
       </div>
       <div className="group-filters">
@@ -43,8 +43,8 @@ export function Groups({ initialKind = 'any' }) {
           <div className="topic-search">
             <label className="field-label" htmlFor="g-topic">מה רוצים ללמוד?</label>
             <TopicPicker id="g-topic" value={optionLabel(pick)} onPick={(o) => setPick(o
-              ? { subject: o.subject, topic: o.topic, level: o.topic ? (o.level || '') : o.level }
-              : { subject: '', topic: '', level: '' })} />
+              ? { subject: o.subject, topic: o.topic }
+              : { subject: '', topic: '' })} />
           </div>
           <div className="topic-search">
             <label className="field-label" htmlFor="g-q">שם מורה, עיר או מילה</label>

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useApp, useMyTutor, go } from '../state.jsx';
 import { money, rating1, reviewsLabel, initials, avatarColor, km, relDays, dateLong, dateTime, isPhone, isEmail } from '../lib/format.js';
 import { CITIES, NEIGHBORHOODS, WEEK_DAYS, WEEK_DAY_NAMES, DAY_SLOTS, LESSON_COUNTS, GOALS, slotLabel, labelOf } from '../data/constants.js';
-import { searchOptions, optionLabel } from '../data/topics.js';
+import { searchOptions, optionLabel, isSchoolCourse, TOPICS } from '../data/topics.js';
 import { topicMatch } from '../lib/ranking.js';
 
 export function Coin({ size = 30 }) {
@@ -395,6 +395,8 @@ export function InquiryBox({ tutor }) {
     mode: both ? '' : tutor.teachesOnline ? 'online' : 'frontal', note: '',
   });
   const [f, setF] = useState(blank);
+  // The tutor's courses in the chosen subject (school tracks and university courses, not chapters like "אלגברה").
+  const inqCourses = (tutor.topics || []).filter((x) => isSchoolCourse(f.subject, x) || TOPICS.some((c) => c.subject === f.subject && c.name === x));
   useEffect(() => {
     let live = true;
     if (!user) { setMine([]); return undefined; }
@@ -475,15 +477,15 @@ export function InquiryBox({ tutor }) {
                     <>
                       <span className="field-label" id="iq-subj">מקצוע</span>
                       <div className="chips wrap-chips" role="group" aria-labelledby="iq-subj">
-                        {tutor.subjects.map((x) => <button key={x} type="button" className="chip" aria-pressed={f.subject === x} onClick={() => setF({ ...f, subject: x })}>{x}</button>)}
+                        {tutor.subjects.map((x) => <button key={x} type="button" className="chip" aria-pressed={f.subject === x} onClick={() => setF({ ...f, subject: x, level: '' })}>{x}</button>)}
                       </div>
                     </>
                   ) : null}
-                  {(tutor.levels || []).length > 1 ? (
+                  {inqCourses.length > 1 ? (
                     <>
-                      <span className="field-label" id="iq-level">רמה</span>
+                      <span className="field-label" id="iq-level">איזה קורס?</span>
                       <div className="chips wrap-chips" role="group" aria-labelledby="iq-level">
-                        {tutor.levels.map((l) => <button key={l} type="button" className="chip" aria-pressed={f.level === l} onClick={() => setF({ ...f, level: f.level === l ? '' : l })}>{l}</button>)}
+                        {inqCourses.map((l) => <button key={l} type="button" className="chip" aria-pressed={f.level === l} onClick={() => setF({ ...f, level: f.level === l ? '' : l })}>{l}</button>)}
                       </div>
                     </>
                   ) : null}
@@ -626,7 +628,7 @@ function Hl({ text, q }) {
   return <>{text.slice(0, i)}<mark>{text.slice(i, i + t.length)}</mark>{text.slice(i + t.length)}</>;
 }
 
-/** "מה רוצים ללמוד?": one free-text field over subjects, levels, exam codes and university courses, e.g. "מתמטיקה - אינפי 1". */
+/** "מה רוצים ללמוד?": one free-text field over subjects and their courses (bagrut tracks with exam codes, university courses), e.g. "מתמטיקה - אינפי 1". */
 export function TopicPicker({ id, value, onPick, placeholder = 'מקצוע או קורס, למשל 582 או אינפי', subjects, autoFocus, adder }) {
   const [text, setText] = useState(value || '');
   const [open, setOpen] = useState(false);

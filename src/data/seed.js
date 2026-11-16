@@ -1,5 +1,6 @@
 // Demo data for the preview. Everything here is invented and marked as an example in the UI.
 import { cityByName } from './constants.js';
+import { coursesFromLegacy } from './topics.js';
 
 const day = (n) => {
   const d = new Date(); d.setDate(d.getDate() + n);
@@ -194,6 +195,8 @@ const SEED_TOPICS = {
   t42: ['אלגברה', 'חדו״א', 'שאלון 371', 'שאלון 471', 'Java', 'יסודות התכנות'],
 };
 SEED_TUTORS.forEach((t) => { if (SEED_TOPICS[t.id]) t.topics = SEED_TOPICS[t.id]; });
+// Example tutors were written with levels; turn them into courses like every other profile.
+SEED_TUTORS.forEach((t) => { Object.assign(t, coursesFromLegacy(t.subjects, t.levels, t.topics || [])); t.levels = []; });
 // Weekly free hours ("day-hour", day 0 = Sunday, hour = start of a 2-hour slot), varied per tutor.
 SEED_TUTORS.forEach((t, i) => {
   const days = [[0, 1, 3], [1, 2, 4], [0, 2, 3], [0, 3, 4], [1, 3, 5]][i % 5];

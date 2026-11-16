@@ -1,4 +1,5 @@
 import { PRIOR_WEIGHT, cityByName } from '../data/constants.js';
+import { isSchoolCourse } from '../data/topics.js';
 
 /**
  * Bayesian average: a tutor with few reviews is pulled toward the site-wide mean.
@@ -96,7 +97,7 @@ export function filterTutors(tutors, f) {
   const q = (f.q || '').trim();
   return tutors.filter((t) => {
     if (f.subject && !(t.subjects || []).includes(f.subject)) return false;
-    if (f.level && !(t.levels || []).includes(f.level)) return false;
+    if (f.topic && f.subject && isSchoolCourse(f.subject, f.topic) && !(t.topics || []).includes(f.topic)) return false;
     if (f.mode === 'online' && !t.teachesOnline) return false;
     if (f.mode === 'frontal' && !t.teachesFrontal) return false;
     if (f.maxPrice) { const p = priceFor(t, f.mode); if (p == null || p > f.maxPrice) return false; }
