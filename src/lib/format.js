@@ -44,3 +44,25 @@ export const dateTime = (iso) => (iso ? dft.format(new Date(iso)) : '');
 
 export const isPhone = (p) => /^0\d{8,9}$/.test(String(p || '').replace(/[\s-]/g, ''));
 export const isEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(e || '').trim());
+
+/** A group has ended once its last weekly session is in the past (a marathon: once its day has passed). */
+export function groupEnded(g) {
+  if (!g?.startDate) return false;
+  const last = new Date(g.startDate + 'T23:59:59');
+  last.setDate(last.getDate() + 7 * Math.max(0, (Number(g.sessions) || 1) - 1));
+  return last < new Date();
+}
+
+const DAY_LETTERS = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
+/**
+ * Checks "ימי ג׳ 18:00" against the first meeting's date. Returns the weekday letter of the start date when the
+ * text names meeting days that don't include it, otherwise ''.
+ */
+export function weekdayMismatch(startDate, time) {
+  if (!startDate || !time) return '';
+  const m = String(time).match(/ימי?\s+([אבגדהוש][׳'`]?(?:\s*(?:,|ו|-|–)\s*[אבגדהוש][׳'`]?)*)/);
+  if (!m) return '';
+  const named = new Set((m[1].match(/[אבגדהוש](?=[׳'`]|\s|,|$)/g) || []));
+  const day = DAY_LETTERS[new Date(startDate + 'T12:00:00').getDay()];
+  return named.size && !named.has(day) ? day : '';
+}

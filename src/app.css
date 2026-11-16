@@ -49,7 +49,7 @@ img { max-width: 100%; }
 @media (max-width: 420px) { .user-name { display: none; } .user-btn { padding: 3px; } .logo-text small { font-size: 11.5px; } }
 
 /* Bottom nav on phones */
-.bottom-nav { position: fixed; inset: auto 0 0; z-index: 20; display: grid; grid-template-columns: repeat(3, 1fr); background: var(--surface); border-top: 2px solid var(--ink);
+.bottom-nav { position: fixed; inset: auto 0 0; z-index: 20; display: grid; grid-template-columns: repeat(4, 1fr); background: var(--surface); border-top: 2px solid var(--ink);
   padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
 .bottom-nav a { display: grid; justify-items: center; gap: 2px; padding: 8px 4px 7px; text-decoration: none; font-size: 12.5px; font-weight: 700; color: var(--muted); }
 .bottom-nav a[aria-current="page"] { color: var(--purple); }
@@ -624,7 +624,7 @@ footer .linkish { color: inherit; font-weight: 600; }
 
 /* Home: group-learning photo */
 .group-photo { position: relative; margin: 0 0 18px; }
-.group-photo img { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; max-height: 360px; object-fit: cover; object-position: 50% 85%; border-radius: 20px; border: 2px solid var(--ink); }
+.group-photo img { display: block; width: 100%; height: auto; aspect-ratio: 8 / 3; max-height: 360px; object-fit: cover; object-position: 50% 70%; border-radius: 20px; border: 2px solid var(--ink); }
 .group-photo figcaption { position: absolute; inset-inline-start: 16px; bottom: 16px; background: var(--brass-soft); color: var(--ink); border: 2px solid var(--ink); border-radius: 12px; padding: 6px 14px; font-weight: 800; font-family: var(--display); font-size: 18px; }
 
 /* Inquiries: a bigger face next to the name */
@@ -753,3 +753,12 @@ footer .linkish { color: inherit; font-weight: 600; }
 .tc-edu, .p-edu { flex-basis: 100%; margin: 0; display: flex; align-items: center; gap: 6px; font-size: 14.5px; font-weight: 700; color: var(--ink); }
 .p-edu { font-size: 16px; margin-top: 2px; }
 .edu-ic { flex: none; color: var(--brass); stroke: #A88A2C; }
+
+/* Photos: a pale silhouette tone shows while a lazy photo loads, so a card never shows an empty hole. */
+img.photo-bg { background: #F4E29C url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Ccircle cx='60' cy='48' r='21' fill='%233A3130' opacity='.82'/%3E%3Cpath d='M18 120c2-27 19-44 42-44s40 17 42 44z' fill='%233A3130' opacity='.82'/%3E%3C/svg%3E") center bottom / cover no-repeat; }
+.date-3 { display: grid; grid-template-columns: 1fr 1.6fr 1.2fr; gap: 8px; }
+
+/* Dialogs never run past the screen on short phones: the body scrolls inside and the corners stay visible. */
+.modal { max-height: calc(100dvh - 32px); }
+.modal[open] > .modal-body, .modal[open] > form.modal-body { max-height: calc(100dvh - 36px); overflow-y: auto; overscroll-behavior: contain; }
+@media (max-width: 1023px) { .modal { max-height: calc(100dvh - 32px - env(safe-area-inset-bottom, 0px)); } }

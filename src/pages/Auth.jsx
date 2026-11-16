@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useApp, go } from '../state.jsx';
-import { Coin, GOOGLE_ICON, SpamNote, rememberReturn } from '../components/ui.jsx';
+import { Coin, GOOGLE_ICON, SpamNote, rememberReturn, BirthDateInput } from '../components/ui.jsx';
 import { CITIES } from '../data/constants.js';
 import { isEmail, isPhone } from '../lib/format.js';
 
@@ -80,7 +80,7 @@ export default function Auth({ mode }) {
           <label className="field-label" htmlFor="a-phone">טלפון (לא חובה)</label>
           <input id="a-phone" className="input" type="tel" inputMode="tel" dir="ltr" autoComplete="tel" placeholder="050-1234567" value={f.phone} onChange={set('phone')} />
           <label className="field-label" htmlFor="a-birth">תאריך לידה (לא חובה, אי אפשר לשנות אחר כך)</label>
-          <input id="a-birth" className="input" type="date" max={new Date().toISOString().slice(0, 10)} value={f.birthDate} onChange={set('birthDate')} />
+          <BirthDateInput id="a-birth" value={f.birthDate} onChange={(v) => setF((x) => ({ ...x, birthDate: v }))} />
           <label className="field-label" htmlFor="a-area">אזור מגורים (לא חובה)</label>
           <input id="a-area" className="input" list="a-cities" autoComplete="off" placeholder="עיר או שכונה" value={f.area} onChange={set('area')} />
           <datalist id="a-cities">{CITIES.map((c) => <option key={c.name} value={c.name} />)}</datalist>

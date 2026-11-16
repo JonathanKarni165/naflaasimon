@@ -16,8 +16,10 @@ export function Coin({ size = 30 }) {
 }
 
 export function Avatar({ tutor, className = 'avatar', size }) {
-  if (tutor?.photo) {
-    return <img className={className} src={tutor.photo} alt={tutor.name} width={size || 520} height={size || 520} loading="lazy" decoding="async" />;
+  // A photo that fails to load falls back to the default silhouette; while it loads the silhouette shows behind it.
+  const [broken, setBroken] = useState(false);
+  if (tutor?.photo && !broken) {
+    return <img className={className + ' photo-bg'} src={tutor.photo} alt={tutor.name} width={size || 520} height={size || 520} loading="lazy" decoding="async" onError={() => setBroken(true)} />;
   }
   return <TutorPhoto tutor={tutor} className={className + ' avatar-initials'} />;
 }
@@ -80,8 +82,42 @@ export function EduIcon() {
 }
 
 /** Photo, or a soft silhouette when the tutor has none (never initials). */
+const HEB_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
+/** Birth date as day / month / year selects (Israeli order), not the browser date field that shows mm/dd/yyyy in English browsers. */
+export function BirthDateInput({ id, value, onChange, disabled }) {
+  const [y0, m0, d0] = (value || '').split('-');
+  const [parts, setParts] = useState({ d: d0 ? String(+d0) : '', m: m0 ? String(+m0) : '', y: y0 || '' });
+  useEffect(() => { const [y, m, d] = (value || '').split('-'); if (value) setParts({ d: String(+d), m: String(+m), y }); }, [value]);
+  const thisYear = new Date().getFullYear();
+  const years = Array.from({ length: 90 }, (_, i) => thisYear - 5 - i);
+  const days = parts.y && parts.m ? new Date(+parts.y, +parts.m, 0).getDate() : 31;
+  const set = (patch) => {
+    const n = { ...parts, ...patch };
+    if (n.d && +n.d > (n.y && n.m ? new Date(+n.y, +n.m, 0).getDate() : 31)) n.d = '';
+    setParts(n);
+    onChange(n.d && n.m && n.y ? `${n.y}-${String(n.m).padStart(2, '0')}-${String(n.d).padStart(2, '0')}` : '');
+  };
+  return (
+    <div className="date-3" role="group">
+      <select id={id} className="input" aria-label="יום" disabled={disabled} value={parts.d} onChange={(e) => set({ d: e.target.value })}>
+        <option value="">יום</option>
+        {Array.from({ length: days }, (_, i) => <option key={i} value={String(i + 1)}>{i + 1}</option>)}
+      </select>
+      <select className="input" aria-label="חודש" disabled={disabled} value={parts.m} onChange={(e) => set({ m: e.target.value })}>
+        <option value="">חודש</option>
+        {HEB_MONTHS.map((name, i) => <option key={name} value={String(i + 1)}>{name}</option>)}
+      </select>
+      <select className="input" aria-label="שנה" disabled={disabled} value={parts.y} onChange={(e) => set({ y: e.target.value })}>
+        <option value="">שנה</option>
+        {years.map((y) => <option key={y} value={String(y)}>{y}</option>)}
+      </select>
+    </div>
+  );
+}
+
 export function TutorPhoto({ tutor, className = 'tc-img' }) {
-  if (tutor?.photo) return <img className={className} src={tutor.photo} alt="" width="520" height="520" loading="lazy" decoding="async" />;
+  const [broken, setBroken] = useState(false);
+  if (tutor?.photo && !broken) return <img className={className + ' photo-bg'} src={tutor.photo} alt="" width="520" height="520" loading="lazy" decoding="async" onError={() => setBroken(true)} />;
   return (
     <svg className={className + ' tc-ph'} viewBox="0 0 120 120" aria-hidden="true" preserveAspectRatio="xMidYMax slice">
       <rect width="120" height="120" fill="#F4E29C" />
@@ -113,7 +149,7 @@ export function TutorRow({ tutor, sort, topic }) {
         <Verified tutor={tutor} />
         {tutor.headline ? <p className="tc-headline">{tutor.headline}</p> : null}
         {tutor.education ? <p className="tc-edu"><EduIcon /> {tutor.education}</p> : null}
-        {topic && topicMatch(tutor, topic) ? <p className="t-topic">✓ מלמד/ת {topic}</p> : null}
+        {topic && topicMatch(tutor, topic) ? <p className="t-topic">✓ מלמדים כאן {topic}</p> : null}
       </div>
       {quote ? <blockquote className="tc-quote"><p>{quote}</p></blockquote> : null}
       <ul className="tc-tags">
@@ -157,7 +193,7 @@ export function GroupCard({ group }) {
       {t ? <p className="t-meta host"><Avatar tutor={t} className="host-img" size={40} />עם {t.name} <Verified tutor={t} /></p> : null}
       <SeatDots taken={group.seatsTaken} max={group.maxSeats} />
       <p className="join-mode">{group.joinMode === 'approval' ? 'הצטרפות באישור המורה' : 'הרשמה פתוחה, נכנסים מיד'}</p>
-      <div className="t-foot"><span className="price"><bdi>{money(group.pricePerPerson)}</bdi> <small>{group.sessions > 1 ? 'לתלמיד למפגש' : 'לתלמיד'}</small></span><a className="btn btn-brand t-cta" href={`#group-${group.id}`}>{group.seatsTaken >= group.maxSeats ? 'פרטים' : 'הצטרפות'}</a></div>
+      <div className="t-foot"><span className="price"><bdi>{money(group.pricePerPerson)}</bdi> <small>{group.sessions > 1 ? 'לתלמיד למפגש' : 'לתלמיד, מפגש אחד'}</small></span><a className="btn btn-brand t-cta" href={`#group-${group.id}`}>לפרטים</a></div>
     </article>
   );
 }
@@ -347,11 +383,11 @@ export function GuestDialog() {
           <>
             <Coin size={44} />
             <h2>הפנייה נשלחה</h2>
-            <p>{tutor.name.split(' ')[0]} יקבל/תקבל את הטלפון שלכם ויחזור אליכם.</p>
+            <p>הטלפון שלכם יעבור אל {tutor.name.split(' ')[0]}, והתשובה תגיע אליכם בטלפון.</p>
             <SpamNote />
             {signin ? <AuthFlow api={api} onBack={() => setSignin(false)} /> : (
               <>
-                <p className="note">בלי חשבון המורה מקבל/ת רק מספר טלפון: אין צ׳אט באתר ואין מעקב אחרי התשובה. עם חשבון אפשר לדבר בצ׳אט בלי למסור טלפון.</p>
+                <p className="note">בלי חשבון נשלח למורה רק מספר טלפון: אין צ׳אט באתר ואין מעקב אחרי התשובה. עם חשבון אפשר לדבר בצ׳אט בלי למסור טלפון.</p>
                 <div className="form-actions"><button type="button" className="btn btn-brand" onClick={() => setSignin(true)}>כניסה או הרשמה</button><button type="button" className="btn btn-ghost" onClick={closeGuest}>סגירה</button></div>
               </>
             )}
@@ -629,7 +665,7 @@ function Hl({ text, q }) {
 }
 
 /** "מה רוצים ללמוד?": one free-text field over subjects and their courses (bagrut tracks with exam codes, university courses), e.g. "מתמטיקה - אינפי 1". */
-export function TopicPicker({ id, value, onPick, placeholder = 'מקצוע או קורס, למשל 582 או אינפי', subjects, autoFocus, adder }) {
+export function TopicPicker({ id, value, onPick, onFree, placeholder = 'מקצוע או קורס, למשל 582 או אינפי', subjects, autoFocus, adder }) {
   const [text, setText] = useState(value || '');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
@@ -643,10 +679,14 @@ export function TopicPicker({ id, value, onPick, placeholder = 'מקצוע או 
   // adder: pick topics one after another (tutor profile), so only topic rows and the field empties after each pick.
   const opts = (picked ? [] : searchOptions(text, adder ? 40 : 14)).filter((o) => (!subjects || subjects.includes(o.subject)) && (!adder || o.topic)).slice(0, 14);
   const pick = (o) => { onPick(o); setText(o && !adder ? optionLabel(o) : ''); setOpen(false); setActive(-1); };
+  // onFree: text that matches no subject or course searches tutor names and profiles instead of being ignored.
+  const free = onFree && !picked && text.trim() && !opts.length ? text.trim() : '';
+  const runFree = () => { onFree(free); setOpen(false); setActive(-1); };
   const key = (e) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setActive((a) => Math.min(opts.length - 1, a + 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(0, a - 1)); }
     else if (e.key === 'Enter' && open && opts.length) { e.preventDefault(); pick(opts[Math.max(0, active)]); }
+    else if (e.key === 'Enter' && free) { e.preventDefault(); runFree(); }
     else if (e.key === 'Escape') { setOpen(false); setText(value || ''); }
   };
   return (
@@ -664,6 +704,12 @@ export function TopicPicker({ id, value, onPick, placeholder = 'מקצוע או 
             <li key={o.key} role="option" aria-selected={i === active} className={i === active ? 'on' : ''}
               onMouseDown={(e) => { e.preventDefault(); pick(o); }}><Hl text={o.label} q={text} /></li>
           ))}
+        </ul>
+      ) : open && free ? (
+        <ul className="combo-list" id={id + '-list'} role="listbox">
+          <li role="option" aria-selected="true" className="on" onMouseDown={(e) => { e.preventDefault(); runFree(); }}>
+            אין מקצוע או קורס בשם הזה. לחפש „<bdi>{free}</bdi>” בשמות המורים ובפרופילים
+          </li>
         </ul>
       ) : null}
     </div>
@@ -871,7 +917,7 @@ export function ProfileSetup() {
           <label className="field-label" htmlFor="su-phone">טלפון (לא חובה)</label>
           <input id="su-phone" className="input" type="tel" inputMode="tel" dir="ltr" autoComplete="tel" placeholder="050-1234567" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
           <label className="field-label" htmlFor="su-birth">תאריך לידה (לא חובה, אי אפשר לשנות אחר כך)</label>
-          <input id="su-birth" className="input" type="date" max={new Date().toISOString().slice(0, 10)} value={f.birthDate} onChange={(e) => setF({ ...f, birthDate: e.target.value })} />
+          <BirthDateInput id="su-birth" value={f.birthDate} onChange={(v) => setF((x) => ({ ...x, birthDate: v }))} />
           <label className="field-label" htmlFor="su-area">אזור מגורים (לא חובה)</label>
           <input id="su-area" className="input" list="su-cities" autoComplete="off" placeholder="עיר או שכונה" value={f.area} onChange={(e) => setF({ ...f, area: e.target.value })} />
           <datalist id="su-cities">{CITIES.map((c) => <option key={c.name} value={c.name} />)}</datalist>
@@ -956,7 +1002,7 @@ export function Header() {
             <a href="#groups" aria-current={cur('groups')}>קבוצות למידה</a>
           </nav>
           <div className="top-actions">
-            {user ? <UserMenu /> : <button type="button" className="btn btn-line" onClick={() => setLoginOpen(true)}>כניסה / הרשמה</button>}
+            {user ? <UserMenu /> : route.name === 'login' || route.name === 'signup' ? null : <button type="button" className="btn btn-line" onClick={() => setLoginOpen(true)}>כניסה / הרשמה</button>}
             {isTutor ? null : <a className="btn btn-brass hide-sm" href="#panel">פתיחת פרופיל מורה</a>}
           </div>
         </div>
@@ -968,8 +1014,8 @@ export function Header() {
 
 export function BottomNav() {
   const { route } = useApp();
-  const items = [['', 'home', 'בית'], ['search', 'search', 'חיפוש'], ['groups', 'groups', 'קבוצות']];
-  const active = (n) => (n === '' ? route.name === 'home' : route.name === n || route.name.startsWith(n + '-') || (n === 'search' && route.name === 'tutor') || (n === 'groups' && route.name === 'group'));
+  const items = [['', 'home', 'בית'], ['search', 'search', 'חיפוש'], ['groups', 'groups', 'קבוצות'], ['panel', 'panel', 'אזור אישי']];
+  const active = (n) => (n === '' ? route.name === 'home' : route.name === n || route.name.startsWith(n + '-') || (n === 'search' && route.name === 'tutor') || (n === 'groups' && route.name === 'group') || (n === 'panel' && route.name === 'chat'));
   return (
     <nav className="bottom-nav" aria-label="ניווט מהיר">
       {items.map(([h, icon, label]) => (
@@ -1076,7 +1122,7 @@ export function ReportTutor({ tutor }) {
   }, [open]);
   if (user && user.id === tutor.ownerId) return null;
   const start = () => {
-    if (!requireLogin('כדי לדווח על מורה צריך להתחבר. הדיווח מגיע רק לצוות האתר, והמורה לא יודע/ת מי דיווח.')) return;
+    if (!requireLogin('כדי לדווח על מורה צריך להתחבר. הדיווח מגיע רק לצוות האתר, ושם המדווח לא נחשף למורה.')) return;
     setReason(''); setDetails(''); setSent(false); setOpen(true);
   };
   const submit = async (e) => {
@@ -1099,14 +1145,14 @@ export function ReportTutor({ tutor }) {
           {sent ? (
             <>
               <h2 id="rp-title">תודה, הדיווח התקבל</h2>
-              <p className="muted-text">צוות נפל האסימון יבדוק אותו. {first} לא יקבל/תקבל הודעה ולא יידע/תדע מי דיווח.</p>
+              <p className="muted-text">צוות נפל האסימון יבדוק אותו. לא תישלח על כך הודעה אל {first}, ושם המדווח לא נחשף.</p>
               <p className="muted-text">אם יש סכנה מיידית, פנו למשטרה בטלפון <bdi>100</bdi>.</p>
               <button type="button" className="btn btn-brand" onClick={() => setOpen(false)}>סגירה</button>
             </>
           ) : (
             <form className="report-form" onSubmit={submit}>
               <h2 id="rp-title">דיווח על {tutor.name}</h2>
-              <p className="muted-text">הדיווח מגיע רק לצוות האתר. המורה לא רואה אותו ולא יודע/ת מי דיווח.</p>
+              <p className="muted-text">הדיווח מגיע רק לצוות האתר. המורה לא רואה אותו, ושם המדווח לא נחשף.</p>
               <fieldset>
                 <legend className="field-label">מה קרה?</legend>
                 {REPORT_REASONS.map(([k, label]) => (
