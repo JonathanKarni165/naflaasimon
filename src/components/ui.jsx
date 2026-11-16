@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useApp, useMyTutor, go } from '../state.jsx';
 import { money, rating1, reviewsLabel, initials, avatarColor, km, relDays, dateLong, dateTime, isPhone, isEmail } from '../lib/format.js';
 import { CITIES, NEIGHBORHOODS, WEEK_DAYS, WEEK_DAY_NAMES, DAY_SLOTS, LESSON_COUNTS, GOALS, slotLabel, labelOf } from '../data/constants.js';
-import { searchOptions, optionLabel, isSchoolCourse, schoolCoursesOf, TOPICS } from '../data/topics.js';
+import { searchOptions, optionLabel, schoolCoursesOf, subtopicsOf } from '../data/topics.js';
 import { topicMatch } from '../lib/ranking.js';
 
 export function Coin({ size = 30 }) {
@@ -395,9 +395,10 @@ export function InquiryBox({ tutor }) {
     mode: both ? '' : tutor.teachesOnline ? 'online' : 'frontal', note: '',
   });
   const [f, setF] = useState(blank);
-  // The tutor's courses in the chosen subject (school tracks and university courses, not chapters like "אלגברה").
   // A tutor who ticked no course in this subject still gets the subject's school tracks, so the student can say which one.
-  const tutorCourses = (tutor.topics || []).filter((x) => isSchoolCourse(f.subject, x) || TOPICS.some((c) => c.subject === f.subject && c.name === x));
+  // Everything the tutor ticked under this subject: tracks (5 יח״ל), courses (חדו״א 1) and topics (מכניקה).
+  const subjectTopics = subtopicsOf(f.subject);
+  const tutorCourses = (tutor.topics || []).filter((x) => subjectTopics.includes(x));
   const inqCourses = tutorCourses.length ? tutorCourses : schoolCoursesOf(f.subject);
   useEffect(() => {
     let live = true;

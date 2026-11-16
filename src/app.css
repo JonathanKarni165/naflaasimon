@@ -753,3 +753,5 @@ footer .linkish { color: inherit; font-weight: 600; }
 .tc-edu, .p-edu { flex-basis: 100%; margin: 0; display: flex; align-items: center; gap: 6px; font-size: 14.5px; font-weight: 700; color: var(--ink); }
 .p-edu { font-size: 16px; margin-top: 2px; }
 .edu-ic { flex: none; color: var(--brass); stroke: #A88A2C; }
+.reviews-flat { border: 1px solid var(--line); border-radius: 12px; padding: 0 14px; background: var(--surface); }
+.reviews-flat .review:last-child { border-bottom: 0; }
