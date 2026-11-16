@@ -6,9 +6,6 @@ export const SUBJECTS = [
   'פסיכולוגיה', 'משפטים', 'מנהל עסקים',
 ];
 
-export const LEVELS = [
-  'יסודי', 'חטיבת ביניים', '2 יח״ל', '3 יח״ל', '4 יח״ל', '5 יח״ל', 'פסיכומטרי', 'אקדמיה',
-];
 
 // Approximate city centres (lat, lng) used for "closest to me" sorting.
 export const CITIES = [

@@ -47,7 +47,6 @@ export default function Tutor({ id }) {
             <h2>מה אני מלמד/ת</h2>
             <dl className="facts">
               <div><dt>מקצועות</dt><dd className="t-tags">{(tutor.subjects || []).map((s) => <span key={s} className="tag brass">{s}</span>)}</dd></div>
-              <div><dt>רמות</dt><dd className="t-tags">{(tutor.levels || []).map((l) => <span key={l} className="tag">{l}</span>)}</dd></div>
               {topicsBySubject(tutor.subjects, tutor.topics).map(([s, list]) => (
                 <div key={s}><dt>{s}</dt><dd className="t-tags">{list.map((x) => <span key={x} className="tag">{x}</span>)}</dd></div>
               ))}

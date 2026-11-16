@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '../state.jsx';
-import { LEVELS } from '../data/constants.js';
 import { filterTutors, sortTutors, topicFirst, queryFirst, blendedRank } from '../lib/ranking.js';
 import { optionLabel } from '../data/topics.js';
 import { TutorRow, Seg, Loading, Empty, WherePicker, resolveWhere, TopicPicker } from '../components/ui.jsx';
@@ -40,17 +39,17 @@ export default function Search() {
     );
   };
 
-  const activeCount = [f.level, f.mode !== 'any', f.maxPrice, f.maxKm, f.q, f.place].filter(Boolean).length;
+  const activeCount = [f.mode !== 'any', f.maxPrice, f.maxKm, f.q, f.place].filter(Boolean).length;
 
   return (
     <main className="wrap page-pad">
       <div className="page-head">
-        <h1>מורים פרטיים{f.subject ? ` ל${f.subject}` : ''}{f.topic ? `: ${f.topic}` : f.level ? `, ${f.level}` : ''}</h1>
+        <h1>מורים פרטיים{f.subject ? ` ל${f.subject}` : ''}{f.topic ? `, ${f.topic}` : ''}</h1>
         <div className="topic-search">
           <label className="field-label" htmlFor="topic">מה רוצים ללמוד?</label>
           <TopicPicker id="topic" value={optionLabel(f)} onPick={(o) => set(o
-            ? { subject: o.subject, topic: o.topic, level: o.topic ? (o.level || f.level) : o.level }
-            : { subject: '', topic: '', level: '' })} />
+            ? { subject: o.subject, topic: o.topic }
+            : { subject: '', topic: '' })} />
         </div>
         <p className="muted-text head-meta">{results ? `${results.length} מורים` : ''}{f.city && f.origin ? ` · מרחקים מ${f.city === 'המיקום שלי' ? 'המיקום שלכם' : f.city}` : ''} · <span className="marathon-link">מחפשים מרתון או קבוצה? <a href="#groups-marathons">לחיפוש מרתונים</a></span></p>
       </div>
@@ -75,16 +74,6 @@ export default function Search() {
               <label className="field-label" htmlFor="q">חיפוש לפי שם או מילה</label>
               <input id="q" className="input" type="search" placeholder="שם מורה, עיר, מילה מהפרופיל…" value={f.q} onChange={(e) => set({ q: e.target.value })} />
               </div>
-
-              {f.subject && (f.topic || f.level) ? null : (
-                <div className="f-field">
-                  <label className="field-label" htmlFor="f-level">רמה</label>
-                  <select id="f-level" className="select" value={f.level} onChange={(e) => set({ level: e.target.value })}>
-                    <option value="">כל הרמות</option>
-                    {LEVELS.map((l) => <option key={l}>{l}</option>)}
-                  </select>
-                </div>
-              )}
 
               <div className="f-field">
               <span className="field-label" id="f-mode">איך לומדים</span>

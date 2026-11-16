@@ -1,33 +1,32 @@
 import { useMemo, useState } from 'react';
 import { useApp, go } from '../state.jsx';
-import { LEVELS } from '../data/constants.js';
 import { filterTutors, sortTutors, globalMean } from '../lib/ranking.js';
 import { GroupCard, Avatar, WherePicker, resolveWhere, TopicPicker } from '../components/ui.jsx';
 import { optionLabel } from '../data/topics.js';
 
+// Each tile opens the search on one course: [badge, title, line, subject, course].
 const TRACKS = [
-  ['5 יח״ל', 'בגרות מוגברת', 'שאלונים 581, 582'],
-  ['4 יח״ל', 'בגרות', 'שאלונים 471, 472'],
-  ['3 יח״ל', 'בגרות', 'שאלונים 371, 372'],
-  ['פסיכומטרי', 'פסיכומטרי', 'חשיבה כמותית'],
-  ['אקדמיה', 'חדו״א ואלגברה', 'הנדסה ומדעים'],
-  ['חטיבת ביניים', 'חטיבת ביניים', 'כיתות ז׳ עד ט׳'],
+  ['5 יח״ל', 'בגרות מוגברת', 'שאלונים 581, 582', 'מתמטיקה', '5 יח״ל'],
+  ['4 יח״ל', 'בגרות', 'שאלונים 471, 472', 'מתמטיקה', '4 יח״ל'],
+  ['3 יח״ל', 'בגרות', 'שאלונים 371, 372', 'מתמטיקה', '3 יח״ל'],
+  ['פסיכומטרי', 'פסיכומטרי', 'חשיבה כמותית', 'פסיכומטרי', ''],
+  ['חדו״א 1', 'אקדמיה', 'הנדסה ומדעים', 'מתמטיקה', 'חדו״א 1'],
+  ['חטיבת ביניים', 'חטיבת ביניים', 'כיתות ז׳ עד ט׳', 'מתמטיקה', 'חטיבת ביניים'],
 ];
 
 export default function Home() {
   const { tutors, groups, filters, setFilters } = useApp();
   const [subject, setSubject] = useState(filters.subject || '');
-  const [level, setLevel] = useState(filters.level || '');
   const [topic, setTopic] = useState(filters.topic || '');
   const [where, setWhere] = useState(filters.mode === 'online' ? 'online' : filters.city || filters.place || '');
   const [kind, setKind] = useState('private');
 
   const count = useMemo(() => {
     if (!tutors) return null;
-    if (kind === 'group') return (groups || []).filter((g) => (!subject || g.subject === subject) && (!level || g.level === level)).length;
+    if (kind === 'group') return (groups || []).filter((g) => !subject || g.subject === subject).length;
     const w = resolveWhere(where);
-    return filterTutors(tutors, { subject, level, mode: w.mode, place: w.place }).length;
-  }, [tutors, groups, subject, level, where, kind]);
+    return filterTutors(tutors, { subject, topic, mode: w.mode, place: w.place }).length;
+  }, [tutors, groups, subject, topic, where, kind]);
 
   const featured = useMemo(() => (tutors ? sortTutors(tutors, 'best').filter((t) => t.ratingCount >= 10 && t.photo).slice(0, 3) : []), [tutors]);
   const upcoming = useMemo(() => (groups ? [...groups].filter((g) => g.seatsTaken < g.maxSeats).sort((a, b) => a.startDate.localeCompare(b.startDate)).slice(0, 3) : []), [groups]);
@@ -39,12 +38,12 @@ export default function Home() {
 
   const submit = (e) => {
     e.preventDefault();
-    if (kind === 'group') { setFilters((f) => ({ ...f, subject, level, topic })); go('groups'); return; }
+    if (kind === 'group') { setFilters((f) => ({ ...f, subject, topic })); go('groups'); return; }
     const w = resolveWhere(where);
-    setFilters((f) => ({ ...f, subject, level, topic, ...w, sort: w.origin ? 'near' : 'best' }));
+    setFilters((f) => ({ ...f, subject, topic, ...w, sort: w.origin ? 'near' : 'best' }));
     go('search');
   };
-  const track = (lvl) => { setFilters((f) => ({ ...f, subject: lvl === 'פסיכומטרי' ? '' : 'מתמטיקה', topic: '', level: lvl, sort: 'best' })); go('search'); };
+  const track = (subject, topic) => { setFilters((f) => ({ ...f, subject, topic, sort: 'best' })); go('search'); };
 
   return (
     <main id="top">
@@ -57,7 +56,7 @@ export default function Home() {
               <span><b>{proof.avg.toFixed(1)}</b> ממוצע מתוך <bdi>{proof.n.toLocaleString('he-IL')}</bdi> ביקורות</span>
             </div>
           ) : null}
-          <p className="lead">מורים פרטיים למתמטיקה ולשאר המקצועות. מחפשים לפי רמה ומיקום, משווים מחיר וביקורות, ופונים ישירות.</p>
+          <p className="lead">מורים פרטיים למתמטיקה ולשאר המקצועות. מחפשים לפי מקצוע ומיקום, משווים מחיר וביקורות, ופונים ישירות.</p>
           <figure className="hero-photo">
             <HeroSlides />
             {featured[0] ? (
@@ -73,20 +72,10 @@ export default function Home() {
         <form className="card" onSubmit={submit} aria-label="חיפוש מורה">
           <div className="subjects">
             <label className="field-label" htmlFor="home-topic">מה רוצים ללמוד?</label>
-            <TopicPicker id="home-topic" value={optionLabel({ subject, level, topic })}
-              onPick={(o) => { setSubject(o?.subject || ''); setTopic(o?.topic || ''); setLevel(o ? (o.topic ? (o.level || level) : o.level) : ''); }} />
+            <TopicPicker id="home-topic" value={optionLabel({ subject, topic })}
+              onPick={(o) => { setSubject(o?.subject || ''); setTopic(o?.topic || ''); }} />
           </div>
-          {/* A chosen topic or "subject - level" already says the level, so the separate level field goes away. */}
-          <div className={subject && (topic || level) ? 'row1' : 'row2'}>
-            {subject && (topic || level) ? null : (
-              <div>
-                <label className="field-label" htmlFor="home-level">רמה</label>
-                <select className="select" id="home-level" value={level} onChange={(e) => setLevel(e.target.value)}>
-                  <option value="">כל הרמות</option>
-                  {LEVELS.map((l) => <option key={l}>{l}</option>)}
-                </select>
-              </div>
-            )}
+          <div className="row1">
             <div>
               <label className="field-label" htmlFor="home-where">איפה?</label>
               <WherePicker id="home-where" value={where} onChange={setWhere} />
@@ -107,8 +96,8 @@ export default function Home() {
         <div className="wrap">
           <div className="sec-head"><h2 id="tracks-h">מתמטיקה לפי מסלול</h2><a href="#search">כל המורים</a></div>
           <div className="tracks">
-            {TRACKS.map(([lvl, title, sub]) => (
-              <button key={lvl} type="button" className="track" onClick={() => track(lvl)}>
+            {TRACKS.map(([lvl, title, sub, subj, course]) => (
+              <button key={lvl} type="button" className="track" onClick={() => track(subj, course)}>
                 <span className="units">{lvl}</span><strong>{title}</strong><span>{sub}</span>
               </button>
             ))}

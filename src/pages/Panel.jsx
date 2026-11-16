@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, useLoad, useMyTutor, go } from '../state.jsx';
-import { SUBJECTS, LEVELS, CITIES, GOALS, LESSON_COUNTS, labelOf } from '../data/constants.js';
+import { SUBJECTS, CITIES, GOALS, LESSON_COUNTS, labelOf } from '../data/constants.js';
 import { money, dateShort, dateLong, normalizePhone, isPhone } from '../lib/format.js';
 import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, SpamNote, StatusTag, InquiryChat, ChatOverlay, VIA, viaOf, WeekGrid, ReportTutor, REPORT_REASONS } from '../components/ui.jsx';
-import { subtopicsOf } from '../data/topics.js';
+import { subtopicsOf, schoolCoursesOf, TOPICS } from '../data/topics.js';
 
 // Two separate areas: "תלמיד" (my conversations and sign-ups) and "מורה" (my profile, inquiries, groups).
 // Personal details belong to both; admins get a third area.
@@ -125,7 +125,7 @@ function MyProfile() {
         <div>
           <h2>{mine.name} <Verified tutor={mine} /></h2>
           <p className="muted-text">{mine.headline}</p>
-          <p>{(mine.subjects || []).join(', ')} · {(mine.levels || []).join(', ')}</p>
+          <p>{(mine.subjects || []).join(', ')}{(mine.topics || []).length ? ` · ${mine.topics.slice(0, 6).join(', ')}` : ''}</p>
           <p>{mine.teachesFrontal && mine.priceFrontal ? `פרונטלי ${money(mine.priceFrontal)} ב${mine.city}` : ''}{mine.teachesFrontal && mine.teachesOnline ? ' · ' : ''}{mine.teachesOnline && mine.priceOnline ? `אונליין ${money(mine.priceOnline)}` : ''}</p>
           <p>טלפון (לא מוצג לתלמידים): <bdi>{mine.phone}</bdi></p>
           {mine.address ? <p>כתובת (לא מוצגת לתלמידים): {mine.address}</p> : null}
@@ -296,7 +296,7 @@ function MyDetails() {
 }
 
 const EMPTY_TUTOR = {
-  name: '', photo: '', headline: '', about: '', education: '', subjects: ['מתמטיקה'], levels: [], topics: [], city: '', area: '',
+  name: '', photo: '', headline: '', about: '', education: '', subjects: ['מתמטיקה'], topics: [], city: '', area: '',
   teachesFrontal: true, priceFrontal: '', teachesOnline: true, priceOnline: '', experienceYears: '', phone: '', birthDate: '', address: '', verified: false, availability: [],
 };
 
@@ -321,7 +321,6 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
       if (!(t.address || '').trim()) e.address = 'כתבו כתובת מגורים (רחוב, מספר ועיר)';
     }
     if (!t.subjects.length) e.subjects = 'בחרו לפחות מקצוע אחד';
-    if (!t.levels.length) e.levels = 'בחרו לפחות רמה אחת';
     if (!t.teachesFrontal && !t.teachesOnline) e.mode = 'בחרו פרונטלי, אונליין או את שניהם';
     if (t.teachesFrontal && !t.city) e.city = 'בחרו עיר לשיעורים פרונטליים';
     if (t.teachesFrontal && !(Number(t.priceFrontal) > 0)) e.priceFrontal = 'כתבו מחיר לשעה';
@@ -399,12 +398,9 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
             set({ subjects, topics: (t.topics || []).filter((x) => keep.has(x) || !(t.subjects || []).some((s) => subtopicsOf(s).includes(x))) });
           }} />
         <Err k="subjects" />
-        <span className="field-label" id="tf-lvl">רמות</span>
-        <Chips multi label="tf-lvl" options={LEVELS} value={t.levels} onChange={(levels) => set({ levels })} />
-        <Err k="levels" />
         {(t.subjects || []).length ? (
           <>
-            <span className="field-label">תתי נושאים <small className="muted-text">(לא חובה: סמנו מה אתם מלמדים בכל מקצוע, כך תלמידים ימצאו אתכם)</small></span>
+            <span className="field-label">קורסים ונושאים <small className="muted-text">(סמנו מה אתם מלמדים בכל מקצוע, למשל 4 יח״ל, 5 יח״ל או חדו״א 1. כך תלמידים ימצאו אתכם)</small></span>
             {t.subjects.map((s) => {
               const opts = subtopicsOf(s);
               if (!opts.length) return null;
@@ -547,6 +543,8 @@ function SeatList({ groupId }) {
   );
 }
 
+// A group is for one course of its subject (5 יח״ל, חדו״א 1…); an older group may still hold a value outside the list.
+const groupCourses = (subject, current) => [...new Set([...schoolCoursesOf(subject), ...TOPICS.filter((x) => x.subject === subject && !/^שאלון/.test(x.name)).map((x) => x.name), ...(current ? [current] : [])])];
 const EMPTY_GROUP = { tutorId: '', title: '', subject: 'מתמטיקה', level: '', description: '', startDate: '', time: '', sessions: 1, mode: 'online', city: '', location: '', pricePerPerson: '', maxSeats: 8, joinMode: 'open', joinMessage: '' };
 
 function GroupForm({ initial, tutors, onSaved, onCancel }) {
@@ -590,8 +588,8 @@ function GroupForm({ initial, tutors, onSaved, onCancel }) {
         <input id="gf-title" className="input" placeholder="למשל: מרתון לבגרות 472" value={g.title} onChange={(e) => set({ title: e.target.value })} />
         <Err k="title" />
         <div className="f2">
-          <div><label className="field-label" htmlFor="gf-subject">מקצוע</label><select id="gf-subject" className="select" value={g.subject} onChange={(e) => set({ subject: e.target.value })}>{[...SUBJECTS, 'פסיכומטרי'].map((s) => <option key={s}>{s}</option>)}</select></div>
-          <div><label className="field-label" htmlFor="gf-level">רמה</label><select id="gf-level" className="select" value={g.level} onChange={(e) => set({ level: e.target.value })}><option value="">לא משנה</option>{LEVELS.map((l) => <option key={l}>{l}</option>)}</select></div>
+          <div><label className="field-label" htmlFor="gf-subject">מקצוע</label><select id="gf-subject" className="select" value={g.subject} onChange={(e) => set({ subject: e.target.value, level: '' })}>{[...SUBJECTS, 'פסיכומטרי'].map((s) => <option key={s}>{s}</option>)}</select></div>
+          <div><label className="field-label" htmlFor="gf-level">קורס</label><select id="gf-level" className="select" value={g.level} onChange={(e) => set({ level: e.target.value })}><option value="">כללי</option>{groupCourses(g.subject, g.level).map((l) => <option key={l}>{l}</option>)}</select></div>
         </div>
         <label className="field-label" htmlFor="gf-desc">מה עושים בקבוצה</label>
         <textarea id="gf-desc" className="input" rows={4} maxLength={1500} placeholder="נושאים, למי זה מתאים, מה מקבלים (הקלטה, דפי תרגול)…" value={g.description} onChange={(e) => set({ description: e.target.value })} />
@@ -735,7 +733,7 @@ function PendingTutors({ onChange }) {
               <Avatar tutor={t} className="ai-photo" size={64} />
               <div className="ai-main">
                 <b>{t.name}</b>
-                <p className="t-meta">{(t.subjects || []).join(', ')} · {(t.levels || []).join(', ')} · {t.city || 'אונליין'}</p>
+                <p className="t-meta">{(t.subjects || []).join(', ')}{(t.topics || []).length ? ` · ${t.topics.slice(0, 6).join(', ')}` : ''} · {t.city || 'אונליין'}</p>
                 <p className="t-meta">נשלח {dateShort(t.createdAt)}</p>
                 {open?.id === t.id ? (
                   <div className="pending-details">

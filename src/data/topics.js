@@ -1,8 +1,7 @@
-// Study topics for the free-text "מה רוצים ללמוד?" search. Each line: subject | level hint | topics.
-// A topic narrows the search to its subject (and to the level when the hint names one of LEVELS).
+// Study topics for the free-text "מה רוצים ללמוד?" search. Each line: subject | where it is taught | courses.
+// There are no "levels": 4 יח״ל and 5 יח״ל are two courses of מתמטיקה, the way חדו״א 1 and חדו״א 2 are.
 // Tutors can tick the topics they teach; those tutors come first in the results.
-// Add topics freely: one comma-separated line per subject and level.
-import { LEVELS } from './constants.js';
+// Add courses freely: one comma-separated line per subject and where it is taught.
 
 const RAW = `
 מתמטיקה|3 יח״ל|שאלון 371, שאלון 372, שאלון 35181, שאלון 35182
@@ -48,8 +47,7 @@ const RAW = `
 מנהל עסקים|אקדמיה|שיווק, מימון, ניהול
 `;
 
-const LEVEL_SET = new Set(LEVELS);
-// Exam codes decide the level: שאלון 582 → 5 יח״ל, etc.
+// Exam codes belong to a bagrut track: שאלון 582 → the 5 יח״ל course, etc.
 const examLevel = (name) => {
   // Old codes: 371/471/581 (first digit = units). New codes: 35181 / 35481 / 35581 (351 = 3 units, 354 = 4, 355 = 5).
   const old = name.match(/^שאלון\s*([345])\d\d$/);
@@ -61,18 +59,11 @@ const examLevel = (name) => {
 export const TOPICS = RAW.trim().split('\n').flatMap((line) => {
   const [subject, hint, list] = line.split('|');
   return list.split(',').map((s) => s.trim()).filter(Boolean).map((name) => {
-    // Only exam codes, academia and psychometry narrow the level: a 4-unit topic is taught by 5-unit tutors too.
-    const level = examLevel(name) || (hint === 'אקדמיה' || hint === 'פסיכומטרי' ? hint : '');
-    return { name, subject, hint, level };
+    return { name, subject, hint };
   });
-}).filter((t, i, all) => {
-  // The same topic listed at two levels (e.g. organic chemistry in school and university) appears once, without a level.
-  const first = all.findIndex((x) => x.subject === t.subject && x.name === t.name);
-  if (first !== i) { all[first].level = all[first].level === t.level ? t.level : ''; return false; }
-  return true;
-});
+}).filter((t, i, all) => all.findIndex((x) => x.subject === t.subject && x.name === t.name) === i);
 
-// Subjects and the levels they are taught at come from every line, including lines with no courses.
+// Subjects come from every line, including lines with no courses.
 const LINES = RAW.trim().split('\n').map((line) => line.split('|'));
 export const TOPIC_SUBJECTS = [...new Set(LINES.map(([subject]) => subject))];
 
@@ -88,29 +79,30 @@ export const BAGRUT_UNITS = {
   'לשון': [2], 'ספרות': [2, 5], 'היסטוריה': [2, 5], 'אזרחות': [2, 5], 'תנ״ך': [2, 5],
   'מחשבת ישראל': [2, 5], 'גאוגרפיה': [2, 5], 'ערבית': [3, 5], 'צרפתית': [3, 5], 'ספרדית': [3, 5],
 };
-const unitsOf = (subject) => (BAGRUT_UNITS[subject] || []).map((n) => `${n} יח״ל`);
-const HINT_LEVELS = { 'תיכון': unitsOf };
-/** Search options: "מקצוע - הכל", "מקצוע - רמה" and "מקצוע - נושא". */
+// School courses of a subject: the young-age courses, then one course per bagrut track (3 יח״ל, 4 יח״ל, 5 יח״ל).
+const YOUNG = { 'מתמטיקה': ['יסודי', 'חטיבת ביניים'], 'אנגלית': ['יסודי', 'חטיבת ביניים'], 'לשון': ['יסודי', 'חטיבת ביניים'] };
+export const UNIT_RE = /^[2-5] יח״ל$/;
+export const schoolCoursesOf = (subject) => [...(YOUNG[subject] || []), ...(BAGRUT_UNITS[subject] || []).map((n) => `${n} יח״ל`)];
+/** A school course is a strict choice (a 5 יח״ל student wants 5 יח״ל tutors); other courses only bring matching tutors first. */
+export const isSchoolCourse = (subject, topic) => schoolCoursesOf(subject).includes(topic);
+
+/** Search options: "מקצוע - הכל" and "מקצוע - קורס" (a bagrut track, a young-age course or a university course). */
 export const OPTIONS = (() => {
   const out = [];
   for (const subject of TOPIC_SUBJECTS) {
-    out.push({ key: `s:${subject}`, label: `${subject} - הכל`, subject, level: '', topic: '' });
-    const hints = [...new Set(LINES.filter(([x]) => x === subject).map(([, hint]) => hint))];
-    const levels = [...new Set(hints.flatMap((h) => (HINT_LEVELS[h] ? HINT_LEVELS[h](subject) : LEVEL_SET.has(h) && h !== subject ? [h] : [])))]
-      .sort((x, y) => LEVELS.indexOf(x) - LEVELS.indexOf(y));
-    // A subject taught at one level only (e.g. engineering) doesn't need a "subject - level" row.
-    // Exam codes are the same thing as their level (שאלון 582 = 5 יח״ל), so they live inside the level row:
-    // "מתמטיקה - 5 יח״ל (581, 582)", and typing "582" finds that row.
-    if (levels.length > 1) levels.forEach((level) => {
-      const exams = TOPICS.filter((t) => t.subject === subject && examLevel(t.name) === level).map((t) => t.name.replace(/^שאלון\s*/, ''));
+    out.push({ key: `s:${subject}`, label: `${subject} - הכל`, subject, topic: '' });
+    // Exam codes are the same course as their track (שאלון 582 = 5 יח״ל), so they live inside it:
+    // "מתמטיקה - 5 יח״ל (שאלונים 581, 582)", and typing "582" finds that row.
+    schoolCoursesOf(subject).forEach((course) => {
+      const exams = TOPICS.filter((t) => t.subject === subject && examLevel(t.name) === course).map((t) => t.name.replace(/^שאלון\s*/, ''));
       const short = exams.filter((c) => c.length <= 3);
       out.push({
-        key: `l:${subject}:${level}`, label: `${subject} - ${level}${short.length ? ` (שאלונים ${short.join(', ')})` : ''}`,
-        match: exams.length ? `${subject} ${level} שאלון ${exams.join(' ')}` : '', subject, level, topic: '',
+        key: `c:${subject}:${course}`, label: `${subject} - ${course}${short.length ? ` (שאלונים ${short.join(', ')})` : ''}`,
+        match: exams.length ? `${subject} ${course} שאלון ${exams.join(' ')}` : '', subject, topic: course,
       });
     });
   }
-  TOPICS.filter((t) => !examLevel(t.name)).forEach((t) => out.push({ key: `t:${t.subject}:${t.name}`, label: `${t.subject} - ${t.name}`, subject: t.subject, level: t.level, topic: t.name }));
+  TOPICS.filter((t) => !examLevel(t.name)).forEach((t) => out.push({ key: `t:${t.subject}:${t.name}`, label: `${t.subject} - ${t.name}`, subject: t.subject, topic: t.name }));
   return out;
 })();
 
@@ -126,9 +118,11 @@ export function searchOptions(text, limit = 14) {
     const subj = norm(o.subject);
     const topicN = norm(o.topic);
     let score;
-    if (subj.startsWith(q) || q.startsWith(subj)) score = o.topic ? 3 : o.level ? 1 : 0;
-    else if (!o.topic && subj.split(' ').some((x) => x.startsWith(words[0]))) score = o.level ? 1.2 : 0.5;
-    else if (!o.topic && o.level && norm(o.level).startsWith(q)) score = o.subject === 'מתמטיקה' ? 1 : 1.5;
+    const school = o.key.startsWith('c:');
+    if (subj.startsWith(q) || q.startsWith(subj)) score = !o.topic ? 0 : school ? 1 : 3;
+    else if (school && subj.split(' ').some((x) => x.startsWith(words[0]))) score = 1.2;
+    else if (!o.topic && subj.split(' ').some((x) => x.startsWith(words[0]))) score = 0.5;
+    else if (school && norm(o.topic).startsWith(q)) score = o.subject === 'מתמטיקה' ? 1 : 1.5;
     else if (topicN.startsWith(q)) score = 2;
     else if (topicN.split(' ').some((x) => x.startsWith(words[0]))) score = 4;
     else score = 5;
@@ -136,11 +130,11 @@ export function searchOptions(text, limit = 14) {
     if (o.match && !words.every((w) => norm(o.label).includes(w))) score += 0.5;
     scored.push([score, o]);
   }
-  // Ties keep the list order (levels from young to academia, courses as written).
+  // Ties keep the list order (school courses from young to 5 יח״ל, then courses as written).
   return scored.sort((a, b) => a[0] - b[0] || OPTIONS.indexOf(a[1]) - OPTIONS.indexOf(b[1])).slice(0, limit).map(([, o]) => o);
 }
 
-export const optionLabel = ({ subject, level, topic }) => (!subject ? '' : topic ? `${subject} - ${topic}` : `${subject} - ${level || 'הכל'}`);
+export const optionLabel = ({ subject, topic }) => (!subject ? '' : `${subject} - ${topic || 'הכל'}`);
 
 export const topicByName = (name) => TOPICS.find((t) => t.name === name);
 
@@ -172,8 +166,23 @@ const CHAPTERS = {
 };
 const split = (s) => String(s || '').split(',').map((x) => x.trim()).filter(Boolean);
 
-/** Sub-topics of a subject, chapters first, then exam codes and courses (no repeats). */
-export const subtopicsOf = (subject) => [...new Set([...split(CHAPTERS[subject]), ...TOPICS.filter((t) => t.subject === subject).map((t) => t.name)])];
+/** Courses and topics of a subject a tutor can tick: school courses (יסודי… 5 יח״ל) first, then university courses, then chapters.
+ *  Exam codes are not separate: שאלון 582 is the 5 יח״ל course. */
+export const subtopicsOf = (subject) => [...new Set([
+  ...schoolCoursesOf(subject),
+  ...TOPICS.filter((t) => t.subject === subject && !examLevel(t.name)).map((t) => t.name),
+  ...split(CHAPTERS[subject]),
+])];
+
+/** Older profiles kept "levels" (יסודי, 5 יח״ל, פסיכומטרי…) apart from their topics, and could tick exam codes.
+ *  This turns them into courses of each subject: levels ['4 יח״ל'] + subjects ['מתמטיקה', 'פיזיקה'] → topics '4 יח״ל' under מתמטיקה. */
+export function coursesFromLegacy(subjects = [], levels = [], topics = []) {
+  const subs = [...subjects];
+  if (levels.includes('פסיכומטרי') && !subs.includes('פסיכומטרי')) subs.push('פסיכומטרי');
+  const out = new Set(topics.map((x) => examLevel(x) || x));
+  for (const s of subs) schoolCoursesOf(s).forEach((c) => { if (levels.includes(c)) out.add(c); });
+  return { subjects: subs, topics: [...out] };
+}
 
 /** A tutor's sub-topics grouped under the subjects they teach: [[subject, [topic…]]…]; topics outside every subject go under "אחר". */
 export function topicsBySubject(subjects = [], topics = []) {
