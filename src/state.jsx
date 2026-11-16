@@ -37,7 +37,24 @@ export function AppProvider({ children }) {
   const [version, setVersion] = useState(0);
 
   useEffect(() => {
-    const on = () => { setRoute(parseRoute(window.location.hash)); window.scrollTo(0, 0); };
+    // Coming back from a tutor or group page to a list (search, groups, home) returns to where you were scrolled.
+    const ys = {};
+    let prev = window.location.hash;
+    const isList = (h) => /^#?(search|groups(-marathons)?)?$/.test(h);
+    const on = () => {
+      const from = prev, to = window.location.hash;
+      ys[from] = window.scrollY; prev = to;
+      setRoute(parseRoute(to)); window.scrollTo(0, 0);
+      const y = ys[to];
+      if (y && isList(to) && /^#(tutor|group)-/.test(from)) {
+        let tries = 0;
+        const restore = () => {
+          if (document.documentElement.scrollHeight - window.innerHeight >= y || tries++ > 20) window.scrollTo(0, y);
+          else setTimeout(restore, 50);
+        };
+        requestAnimationFrame(() => requestAnimationFrame(restore));
+      }
+    };
     window.addEventListener('hashchange', on);
     return () => window.removeEventListener('hashchange', on);
   }, []);

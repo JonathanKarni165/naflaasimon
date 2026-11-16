@@ -35,7 +35,7 @@ export function Stars({ avg, count, compact }) {
 
 export function StarRow({ value, size = 18 }) {
   return (
-    <span className="star-row" aria-label={`${value} מתוך 5 כוכבים`} style={{ fontSize: size }}>
+    <span className="star-row" role="img" aria-label={`${value} מתוך 5 כוכבים`} style={{ fontSize: size }}>
       {[1, 2, 3, 4, 5].map((i) => <span key={i} className={i <= value ? 'on' : ''} aria-hidden="true">★</span>)}
     </span>
   );
@@ -151,7 +151,7 @@ export function TutorRow({ tutor, sort, topic }) {
         {tutor.education ? <p className="tc-edu"><EduIcon /> {tutor.education}</p> : null}
         {topic && topicMatch(tutor, topic) ? <p className="t-topic">✓ מלמדים כאן {topic}</p> : null}
       </div>
-      {quote ? <blockquote className="tc-quote"><p>{quote}</p></blockquote> : null}
+      {quote ? <blockquote className="tc-quote"><p>{quote.replace(/\S+$/, '')}<span className="q-end">{quote.match(/\S+$/)?.[0]}</span></p></blockquote> : null}
       <ul className="tc-tags">
         {subjects.map((s) => <li key={s}>{s}</li>)}
         {placeLabel(tutor) ? <li className="tc-place">{placeLabel(tutor)}</li> : null}
@@ -711,7 +711,7 @@ export function TopicPicker({ id, value, onPick, onFree, placeholder = 'מקצו
       ) : open && free ? (
         <ul className="combo-list" id={id + '-list'} role="listbox">
           <li role="option" aria-selected="true" className="on" onMouseDown={(e) => { e.preventDefault(); runFree(); }}>
-            אין מקצוע או קורס בשם הזה. לחפש „<bdi>{free}</bdi>” בשמות המורים ובפרופילים
+            אין מקצוע או קורס בשם הזה. לחפש "<bdi>{free}</bdi>" בשמות המורים ובפרופילים
           </li>
         </ul>
       ) : null}

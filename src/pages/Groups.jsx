@@ -14,6 +14,7 @@ export function Groups({ initialKind = 'any' }) {
   const [mode, setMode] = useState('any');
   const [kind, setKind] = useState(initialKind);
   const [q, setQ] = useState('');
+  const [qFromTopic, setQFromTopic] = useState(false);
   const [onlyOpen, setOnlyOpen] = useState(true);
   const list = useMemo(() => {
     const words = q.trim().split(/\s+/).filter(Boolean);
@@ -46,13 +47,15 @@ export function Groups({ initialKind = 'any' }) {
         <div className="gf-search">
           <div className="topic-search">
             <label className="field-label" htmlFor="g-topic">מה רוצים ללמוד?</label>
-            <TopicPicker id="g-topic" value={optionLabel(pick)} onPick={(o) => setPick(o
+            {/* Free text that is not a subject searches titles, descriptions and tutor names (the same as the word field). */}
+            <TopicPicker id="g-topic" value={optionLabel(pick) || (qFromTopic ? q : '')} onPick={(o) => { setPick(o
               ? { subject: o.subject, topic: o.topic }
-              : { subject: '', topic: '' })} />
+              : { subject: '', topic: '' }); if (qFromTopic) { setQ(''); setQFromTopic(false); } }}
+              onFree={(text) => { setPick({ subject: '', topic: '' }); setQ(text); setQFromTopic(true); }} />
           </div>
           <div className="topic-search">
             <label className="field-label" htmlFor="g-q">שם מורה, עיר או מילה</label>
-            <input id="g-q" className="input" type="search" placeholder="למשל רמת גן" value={q} onChange={(e) => setQ(e.target.value)} />
+            <input id="g-q" className="input" type="search" placeholder="למשל רמת גן" value={q} onChange={(e) => { setQ(e.target.value); setQFromTopic(false); }} />
           </div>
         </div>
         <div className="gf-row">
@@ -65,7 +68,7 @@ export function Groups({ initialKind = 'any' }) {
         {groups ? <p className="muted-text gf-count"><bdi>{list.length}</bdi> {list.length === 1 ? 'קבוצה' : 'קבוצות'}{onlyOpen && hiddenFull ? ` (${hiddenFull === 1 ? 'מוסתרת קבוצה מלאה אחת' : `מוסתרות ${hiddenFull} קבוצות מלאות`})` : ''}</p> : null}
       </div>
       {!groups ? <Loading /> : list.length === 0 ? (
-        <Empty title={subject ? `אין כרגע קבוצות ב${optionLabel(pick).replace(' - הכל', '')}` : 'אין כרגע קבוצות שמתאימות'}>
+        <Empty title={q.trim() ? `לא מצאנו קבוצות עם "${q.trim()}"` : subject ? `אין כרגע קבוצות ב${optionLabel(pick).replace(' - הכל', '')}` : 'אין כרגע קבוצות שמתאימות'}>
           <p>{kind === 'marathon' ? 'אין כרגע מרתון שמתאים. נסו מקצוע אחר, או בקשו מהמורה שלכם לפתוח מרתון.' : 'נסו מקצוע אחר, או בקשו מהמורה שלכם לפתוח קבוצה.'}</p>
         </Empty>
       ) : (

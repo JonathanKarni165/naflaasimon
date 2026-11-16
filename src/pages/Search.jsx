@@ -122,7 +122,7 @@ export default function Search() {
           ) : null}
 
           {!results ? <Loading /> : results.length === 0 ? (
-            <Empty title={f.q ? `לא מצאנו מורים עם „${f.q}”` : 'לא מצאנו מורים שמתאימים לכל הסינונים'}>
+            <Empty title={f.q ? `לא מצאנו מורים עם "${f.q}"` : 'לא מצאנו מורים שמתאימים לכל הסינונים'}>
               <p>{f.q ? 'נסו לבחור מקצוע או קורס מהרשימה, או לחפש מילה אחרת.' : 'נסו להסיר את הגבלת המחיר או המרחק, או לבחור רמה אחרת.'}</p>
               <button type="button" className="btn btn-brand" onClick={() => { resetFilters(); setWhereText(''); }}>ניקוי הסינון</button>
             </Empty>
