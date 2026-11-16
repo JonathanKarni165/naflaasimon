@@ -166,7 +166,7 @@ function ReviewForm({ tutor, reviews, onDone }) {
   );
 }
 
-const SHOWN_REVIEWS = 8;
+const SHOWN_REVIEWS = 3;
 function ReviewItem({ r, after }) {
   const { api, user } = useApp();
   return (
@@ -180,33 +180,23 @@ function ReviewItem({ r, after }) {
   );
 }
 
-/** A few reviews in a short scrolling box; the rest open in a window, so the page stays short. */
+/** A few reviews in the page itself (no inner scroll box that traps the page scroll); more open in place on request. */
 function ReviewList({ tutor, reviews, after, loaded }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-  useEffect(() => {
-    const d = ref.current; if (!d) return;
-    if (open && !d.open) d.showModal();
-    if (!open && d.open) d.close();
-  }, [open]);
+  const [shown, setShown] = useState(SHOWN_REVIEWS);
   if (loaded && !reviews.length) return <p className="muted-text">עדיין אין ביקורות. למדתם עם {tutor.name.split(' ')[0]}? היו הראשונים לכתוב.</p>;
+  const left = reviews.length - shown;
   return (
     <>
-      <div className="reviews reviews-box" tabIndex={0} aria-label="ביקורות אחרונות">
-        {reviews.slice(0, SHOWN_REVIEWS).map((r) => <ReviewItem key={r.id} r={r} after={after} />)}
+      <div className="reviews reviews-flat" aria-label="ביקורות">
+        {reviews.slice(0, shown).map((r) => <ReviewItem key={r.id} r={r} after={after} />)}
       </div>
-      {reviews.length > SHOWN_REVIEWS ? (
-        <button type="button" className="btn btn-line more-reviews" onClick={() => setOpen(true)}>לכל {reviews.length} הביקורות</button>
+      {left > 0 ? (
+        <button type="button" className="btn btn-line more-reviews" onClick={() => setShown((n) => n + 10)}>
+          הצגת עוד {Math.min(left, 10)} ביקורות <small className="muted-text">(מתוך {reviews.length})</small>
+        </button>
+      ) : reviews.length > SHOWN_REVIEWS ? (
+        <button type="button" className="btn btn-line more-reviews" onClick={() => setShown(SHOWN_REVIEWS)}>הסתרת ביקורות</button>
       ) : null}
-      <dialog ref={ref} className="modal modal-wide" onClose={() => setOpen(false)} onClick={(e) => { if (e.target === ref.current) setOpen(false); }}>
-        <div className="modal-body reviews-modal">
-          <button type="button" className="modal-x" onClick={() => setOpen(false)} aria-label="סגירה">×</button>
-          <h2>הביקורות על {tutor.name}</h2>
-          <div className="reviews reviews-all">
-            {open ? reviews.map((r) => <ReviewItem key={r.id} r={r} after={after} />) : null}
-          </div>
-        </div>
-      </dialog>
     </>
   );
 }
