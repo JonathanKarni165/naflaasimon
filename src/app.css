@@ -47,6 +47,12 @@ img { max-width: 100%; }
 .user-pop a:hover, .user-pop button:hover { background: var(--chip); }
 .user-pop button { color: var(--danger); }
 @media (max-width: 420px) { .user-name { display: none; } .user-btn { padding: 3px; } .logo-text small { font-size: 11.5px; } }
+/* Very narrow phones (iPhone SE): one-line logo, no tagline, smaller sort chips so the header stays short. */
+@media (max-width: 374px) {
+  .logo-text small { display: none; }
+  .logo b { font-size: 19px; white-space: nowrap; }
+  .logo { gap: 7px; }
+}
 
 /* Bottom nav on phones */
 .bottom-nav { position: fixed; inset: auto 0 0; z-index: 20; display: grid; grid-template-columns: repeat(4, 1fr); background: var(--surface); border-top: 2px solid var(--ink);
@@ -722,7 +728,8 @@ footer .linkish { color: inherit; font-weight: 600; }
 }
 .tc-quote::before { content: '”'; position: absolute; inset-inline-start: 0; top: -10px; font-family: "Frank Ruhl Libre", serif; font-size: 58px; line-height: 1; color: var(--brass); }
 .tc-quote p { margin: 0; }
-.tc-quote p::after { content: '“'; display: inline-block; font-family: "Frank Ruhl Libre", serif; font-size: 46px; line-height: 0; vertical-align: -0.42em; color: var(--brass); margin-inline-start: 6px; }
+.tc-quote .q-end { white-space: nowrap; }
+.tc-quote .q-end::after { content: '“'; display: inline-block; font-family: "Frank Ruhl Libre", serif; font-size: 46px; line-height: 0; vertical-align: -0.42em; color: var(--brass); margin-inline-start: 6px; }
 .tc-tags { grid-area: tags; list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .tc-tags li { font-size: 13.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--brass-soft); color: var(--ink); }
 .tc-tags .tc-place { background: none; border: 1px solid var(--line); color: var(--muted); font-weight: 600; }
@@ -764,3 +771,10 @@ img.photo-bg { background: #F4E29C url("data:image/svg+xml,%3Csvg xmlns='http://
 @media (max-width: 1023px) { .modal { max-height: calc(100dvh - 32px - env(safe-area-inset-bottom, 0px)); } }
 .reviews-flat { border: 1px solid var(--line); border-radius: 12px; padding: 0 14px; background: var(--surface); }
 .reviews-flat .review:last-child { border-bottom: 0; }
+
+/* iPhone SE width: keep the sort chips on one line (placed last so it wins over the 520px wrap rule). */
+@media (max-width: 374px) {
+  .sortbar { gap: 6px; align-items: center; }
+  .sortbar .chips { flex-wrap: nowrap; overflow-x: auto; gap: 5px; }
+  .sortbar .chip, .sortbar .filter-btn { padding: 6px 9px; font-size: 13.5px; }
+}
