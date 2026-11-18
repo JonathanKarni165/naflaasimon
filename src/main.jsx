@@ -9,7 +9,7 @@ import { Groups, Group } from './pages/Groups.jsx';
 import Panel from './pages/Panel.jsx';
 import About from './pages/About.jsx';
 import Auth from './pages/Auth.jsx';
-import { Privacy, Accessibility, Contact } from './pages/Legal.jsx';
+import { Privacy, Accessibility, Contact, NotFound } from './pages/Legal.jsx';
 import './base.css';
 import './app.css';
 
@@ -27,7 +27,16 @@ function useTitle() {
     let page = TITLES[route.name] || '';
     if (route.name === 'tutor') { const t = (tutors || []).find((x) => x.id === route.id); page = t ? `${t.name}, שיעורים פרטיים` : 'פרופיל מורה'; }
     if (route.name === 'group') { const g = (groups || []).find((x) => x.id === route.id); page = g ? g.title : 'קבוצת למידה'; }
+    const known = route.name === 'home' || TITLES[route.name] || route.name === 'tutor' || route.name === 'group';
+    if (!known) page = 'העמוד לא נמצא';
     document.title = page ? `${page} | ${SITE}` : `${SITE} | מורים פרטיים למתמטיקה ועוד`;
+    // Private and sample pages are kept out of search engines (robots.txt can't do it under /naflaasimon/).
+    const sample = route.name === 'tutor' ? (tutors || []).find((x) => x.id === route.id)?.isExample
+      : route.name === 'group' ? (() => { const g = (groups || []).find((x) => x.id === route.id); return !g || !!(tutors || []).find((x) => x.id === g.tutorId)?.isExample; })() : false;
+    const hide = !known || sample || /^(panel|chat|login|signup)/.test(route.name);
+    let meta = document.querySelector('meta[name="robots"]');
+    if (hide) { if (!meta) { meta = document.createElement('meta'); meta.name = 'robots'; document.head.appendChild(meta); } meta.content = 'noindex'; }
+    else if (meta) meta.remove();
   }, [route.name, route.id, tutors, groups]);
 }
 
@@ -48,6 +57,7 @@ function Router() {
     case 'signup': return <Auth mode="signup" />;
     default:
       if (route.name.startsWith('panel') || route.name === 'chat') return <Panel />;
+      if (route.name !== 'home') return <NotFound />;
       return <Home />;
   }
 }

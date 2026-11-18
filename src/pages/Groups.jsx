@@ -162,7 +162,7 @@ export function Group({ id }) {
   };
   const join = async (e) => {
     e.preventDefault();
-    if (!isPhone(form.phone)) { notify('בדקו את מספר הטלפון, למשל 050-1234567', true); return; }
+    if (!isPhone(form.phone)) { notify('בדקו את מספר הטלפון, למשל 050‑1234567', true); return; }
     setBusy(true);
     try {
       const st = await api.joinGroup(id, form);
