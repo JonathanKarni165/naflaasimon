@@ -107,7 +107,7 @@ const tutorFromRow = (r, stats = {}) => ({
   teachesOnline: r.teaches_online, teachesFrontal: r.teaches_frontal, priceOnline: r.price_online, priceFrontal: r.price_frontal,
   experienceYears: r.experience_years, verified: r.verified, contactCount: r.contact_count, createdAt: r.created_at,
   ratingCount: stats.rating_count || 0, ratingAvg: stats.rating_avg || 0,
-  approval: r.approval || 'approved', rejectReason: r.reject_reason || '',
+  approval: r.approval || 'approved', rejectReason: r.reject_reason || '', isExample: !!r.is_example,
 });
 const tutorToRow = (t) => {
   const c = cityByName(t.city);

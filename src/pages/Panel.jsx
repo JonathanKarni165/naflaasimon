@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, useLoad, useMyTutor, go, to } from '../state.jsx';
 import { SUBJECTS, CITIES, GOALS, LESSON_COUNTS, labelOf, WEEK_DAYS, WEEK_DAY_NAMES } from '../data/constants.js';
 import { money, dateShort, dateLong, normalizePhone, isPhone, weekdayMismatch } from '../lib/format.js';
-import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, SpamNote, StatusTag, InquiryChat, ChatOverlay, VIA, viaOf, WeekGrid, ReportTutor, REPORT_REASONS, BirthDateInput } from '../components/ui.jsx';
+import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, SpamNote, StatusTag, InquiryChat, ChatOverlay, VIA, viaOf, WeekGrid, ReportTutor, REPORT_REASONS, BirthDateInput, declinedSeen, markDeclinedSeen } from '../components/ui.jsx';
 import { subtopicsOf, schoolCoursesOf, TOPICS } from '../data/topics.js';
 
 // Two separate areas: "תלמיד" (my conversations and sign-ups) and "מורה" (my profile, inquiries, groups).
@@ -269,7 +269,7 @@ function MyDetails() {
   const save = async (e) => {
     e.preventDefault();
     if (!f.name.trim()) { notify('כתבו שם', true); return; }
-    if (f.phone.trim() && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל 050-1234567', true); return; }
+    if (f.phone.trim() && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל 050‑1234567', true); return; }
     setBusy(true);
     try { await api.saveMyContact({ name: f.name.trim(), phone: f.phone.trim(), birthDate: f.birthDate, area: f.area, whatsappOptin: f.whatsappOptin }); notify('הפרטים נשמרו'); } catch (err) { notify(err.message, true); }
     setBusy(false);
@@ -328,7 +328,7 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
     const priceErr = (v) => (!(Number(v) > 0) ? 'כתבו מחיר לשעה' : Number(v) < PRICE_MIN || Number(v) > PRICE_MAX ? `מחיר לשעה בין ${PRICE_MIN} ל-${PRICE_MAX} ₪` : '');
     if (t.teachesFrontal && priceErr(t.priceFrontal)) e.priceFrontal = priceErr(t.priceFrontal);
     if (t.teachesOnline && priceErr(t.priceOnline)) e.priceOnline = priceErr(t.priceOnline);
-    if (strict || t.phone) { if (!/^0\d{1,2}-?\d{7}$/.test((t.phone || '').replace(/\s/g, ''))) e.phone = 'מספר טלפון ישראלי, למשל 050-1234567'; }
+    if (strict || t.phone) { if (!/^0\d{1,2}-?\d{7}$/.test((t.phone || '').replace(/\s/g, ''))) e.phone = 'מספר טלפון ישראלי, למשל 050‑1234567'; }
     setErrors(e);
     return !Object.keys(e).length;
   };
@@ -646,16 +646,37 @@ function MySeats({ openId }) {
   // One conversation open at a time; a link from a tutor's page opens that tutor's conversation.
   const [open, setOpen] = useState(openId);
   useEffect(() => { if (openId) setOpen(openId); }, [openId]);
+  // A declined inquiry shows a notice until the student opens it once; after that it moves to "שיחות שנסגרו".
+  const [seen, setSeen] = useState(declinedSeen);
+  const toggle = (q) => {
+    if (open === q.id) { setOpen(null); if (q.status === 'declined') setSeen(declinedSeen()); return; }
+    if (q.status === 'declined') markDeclinedSeen(q.id);
+    setOpen(q.id);
+  };
   if ((loading && !seats) || (loadingQ && !inqs)) return <Loading />;
+  const sorted = [...(inqs || [])].sort((a, b) => (b.lastAt || b.createdAt || '').localeCompare(a.lastAt || a.createdAt || ''));
+  const closed = sorted.filter((q) => q.status === 'declined' && seen.has(q.id) && open !== q.id);
+  const active = sorted.filter((q) => !closed.includes(q))
+    .sort((a, b) => Number(b.status === 'declined' && !seen.has(b.id)) - Number(a.status === 'declined' && !seen.has(a.id)));
   const list = (seats || []).map((s) => ({ s, g: (groups || []).find((g) => g.id === s.groupId) })).filter((x) => x.g);
   return (
     <div className="my-requests">
       <section>
         <h2 className="sub-h">פניות ששלחתי למורים</h2>
         {!(inqs || []).length ? <p className="muted-text">עוד לא שלחתם פנייה. <a href={to('search')}>חיפוש מורה</a></p> : (
-          <div className="inq-list">
-            {[...inqs].sort((a, b) => (b.lastAt || b.createdAt || '').localeCompare(a.lastAt || a.createdAt || '')).map((q) => <MyInquiry key={q.id} q={q} open={open === q.id} onToggle={() => setOpen(open === q.id ? null : q.id)} />)}
-          </div>
+          <>
+            {active.length ? (
+              <div className="inq-list">
+                {active.map((q) => <MyInquiry key={q.id} q={q} fresh={q.status === 'declined' && !seen.has(q.id)} open={open === q.id} onToggle={() => toggle(q)} />)}
+              </div>
+            ) : <p className="muted-text">אין שיחות פתוחות. <a href={to('search')}>חיפוש מורה</a></p>}
+            {closed.length ? (
+              <details className="closed-inqs">
+                <summary>שיחות שנסגרו ({closed.length})</summary>
+                <div className="inq-list">{closed.map((q) => <MyInquiry key={q.id} q={q} open={open === q.id} onToggle={() => toggle(q)} />)}</div>
+              </details>
+            ) : null}
+          </>
         )}
       </section>
       <section>
@@ -678,7 +699,7 @@ function MySeats({ openId }) {
   );
 }
 
-function MyInquiry({ q, open, onToggle }) {
+function MyInquiry({ q, open, onToggle, fresh }) {
   const ref = useRef(null);
   useEffect(() => {
     if (!open || !ref.current) return;
@@ -687,7 +708,7 @@ function MyInquiry({ q, open, onToggle }) {
   }, [open]);
   const name = q.tutor ? q.tutor.name : 'מורה שהוסר/ה';
   return (
-    <article ref={ref} className={'inq my-inq' + (open ? ' is-open' : '')}>
+    <article ref={ref} className={'inq my-inq' + (open ? ' is-open' : '') + (fresh ? ' is-declined' : '')}>
       <button type="button" className="inq-head" aria-expanded={open} onClick={onToggle}>
         <span className="inq-top">
           <Avatar tutor={q.tutor || { name }} className="inq-av" size={88} />
@@ -696,7 +717,7 @@ function MyInquiry({ q, open, onToggle }) {
             <span className="my-inq-sub"><StatusTag status={q.status} /> <span className="muted-text">{dateShort(q.createdAt)}</span></span>
           </span>
         </span>
-        {!open ? <span className="inq-preview-line">{q.status === 'new' && !q.messageCount ? 'המורה עוד לא ענה' : (q.message || '').split('\n')[0]}</span> : null}
+        {!open ? <span className="inq-preview-line">{fresh ? `התשובה של ${name.split(' ')[0]}: הפנייה לא מתאימה כרגע. לחצו כדי לראות, אחר כך השיחה תיסגר.` : q.status === 'new' && !q.messageCount ? 'המורה עוד לא ענה' : (q.message || '').split('\n')[0]}</span> : null}
         <span className="inq-toggle">{open ? 'פתיחת השיחה' : 'פתיחת השיחה'}</span>
       </button>
       {open ? (

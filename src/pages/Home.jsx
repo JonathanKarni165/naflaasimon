@@ -17,8 +17,9 @@ const TRACKS = [
 
 export default function Home() {
   const { tutors, groups, filters, setFilters } = useApp();
-  const [subject, setSubject] = useState(filters.subject || '');
-  const [topic, setTopic] = useState(filters.topic || '');
+  // The home search box always starts empty (grey "מקצוע לימוד"), not with the last search.
+  const [subject, setSubject] = useState('');
+  const [topic, setTopic] = useState('');
   const [where, setWhere] = useState(filters.mode === 'online' ? 'online' : filters.city || filters.place || '');
   const [kind, setKind] = useState('private');
   // Online / frontal / "לא משנה", carried to the search and groups pages.

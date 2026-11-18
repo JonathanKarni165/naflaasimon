@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useApp, useMyTutor, go, to, currentName } from '../state.jsx';
+import { useApp, useMyTutor, useLoad, go, to, currentName } from '../state.jsx';
 import { money, rating1, reviewsLabel, initials, avatarColor, km, relDays, dateLong, dateTime, isPhone, isEmail } from '../lib/format.js';
 import { CITIES, NEIGHBORHOODS, WEEK_DAYS, WEEK_DAY_NAMES, DAY_SLOTS, LESSON_COUNTS, GOALS, slotLabel, labelOf } from '../data/constants.js';
 import { searchOptions, optionLabel, schoolCoursesOf, subtopicsOf } from '../data/topics.js';
@@ -255,6 +255,11 @@ export const VIA = [['site', 'צ׳אט באתר'], ['phone', 'טלפון / וו�
 export const viaOf = (q) => (q.contactVia && q.contactVia.length ? q.contactVia : q.phone ? ['phone'] : ['site']);
 
 /** Two-way chat on one inquiry. The first bubble is the inquiry itself. */
+/** Declined inquiries the student has already opened: they move to "שיחות שנסגרו". Kept per browser. */
+const DECLINED_KEY = 'naflaasimon-declined-seen';
+export function declinedSeen() { try { return new Set(JSON.parse(localStorage.getItem(DECLINED_KEY) || '[]')); } catch { return new Set(); } }
+export function markDeclinedSeen(id) { try { const s = declinedSeen(); s.add(id); localStorage.setItem(DECLINED_KEY, JSON.stringify([...s].slice(-300))); } catch { /* private mode */ } window.dispatchEvent(new Event('naflaasimon:seen')); }
+
 export function InquiryChat({ q, asTutor }) {
   const { api, notify, version, reload } = useApp();
   const [msgs, setMsgs] = useState(null);
@@ -310,6 +315,14 @@ export function InquiryChat({ q, asTutor }) {
           );
         })}
       </ol>
+      {q.status === 'declined' ? (
+        // "לא מתאים" closes this conversation; the student can still send the tutor a new inquiry.
+        <p className="chat-closed" role="status">
+          {asTutor
+            ? 'סימנתם את הפנייה כ״לא מתאים״, והשיחה נסגרה. כדי לפתוח אותה שוב, שנו את הסטטוס של הפנייה.'
+            : <>התשובה של {tutorName.split(' ')[0]}: הפנייה הזו לא מתאימה כרגע, והשיחה נסגרה. אפשר לשלוח פנייה חדשה בכל זמן{q.tutorId ? <> מ<a href={to(`tutor-${q.tutorId}`)}>עמוד המורה</a></> : null}.</>}
+        </p>
+      ) : (
       <form className="chat-form" onSubmit={send}>
         <label className="sr-only" htmlFor={'chat-' + q.id}>הודעה ל{other}</label>
         <textarea id={'chat-' + q.id} className="input" rows={1} maxLength={1000} value={text} placeholder={`הודעה ל${other}…`}
@@ -317,6 +330,7 @@ export function InquiryChat({ q, asTutor }) {
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) send(e); }} />
         <button type="submit" className="btn btn-brand btn-sm" disabled={busy || !text.trim()}>שליחה</button>
       </form>
+      )}
     </div>
   );
 }
@@ -413,8 +427,8 @@ export function GuestDialog() {
     e.preventDefault();
     const e2 = {};
     if (f.name.trim().length < 2) e2.name = 'כתבו את השם שלכם';
-    if (!f.phone.trim()) e2.phone = 'כתבו מספר טלפון, למשל 050-1234567';
-    else if (!isPhone(f.phone)) e2.phone = 'המספר לא נראה תקין. כתבו מספר ישראלי, למשל 050-1234567';
+    if (!f.phone.trim()) e2.phone = 'כתבו מספר טלפון, למשל 050‑1234567';
+    else if (!isPhone(f.phone)) e2.phone = 'המספר לא נראה תקין. כתבו מספר ישראלי, למשל 050‑1234567';
     if (f.email.trim() && !isEmail(f.email)) e2.email = 'כתובת המייל לא נראית תקינה';
     if (!f.message.trim()) e2.message = 'כתבו הודעה קצרה למורה';
     setErrs(e2);
@@ -519,9 +533,9 @@ export function InquiryBox({ tutor }) {
   const submit = async (e) => {
     e.preventDefault();
     if (!f.via.length) { notify('בחרו לפחות דרך אחת שבה המורה יחזור אליכם', true); return; }
-    if (f.via.includes('phone') && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל 050-1234567', true); setEditDetails(true); return; }
+    if (f.via.includes('phone') && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל 050‑1234567', true); setEditDetails(true); return; }
     if (f.via.includes('email') && !isEmail(f.email)) { notify('בדקו את כתובת המייל', true); setEditDetails(true); return; }
-    if (f.phone.trim() && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל 050-1234567', true); setEditDetails(true); return; }
+    if (f.phone.trim() && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל 050‑1234567', true); setEditDetails(true); return; }
     if (!f.lessons || !f.goal) { setStep(0); notify('בחרו כמה שיעורים ומה המטרה', true); return; }
     setBusy(true);
     try {
@@ -729,7 +743,7 @@ function Hl({ text, q }) {
 }
 
 /** "מה רוצים ללמוד?": one free-text field over subjects and their courses (bagrut tracks with exam codes, university courses), e.g. "מתמטיקה - אינפי 1". */
-export function TopicPicker({ id, value, onPick, onFree, placeholder = 'מקצוע או קורס, למשל 582 או אינפי', subjects, autoFocus, adder }) {
+export function TopicPicker({ id, value, onPick, onFree, placeholder = 'מקצוע לימוד', subjects, autoFocus, adder }) {
   const [text, setText] = useState(value || '');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
@@ -965,7 +979,7 @@ export function ProfileSetup() {
   const save = async (e) => {
     e.preventDefault();
     if (!f.name.trim()) { notify('כתבו שם', true); return; }
-    if (f.phone.trim() && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל 050-1234567', true); return; }
+    if (f.phone.trim() && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל 050‑1234567', true); return; }
     setBusy(true);
     try { await api.saveMyContact({ name: f.name.trim(), phone: f.phone.trim(), birthDate: f.birthDate, area: f.area }); notify('נשמר. ברוכים הבאים!'); } catch (err) { notify(err.message, true); }
     setBusy(false);
@@ -1011,7 +1025,13 @@ const POP_ICONS = {
 };
 
 export function UserMenu() {
-  const { user, api } = useApp();
+  const { user, api, version } = useApp();
+  // A red dot tells the student a tutor answered "לא מתאים" (until they open that conversation).
+  const [myInq] = useLoad(() => api.myInquiries().catch(() => []), [user.id, version]);
+  const [, bump] = useState(0);
+  useEffect(() => { const on = () => bump((n) => n + 1); window.addEventListener('naflaasimon:seen', on); return () => window.removeEventListener('naflaasimon:seen', on); }, []);
+  const seenDeclined = declinedSeen();
+  const declinedNew = (myInq || []).filter((q) => q.status === 'declined' && !seenDeclined.has(q.id)).length;
   const [mine] = useMyTutor();
   const isTutor = !!mine;
   const [open, setOpen] = useState(false);
@@ -1025,6 +1045,7 @@ export function UserMenu() {
       <button type="button" className="user-btn" onClick={() => setOpen(!open)} aria-expanded={open}>
         {user.avatar ? <img src={user.avatar} alt="" /> : <span className="acct-av" style={{ background: avatarColor(user.id) }}>{initials(user.name)}</span>}
         <span className="user-name">{user.name.split(' ')[0]}</span>
+        {declinedNew ? <span className="dot-new" aria-label="יש עדכון בשיחות שלך" /> : null}
       </button>
       {open ? (
         <div className="user-pop">
@@ -1040,7 +1061,7 @@ export function UserMenu() {
           ) : null}
           <section className="pop-sec pop-student" aria-label="פאנל תלמיד">
             <span className="pop-title">{POP_ICONS.student}{isTutor ? 'פאנל תלמיד' : 'החשבון שלי'}</span>
-            <a href={to('panel-seats')} onClick={() => setOpen(false)}>השיחות וההרשמות שלי</a>
+            <a href={to('panel-seats')} onClick={() => setOpen(false)}>השיחות וההרשמות שלי{declinedNew ? <span className="badge"><bdi>{declinedNew}</bdi></span> : null}</a>
             <a href={to('panel-me')} onClick={() => setOpen(false)}>הפרטים האישיים שלי</a>
           </section>
           {user.isAdmin ? (

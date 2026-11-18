@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, to } from '../state.jsx';
 import { filterTutors, sortTutors, topicFirst, queryFirst, blendedRank } from '../lib/ranking.js';
 import { optionLabel } from '../data/topics.js';
@@ -38,6 +38,40 @@ export default function Search() {
       { timeout: 8000, maximumAge: 600000 },
     );
   };
+
+  // The search lives in the address (?subject=…&mode=online…), so a reload keeps it and a link can be shared.
+  const fromUrl = useRef(false);
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (![...p.keys()].length) { fromUrl.current = true; return; }
+    const w = p.get('where') || '';
+    const wr = w ? resolveWhere(w) : {};
+    setFilters((x) => ({
+      ...x, ...wr,
+      subject: p.get('subject') || '', topic: p.get('topic') || '', q: p.get('q') || '',
+      mode: ['online', 'frontal'].includes(p.get('mode')) ? p.get('mode') : (wr.mode === 'online' ? 'online' : 'any'),
+      sort: ['near', 'popular'].includes(p.get('sort')) ? p.get('sort') : 'best',
+      maxPrice: Number(p.get('price')) || 0, maxKm: Number(p.get('km')) || 0,
+    }));
+    if (w) setWhereText(w);
+    fromUrl.current = true;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!fromUrl.current) return;
+    const p = new URLSearchParams();
+    if (f.subject) p.set('subject', f.subject);
+    if (f.topic) p.set('topic', f.topic);
+    if (f.q) p.set('q', f.q);
+    if (f.mode !== 'any') p.set('mode', f.mode);
+    const w = whereText && whereText !== 'online' ? whereText : '';
+    if (w) p.set('where', w);
+    if (f.sort !== 'best') p.set('sort', f.sort);
+    if (f.maxPrice) p.set('price', String(f.maxPrice));
+    if (f.maxKm) p.set('km', String(f.maxKm));
+    const qs = p.toString();
+    const url = window.location.pathname + (qs ? '?' + qs : '');
+    if (url !== window.location.pathname + window.location.search) history.replaceState(history.state, '', url);
+  }, [f, whereText]);
 
   const activeCount = [f.maxPrice, f.maxKm, f.q, f.place].filter(Boolean).length;
 
