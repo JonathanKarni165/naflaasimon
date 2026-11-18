@@ -778,3 +778,18 @@ img.photo-bg { background: #F4E29C url("data:image/svg+xml,%3Csvg xmlns='http://
   .sortbar .chips { flex-wrap: nowrap; overflow-x: auto; gap: 5px; }
   .sortbar .chip, .sortbar .filter-btn { padding: 6px 9px; font-size: 13.5px; }
 }
+
+/* Personal menu: tutor, student and admin areas as separate coloured boxes. */
+.user-pop { gap: 8px; min-width: 240px; }
+.pop-sec { display: grid; gap: 2px; border: 2px solid var(--line); border-radius: 12px; padding: 0 6px 6px; overflow: hidden; }
+.pop-title { display: flex; align-items: center; gap: 8px; margin: 0 -6px 4px; padding: 8px 12px; font-family: var(--display); font-size: 16px; }
+.pop-title svg { width: 20px; height: 20px; flex: none; }
+.pop-tutor { border-color: var(--purple); }
+.pop-tutor .pop-title { background: var(--purple); color: #fff; }
+.pop-student { border-color: var(--brass); }
+.pop-student .pop-title { background: var(--brass-soft); color: var(--ink); }
+.pop-admin { border-color: var(--ink); }
+.pop-admin .pop-title { background: var(--ink); color: var(--surface); }
+.seg.seg-3 { grid-template-columns: repeat(3, 1fr); }
+.learn-mode { margin-top: 12px; max-width: 420px; display: grid; gap: 6px; }
+.learn-mode .field-label { margin: 0; }
