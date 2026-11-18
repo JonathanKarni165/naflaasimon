@@ -9,12 +9,13 @@ import { Groups, Group } from './pages/Groups.jsx';
 import Panel from './pages/Panel.jsx';
 import About from './pages/About.jsx';
 import Auth from './pages/Auth.jsx';
+import { Privacy, Accessibility, Contact } from './pages/Legal.jsx';
 import './base.css';
 import './app.css';
 
 const SITE = 'נפל האסימון';
 const TITLES = {
-  search: 'חיפוש מורים פרטיים', groups: 'קבוצות למידה ומרתונים', 'groups-marathons': 'מרתונים לבגרות', about: 'אודות ותנאי שימוש',
+  search: 'חיפוש מורים פרטיים', privacy: 'מדיניות פרטיות', accessibility: 'הצהרת נגישות', contact: 'צור קשר', groups: 'קבוצות למידה ומרתונים', 'groups-marathons': 'מרתונים לבגרות', about: 'אודות ותנאי שימוש',
   login: 'כניסה', signup: 'פתיחת חשבון', panel: 'פאנל מורה', 'panel-inbox': 'פניות מתלמידים', 'panel-groups': 'הקבוצות שלי',
   'panel-seats': 'השיחות וההרשמות שלי', 'panel-me': 'הפרטים האישיים שלי', 'panel-admin': 'ניהול מורים', 'panel-reports': 'דיווחים', chat: 'שיחה',
 };
@@ -40,6 +41,9 @@ function Router() {
     case 'groups-marathons': return <Groups key="marathons" initialKind="marathon" />;
     case 'group': return <Group id={route.id} />;
     case 'about': return <About />;
+    case 'privacy': return <Privacy />;
+    case 'accessibility': return <Accessibility />;
+    case 'contact': return <Contact />;
     case 'login': return <Auth mode="login" />;
     case 'signup': return <Auth mode="signup" />;
     default:

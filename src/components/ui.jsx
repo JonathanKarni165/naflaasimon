@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useApp, useMyTutor, go } from '../state.jsx';
+import { useApp, useMyTutor, go, to, currentName } from '../state.jsx';
 import { money, rating1, reviewsLabel, initials, avatarColor, km, relDays, dateLong, dateTime, isPhone, isEmail } from '../lib/format.js';
 import { CITIES, NEIGHBORHOODS, WEEK_DAYS, WEEK_DAY_NAMES, DAY_SLOTS, LESSON_COUNTS, GOALS, slotLabel, labelOf } from '../data/constants.js';
 import { searchOptions, optionLabel, schoolCoursesOf, subtopicsOf } from '../data/topics.js';
@@ -137,7 +137,7 @@ function priceRange(t) {
 
 /** Tutor card on the search page: separate card, clean photo, big rating + price, a quote from the bio. */
 export function TutorRow({ tutor, sort, topic }) {
-  const href = `#tutor-${tutor.id}`;
+  const href = to(`tutor-${tutor.id}`);
   const quote = tutorQuote(tutor);
   const price = priceRange(tutor);
   const subjects = (tutor.subjects || []).slice(0, 4);
@@ -188,12 +188,12 @@ export function GroupCard({ group }) {
   return (
     <article className="group">
       <div className="g-top"><span className="units">{group.level || group.subject}</span><span className="g-when">{relDays(group.startDate) === 'כבר התחילה' ? 'פעילה' : `מתחילה ${relDays(group.startDate)}`}</span></div>
-      <a className="g-title" href={`#group-${group.id}`}>{group.title}</a>
+      <a className="g-title" href={to(`group-${group.id}`)}>{group.title}</a>
       <p className="t-meta">{dateLong(group.startDate)} · {group.time} · {group.sessions > 1 ? `${group.sessions} מפגשים` : 'מפגש אחד'} · {group.mode === 'online' ? 'אונליין' : group.city || 'פרונטלי'}</p>
       {t ? <p className="t-meta host"><Avatar tutor={t} className="host-img" size={40} />עם {t.name} <Verified tutor={t} /></p> : null}
       <SeatDots taken={group.seatsTaken} max={group.maxSeats} />
       <p className="join-mode">{group.joinMode === 'approval' ? 'הצטרפות באישור המורה' : 'הרשמה פתוחה, נכנסים מיד'}</p>
-      <div className="t-foot"><span className="price"><bdi>{money(group.pricePerPerson)}</bdi> <small>{group.sessions > 1 ? 'לתלמיד למפגש' : 'לתלמיד, מפגש אחד'}</small></span><a className="btn btn-brand t-cta" href={`#group-${group.id}`}>לפרטים</a></div>
+      <div className="t-foot"><span className="price"><bdi>{money(group.pricePerPerson)}</bdi> <small>{group.sessions > 1 ? 'לתלמיד למפגש' : 'לתלמיד, מפגש אחד'}</small></span><a className="btn btn-brand t-cta" href={to(`group-${group.id}`)}>לפרטים</a></div>
     </article>
   );
 }
@@ -362,28 +362,65 @@ export function GuestRequest({ tutor, group }) {
 }
 
 /** "No account" route: leave a name, phone and message. After sending, the site offers sign-in. */
+/**
+ * Phone "back" closes an open dialog instead of leaving the page: opening adds a history entry,
+ * back closes the top dialog; closing with × or Esc steps back over that entry again
+ * (that step is skipped here, so it never closes the next dialog that opened meanwhile).
+ */
+const modalStack = [];
+let skipPops = 0;
+if (typeof window !== 'undefined') {
+  window.addEventListener('popstate', () => {
+    if (skipPops > 0) { skipPops -= 1; return; }
+    const top = modalStack.pop();
+    if (top) { top.popped = true; top.close(); }
+  });
+}
+export function useBackToClose(open, close) {
+  const closeRef = useRef(close);
+  closeRef.current = close;
+  useEffect(() => {
+    if (!open) return undefined;
+    const entry = { close: () => closeRef.current(), popped: false };
+    history.pushState({ ...(history.state || {}), naflaasimonModal: true }, '');
+    modalStack.push(entry);
+    return () => {
+      const k = modalStack.indexOf(entry);
+      if (k >= 0) modalStack.splice(k, 1);
+      if (!entry.popped && history.state?.naflaasimonModal) { skipPops += 1; history.back(); }
+    };
+  }, [open]);
+}
+
 export function GuestDialog() {
   const { api, user, notify, guestTarget, closeGuest } = useApp();
   const [f, setF] = useState({ name: '', phone: '', email: '', message: '', hp: '' });
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [signin, setSignin] = useState(false);
+  // Errors show next to the fields: a toast would sit behind the open dialog and look like nothing happened.
+  const [errs, setErrs] = useState({});
   const ref = useRef(null);
   const open = !!guestTarget && !user;
+  useBackToClose(open, closeGuest);
   useEffect(() => {
     const d = ref.current; if (!d) return;
-    if (open && !d.open) { setSent(false); setSignin(false); d.showModal(); }
+    if (open && !d.open) { setSent(false); setSignin(false); setErrs({}); d.showModal(); }
     if (!open && d.open) d.close();
   }, [open]);
   const tutor = guestTarget?.tutor; const group = guestTarget?.group;
   const submit = async (e) => {
     e.preventDefault();
-    if (f.name.trim().length < 2) { notify('כתבו שם', true); return; }
-    if (!isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל 050-1234567', true); return; }
-    if (f.email.trim() && !isEmail(f.email)) { notify('בדקו את כתובת המייל', true); return; }
-    if (!f.message.trim()) { notify('כתבו הודעה קצרה למורה', true); return; }
+    const e2 = {};
+    if (f.name.trim().length < 2) e2.name = 'כתבו את השם שלכם';
+    if (!f.phone.trim()) e2.phone = 'כתבו מספר טלפון, למשל 050-1234567';
+    else if (!isPhone(f.phone)) e2.phone = 'המספר לא נראה תקין. כתבו מספר ישראלי, למשל 050-1234567';
+    if (f.email.trim() && !isEmail(f.email)) e2.email = 'כתובת המייל לא נראית תקינה';
+    if (!f.message.trim()) e2.message = 'כתבו הודעה קצרה למורה';
+    setErrs(e2);
+    if (Object.keys(e2).length) { document.getElementById({ name: 'gr-name', phone: 'gr-phone', email: 'gr-email', message: 'gr-msg' }[Object.keys(e2)[0]])?.focus(); return; }
     setBusy(true);
-    try { await api.sendGuestRequest({ tutorId: tutor.id, groupId: group?.id, ...f, name: f.name.trim(), message: f.message.trim() }); setSent(true); setF((x) => ({ ...x, message: '', hp: '' })); } catch (err) { notify(err.message, true); }
+    try { await api.sendGuestRequest({ tutorId: tutor.id, groupId: group?.id, ...f, name: f.name.trim(), message: f.message.trim() }); setSent(true); setF((x) => ({ ...x, message: '', hp: '' })); } catch (err) { setErrs({ form: err.message }); notify(err.message, true); }
     setBusy(false);
   };
   return (
@@ -408,13 +445,18 @@ export function GuestDialog() {
             <h2>{group ? 'השארת פרטים לקבוצה' : 'השארת פרטים למורה'}</h2>
             <p className="note">עדיף להיכנס או לפתוח חשבון: אז אפשר לדבר עם המורה בצ׳אט באתר, בלי למסור טלפון.</p>
             <label className="field-label" htmlFor="gr-name">שם</label>
-            <input id="gr-name" className="input" autoComplete="name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+            <input id="gr-name" className="input" autoComplete="name" required aria-invalid={!!errs.name} aria-describedby={errs.name ? 'gr-name-err' : undefined} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+            {errs.name ? <p className="err" id="gr-name-err">{errs.name}</p> : null}
             <label className="field-label" htmlFor="gr-phone">טלפון (המורה יחזור אליכם אליו)</label>
-            <input id="gr-phone" className="input" type="tel" inputMode="tel" dir="ltr" autoComplete="tel" placeholder="050-1234567" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+            <input id="gr-phone" className="input" type="tel" inputMode="tel" dir="ltr" autoComplete="tel" placeholder="050-1234567" required aria-invalid={!!errs.phone} aria-describedby={errs.phone ? 'gr-phone-err' : undefined} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+            {errs.phone ? <p className="err" id="gr-phone-err">{errs.phone}</p> : null}
             <label className="field-label" htmlFor="gr-email">מייל (לא חובה)</label>
-            <input id="gr-email" className="input" type="email" dir="ltr" autoComplete="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+            <input id="gr-email" className="input" type="email" dir="ltr" autoComplete="email" aria-invalid={!!errs.email} value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+            {errs.email ? <p className="err">{errs.email}</p> : null}
             <label className="field-label" htmlFor="gr-msg">מה אתם צריכים?</label>
-            <textarea id="gr-msg" className="input" rows={4} maxLength={1000} placeholder={group ? `למשל: רוצה להצטרף ל"${group.title}"` : 'מקצוע, רמה, מתי נוח לכם…'} value={f.message} onChange={(e) => setF({ ...f, message: e.target.value })} />
+            <textarea id="gr-msg" className="input" rows={4} maxLength={1000} placeholder={group ? `למשל: רוצה להצטרף ל"${group.title}"` : 'מקצוע, רמה, מתי נוח לכם…'} required aria-invalid={!!errs.message} value={f.message} onChange={(e) => setF({ ...f, message: e.target.value })} />
+            {errs.message ? <p className="err">{errs.message}</p> : null}
+            {errs.form ? <p className="err" role="alert">{errs.form}</p> : null}
             <input className="sr-only" tabIndex={-1} autoComplete="off" aria-hidden="true" name="website" value={f.hp} onChange={(e) => setF({ ...f, hp: e.target.value })} />
             <div className="form-actions"><button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'שולחים…' : 'שליחה'}</button><button type="button" className="btn btn-ghost" onClick={closeGuest}>ביטול</button></div>
           </form>
@@ -434,6 +476,7 @@ export function InquiryBox({ tutor }) {
   const [busy, setBusy] = useState(false);
   const [chat, setChat] = useState(false); // the floating chat window over the tutor's page
   const dlg = useRef(null);
+  useBackToClose(open, () => { setOpen(false); setSent(false); });
   const both = tutor.teachesFrontal && tutor.teachesOnline;
   const blank = () => ({
     name: user?.name || '', phone: user?.phone || '', email: user?.email || '', save: true,
@@ -466,7 +509,7 @@ export function InquiryBox({ tutor }) {
     if (!open && d.open) d.close();
   }, [open]);
 
-  if (user && user.id === tutor.ownerId) return <p className="hint">זה הפרופיל שלכם. פניות מתלמידים מגיעות ל<a href="#panel-inbox">תיבת הפניות בפאנל</a>.</p>;
+  if (user && user.id === tutor.ownerId) return <p className="hint">זה הפרופיל שלכם. פניות מתלמידים מגיעות ל<a href={to('panel-inbox')}>תיבת הפניות בפאנל</a>.</p>;
 
   const start = () => {
     if (!requireLogin('כדי לשלוח פנייה למורה צריך להתחבר. ככה המורה יודע שמדובר באדם אמיתי, ואתם רואים את התשובה באזור האישי.', { tutor })) return;
@@ -646,6 +689,7 @@ export function InquiryBox({ tutor }) {
 
 /** Every chat opens in a window of its own that covers the site: photo and name on top, the conversation below. */
 export function ChatOverlay({ who, avatar, status, onClose, children, label }) {
+  useBackToClose(true, onClose);
   useEffect(() => {
     const esc = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', esc);
@@ -840,7 +884,7 @@ export const GOOGLE_ICON = (
 
 /** Where to come back to after signing in on the full-page forms. */
 export function rememberReturn() {
-  try { const h = window.location.hash; if (!/^#(login|signup)$/.test(h)) sessionStorage.setItem('naflaasimon-return', h.replace(/^#/, '')); } catch { /* private mode */ }
+  try { const h = currentName(); if (!/^(login|signup)$/.test(h)) sessionStorage.setItem('naflaasimon-return', h); } catch { /* private mode */ }
 }
 
 /** Choice screen: Google, email sign-in and sign-up open their own full pages; "phone only" opens the short form. */
@@ -868,6 +912,7 @@ function AuthFlow({ api, guest, onBack }) {
 
 export function LoginModal() {
   const { loginOpen, setLoginOpen, loginReason, loginGuest, api } = useApp();
+  useBackToClose(loginOpen, () => setLoginOpen(false));
   const [picking, setPicking] = useState(false);
   const [round, setRound] = useState(0);
   const ref = useRef(null);
@@ -988,20 +1033,20 @@ export function UserMenu() {
           {isTutor ? (
             <section className="pop-sec pop-tutor" aria-label="פאנל מורה">
               <span className="pop-title">{POP_ICONS.tutor}פאנל מורה</span>
-              <a href="#panel" onClick={() => setOpen(false)}>פרופיל המורה שלי</a>
-              <a href="#panel-inbox" onClick={() => setOpen(false)}>פניות מתלמידים</a>
-              <a href="#panel-groups" onClick={() => setOpen(false)}>הקבוצות שלי</a>
+              <a href={to('panel')} onClick={() => setOpen(false)}>פרופיל המורה שלי</a>
+              <a href={to('panel-inbox')} onClick={() => setOpen(false)}>פניות מתלמידים</a>
+              <a href={to('panel-groups')} onClick={() => setOpen(false)}>הקבוצות שלי</a>
             </section>
           ) : null}
           <section className="pop-sec pop-student" aria-label="פאנל תלמיד">
             <span className="pop-title">{POP_ICONS.student}{isTutor ? 'פאנל תלמיד' : 'החשבון שלי'}</span>
-            <a href="#panel-seats" onClick={() => setOpen(false)}>השיחות וההרשמות שלי</a>
-            <a href="#panel-me" onClick={() => setOpen(false)}>הפרטים האישיים שלי</a>
+            <a href={to('panel-seats')} onClick={() => setOpen(false)}>השיחות וההרשמות שלי</a>
+            <a href={to('panel-me')} onClick={() => setOpen(false)}>הפרטים האישיים שלי</a>
           </section>
           {user.isAdmin ? (
             <section className="pop-sec pop-admin" aria-label="ניהול האתר">
               <span className="pop-title">{POP_ICONS.admin}ניהול האתר</span>
-              <a href="#panel-admin" onClick={() => setOpen(false)}>אישור וניהול מורים</a>
+              <a href={to('panel-admin')} onClick={() => setOpen(false)}>אישור וניהול מורים</a>
             </section>
           ) : null}
           <button type="button" onClick={() => { setOpen(false); api.auth.signOut(); }}>התנתקות</button>
@@ -1027,17 +1072,17 @@ export function Header() {
     <>
       <header className="top">
         <div className="wrap">
-          <a className="logo" href="#" onClick={(e) => { e.preventDefault(); go(''); }} aria-label="נפל האסימון, דף הבית">
+          <a className="logo" href={to('')} onClick={(e) => { e.preventDefault(); go(''); }} aria-label="נפל האסימון, דף הבית">
             <Coin />
             <span className="logo-text"><b>נפל האסימון</b><small>מורים פרטיים למתמטיקה ועוד</small></span>
           </a>
           <nav className="links" aria-label="ראשי">
-            <a href="#search" aria-current={cur('search')}>חיפוש מורים</a>
-            <a href="#groups" aria-current={cur('groups')}>קבוצות למידה</a>
+            <a href={to('search')} aria-current={cur('search')}>חיפוש מורים</a>
+            <a href={to('groups')} aria-current={cur('groups')}>קבוצות למידה</a>
           </nav>
           <div className="top-actions">
             {user ? <UserMenu /> : route.name === 'login' || route.name === 'signup' ? null : <button type="button" className="btn btn-line" onClick={() => setLoginOpen(true)}>כניסה / הרשמה</button>}
-            {isTutor ? null : <a className="btn btn-brass hide-sm" href="#panel">פתיחת פרופיל מורה</a>}
+            {isTutor ? null : <a className="btn btn-brass hide-sm" href={to('panel')}>פתיחת פרופיל מורה</a>}
           </div>
         </div>
       </header>
@@ -1053,7 +1098,7 @@ export function BottomNav() {
   return (
     <nav className="bottom-nav" aria-label="ניווט מהיר">
       {items.map(([h, icon, label]) => (
-        <a key={icon} href={'#' + h} onClick={(e) => { if (!h) { e.preventDefault(); go(''); } }} aria-current={active(h) ? 'page' : undefined}>
+        <a key={icon} href={to(h)} onClick={(e) => { if (!h) { e.preventDefault(); go(''); } }} aria-current={active(h) ? 'page' : undefined}>
           {ICONS[icon]}<span>{label}</span>
         </a>
       ))}
@@ -1067,7 +1112,7 @@ export function Footer() {
     <footer>
       <div className="wrap">
         <nav aria-label="קישורים">
-          <a href="#search">חיפוש מורים</a><a href="#groups">קבוצות למידה</a><a href="#groups-marathons">מרתונים</a><a href="#panel">למורים</a><a href="#about">אודות ותנאי שימוש</a>
+          <a href={to('search')}>חיפוש מורים</a><a href={to('groups')}>קבוצות למידה</a><a href={to('groups-marathons')}>מרתונים</a><a href={to('panel')}>למורים</a><a href={to('about')}>אודות ותנאי שימוש</a><a href={to('privacy')}>מדיניות פרטיות</a><a href={to('accessibility')}>הצהרת נגישות</a><a href={to('contact')}>צור קשר</a>
         </nav>
         <p>© 2026 נפל האסימון · מורים פרטיים למתמטיקה ועוד
           {api.mode === 'demo' ? <> · <button type="button" className="linkish" onClick={() => { api.resetDemo(); reload(); notify('נתוני ההדגמה אופסו'); }}>איפוס נתוני ההדגמה</button></> : null}
@@ -1079,8 +1124,11 @@ export function Footer() {
 
 export function Toast() {
   const { toast } = useApp();
+  const ref = useRef(null);
+  // A popover sits in the browser's top layer, so the message shows above an open dialog too.
+  useEffect(() => { const el = ref.current; if (el?.showPopover) { try { el.showPopover(); } catch { /* already shown */ } } }, [toast]);
   if (!toast) return null;
-  return <div className={'toast' + (toast.bad ? ' bad' : '')} role="status">{toast.text}</div>;
+  return <div ref={ref} popover="manual" className={'toast' + (toast.bad ? ' bad' : '')} role="status">{toast.text}</div>;
 }
 
 export function Empty({ title, children }) {
@@ -1149,6 +1197,7 @@ export function ReportTutor({ tutor }) {
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const ref = useRef(null);
+  useBackToClose(open, () => setOpen(false));
   useEffect(() => {
     const d = ref.current; if (!d) return;
     if (open && !d.open) d.showModal();

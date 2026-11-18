@@ -4,25 +4,51 @@ import api from './api/index.js';
 const Ctx = createContext(null);
 export const useApp = () => useContext(Ctx);
 
-export function parseRoute(hash) {
-  const h = (hash || '').replace(/^#/, '');
+// Routes are real paths (/naflaasimon/tutor/<id>) so search engines, AI tools and link previews can read each page.
+// Old links with #tutor-<id> still work: they are moved to the path on load.
+export const BASE = import.meta.env.BASE_URL || '/';
+const ROUTE_RE = /^(search|groups|groups-marathons|about|privacy|accessibility|contact|login|signup|panel(-[a-z]+)?|(tutor|group|chat)-.+)$/;
+
+/** Route name ("tutor-abc", "search", "") to its path. */
+export function to(name = '') {
+  const m = String(name).match(/^(tutor|group|chat)-(.+)$/);
+  // Trailing slash: GitHub Pages serves each prerendered page as <path>/index.html.
+  return BASE + (m ? `${m[1]}/${encodeURIComponent(m[2])}/` : name ? `${name}/` : '');
+}
+
+/** Path back to a route name, or null when the path is not one of ours. */
+export function nameOfPath(path) {
+  if (!path.startsWith(BASE) && path + '/' !== BASE) return null;
+  const rest = path.slice(BASE.length).replace(/\/+$/, '').replace(/\/index\.html$|^index\.html$/, '');
+  const m = rest.match(/^(tutor|group|chat)\/([^/]+)$/);
+  if (m) return `${m[1]}-${decodeURIComponent(m[2])}`;
+  return rest;
+}
+
+export function parseRoute(name) {
+  const h = (name || '').replace(/^#/, '');
   const m = h.match(/^(tutor|group|chat)-(.+)$/);
   if (m) return { name: m[1], id: m[2] };
   return { name: h || 'home' };
 }
 
+/** The current route name, moving a legacy "#name" link to its path first. */
+export function currentName() {
+  const h = window.location.hash.replace(/^#/, '');
+  if (h && ROUTE_RE.test(h)) { history.replaceState(history.state, '', to(h) + window.location.search); return h; }
+  return nameOfPath(window.location.pathname) ?? '';
+}
+
 export function go(name) {
-  if (('#' + name) === window.location.hash || (!name && !window.location.hash)) {
-    window.dispatchEvent(new HashChangeEvent('hashchange'));
-  } else {
-    window.location.hash = name;
-  }
+  const path = to(name);
+  if (path !== window.location.pathname || window.location.hash) history.pushState(null, '', path);
+  window.dispatchEvent(new Event('naflaasimon:route'));
 }
 
 const DEFAULT_FILTERS = { subject: '', topic: '', mode: 'any', city: '', origin: null, sort: 'best', maxPrice: 0, maxKm: 0, q: '', place: '' };
 
 export function AppProvider({ children }) {
-  const [route, setRoute] = useState(parseRoute(window.location.hash));
+  const [route, setRoute] = useState(() => parseRoute(currentName()));
   const [user, setUser] = useState(api.auth.current());
   // The last list we saw is shown at once on the next visit, then refreshed in the background.
   const [tutors, setTutors] = useState(() => readCache()?.tutors || null);
@@ -39,14 +65,16 @@ export function AppProvider({ children }) {
   useEffect(() => {
     // Coming back from a tutor or group page to a list (search, groups, home) returns to where you were scrolled.
     const ys = {};
-    let prev = window.location.hash;
-    const isList = (h) => /^#?(search|groups(-marathons)?)?$/.test(h);
-    const on = () => {
-      const from = prev, to = window.location.hash;
-      ys[from] = window.scrollY; prev = to;
-      setRoute(parseRoute(to)); window.scrollTo(0, 0);
-      const y = ys[to];
-      if (y && isList(to) && /^#(tutor|group)-/.test(from)) {
+    let prev = currentName();
+    const isList = (h) => /^(search|groups(-marathons)?)?$/.test(h);
+    const on = (e) => {
+      const from = prev, now = currentName();
+      // Back from a dialog (same page) only closes the dialog; the page stays where it is.
+      if (e.type === 'popstate' && now === from) return;
+      ys[from] = window.scrollY; prev = now;
+      setRoute(parseRoute(now)); window.scrollTo(0, 0);
+      const y = ys[now];
+      if (y && isList(now) && /^(tutor|group)-/.test(from)) {
         let tries = 0;
         const restore = () => {
           if (document.documentElement.scrollHeight - window.innerHeight >= y || tries++ > 20) window.scrollTo(0, y);
@@ -55,10 +83,34 @@ export function AppProvider({ children }) {
         requestAnimationFrame(() => requestAnimationFrame(restore));
       }
     };
-    window.addEventListener('hashchange', on);
-    return () => window.removeEventListener('hashchange', on);
+    // Internal links are ordinary <a href="/naflaasimon/..."> (readable by crawlers); a plain click stays in the app.
+    const click = (e) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = e.target.closest?.('a[href]');
+      if (!a || (a.target && a.target !== '_self') || a.hasAttribute('download')) return;
+      const url = new URL(a.href, window.location.href);
+      if (url.origin !== window.location.origin) return;
+      const hash = a.getAttribute('href').startsWith('#') ? a.getAttribute('href').slice(1) : null;
+      const name = hash !== null ? (ROUTE_RE.test(hash) || hash === '' ? hash : null) : nameOfPath(url.pathname);
+      if (name === null) return;
+      e.preventDefault();
+      go(name);
+    };
+    window.addEventListener('popstate', on);
+    window.addEventListener('naflaasimon:route', on);
+    document.addEventListener('click', click);
+    return () => { window.removeEventListener('popstate', on); window.removeEventListener('naflaasimon:route', on); document.removeEventListener('click', click); };
   }, []);
-  useEffect(() => api.auth.onChange((u) => { setUser(u); if (u) setLoginOpen(false); }), []);
+  useEffect(() => api.auth.onChange((u) => {
+    setUser(u);
+    if (!u) return;
+    setLoginOpen(false);
+    // Back from Google sign-in: return to the page the person started from.
+    let back = null;
+    try { back = sessionStorage.getItem('naflaasimon-oauth-return'); sessionStorage.removeItem('naflaasimon-oauth-return'); } catch { /* private mode */ }
+    const name = back ? nameOfPath(back) : null;
+    if (name && back !== window.location.pathname) { history.replaceState(null, '', to(name)); window.dispatchEvent(new Event('naflaasimon:route')); }
+  }), []);
 
   const reload = useCallback(async () => {
     try {

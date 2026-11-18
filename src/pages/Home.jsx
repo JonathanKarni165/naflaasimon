@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useApp, go } from '../state.jsx';
+import { useApp, go, to } from '../state.jsx';
 import { filterTutors, sortTutors, globalMean } from '../lib/ranking.js';
 import { GroupCard, Avatar, WherePicker, resolveWhere, TopicPicker } from '../components/ui.jsx';
 import { optionLabel } from '../data/topics.js';
@@ -84,6 +84,7 @@ export default function Home() {
               <WherePicker id="home-where" value={where} onChange={setWhere} />
             </div>
           </div>
+          <div className="card-segs">
           <div>
             <span className="field-label" id="learn-label">איך לומדים?</span>
             <div className="seg seg-3" role="group" aria-labelledby="learn-label">
@@ -99,13 +100,14 @@ export default function Home() {
               <button type="button" aria-pressed={kind === 'group'} onClick={() => setKind('group')}>בקבוצה</button>
             </div>
           </div>
+          </div>
           <button type="submit" className="btn btn-brand go">{kind === 'group' ? 'חיפוש קבוצות' : 'חיפוש מורים'} {count != null ? <small>· {count} תוצאות</small> : null}</button>
         </form>
       </div>
 
       <section className="block" aria-labelledby="tracks-h">
         <div className="wrap">
-          <div className="sec-head"><h2 id="tracks-h">מתמטיקה לפי מסלול</h2><a href="#search">כל המורים</a></div>
+          <div className="sec-head"><h2 id="tracks-h">מתמטיקה לפי מסלול</h2><a href={to('search')}>כל המורים</a></div>
           <div className="tracks">
             {TRACKS.map(([lvl, title, sub, subj, course]) => (
               <button key={lvl} type="button" className="track" onClick={() => track(subj, course)}>
@@ -120,18 +122,18 @@ export default function Home() {
         <div className="wrap">
           <div className="sec-head">
             <div><h2 id="groups-h">לומדים בקבוצה, משלמים פחות</h2><p className="sec-sub">מרתונים לבגרות וקבוצות קטנות עם מורה מאומת. בערך חצי מחיר משיעור פרטי.</p></div>
-            <a href="#groups">כל הקבוצות</a>
+            <a href={to('groups')}>כל הקבוצות</a>
           </div>
           <figure className="group-photo">
-            <img src="img/group-park.jpg" loading="lazy" decoding="async" width="1400" height="525" alt="שלוש סטודנטיות יושבות על הדשא בקמפוס, מחייכות ולומדות יחד" />
-            <figcaption>לומדים יחד, בכיתה, בזום או על הדשא</figcaption>
+            <img src="img/hero-3.jpg" loading="lazy" decoding="async" width="1200" height="960" alt="שלוש חברות לומדות יחד ליד שולחן עם מחשבים וצוחקות" />
+            <figcaption>לומדים יחד, בכיתה, בזום או בבית קפה</figcaption>
           </figure>
           <div className="groups">
             {upcoming.map((g) => <GroupCard key={g.id} group={g} />)}
             <article className="group open">
               <strong>מלמדים? פתחו קבוצה</strong>
               <p className="t-meta">מעלים מרתון או קבוצה קבועה עם מטרה, תאריך ומחיר לתלמיד. התלמידים שומרים מקום ושואלים שאלות ישירות בעמוד הקבוצה.</p>
-              <a className="btn btn-line t-cta" href="#panel-groups">פתיחת קבוצה</a>
+              <a className="btn btn-line t-cta" href={to('panel-groups')}>פתיחת קבוצה</a>
             </article>
           </div>
         </div>
@@ -173,7 +175,7 @@ export default function Home() {
               <li>תיבת פניות אישית, בלי לפרסם את הטלפון שלכם</li>
               <li>קבוצות ומרתונים עם הרשמה ושמירת מקום</li>
             </ul>
-            <a className="btn btn-brand" href="#panel">פתיחת פרופיל מורה</a>
+            <a className="btn btn-brand" href={to('panel')}>פתיחת פרופיל מורה</a>
           </div>
         </div>
       </section>
@@ -185,7 +187,7 @@ export default function Home() {
 const SLIDES = [
   ['img/hero-1.jpg', 'שתי סטודנטיות יושבות על הדשא בפארק עם ספרים, צוחקות ולומדות יחד'],
   ['img/hero-2.jpg', 'מורה פרטי מחייך עוזר לילד בשיעורי בית ליד מחשב נייד'],
-  ['img/hero-3.jpg', 'שלוש חברות לומדות ליד שולחן עם מחשבים וצוחקות'],
+  // hero-3 is the groups-section photo, so it is not repeated here.
   ['img/hero-4.jpg', 'קבוצת סטודנטים לומדת יחד בבית קפה בחיוך'],
 ];
 function HeroSlides() {

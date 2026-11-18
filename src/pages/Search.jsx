@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useApp } from '../state.jsx';
+import { useApp, to } from '../state.jsx';
 import { filterTutors, sortTutors, topicFirst, queryFirst, blendedRank } from '../lib/ranking.js';
 import { optionLabel } from '../data/topics.js';
 import { TutorRow, Seg, Loading, Empty, WherePicker, resolveWhere, TopicPicker } from '../components/ui.jsx';
@@ -58,7 +58,7 @@ export default function Search() {
           <span className="field-label" id="s-mode">איך לומדים?</span>
           <Seg label="s-mode" value={f.mode} onChange={(mode) => { set({ mode, ...(mode === 'online' && f.sort === 'near' ? { sort: 'best' } : {}) }); if (mode !== 'online' && whereText === 'online') setWhereText(''); }} options={[['any', 'לא משנה'], ['frontal', 'פרונטלי'], ['online', 'אונליין']]} />
         </div>
-        <p className="muted-text head-meta">{results ? `${results.length} מורים` : ''}{f.city && f.origin ? ` · מרחקים מ${f.city === 'המיקום שלי' ? 'המיקום שלכם' : f.city}` : ''} · <span className="marathon-link">מחפשים מרתון או קבוצה? <a href="#groups-marathons">לחיפוש מרתונים</a></span></p>
+        <p className="muted-text head-meta">{results ? `${results.length} מורים` : ''}{f.city && f.origin ? ` · מרחקים מ${f.city === 'המיקום שלי' ? 'המיקום שלכם' : f.city}` : ''} · <span className="marathon-link">מחפשים מרתון או קבוצה? <a href={to('groups-marathons')}>לחיפוש מרתונים</a></span></p>
       </div>
 
       <div className="search-layout">
