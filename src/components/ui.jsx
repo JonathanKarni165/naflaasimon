@@ -322,8 +322,19 @@ export function InquiryChat({ q, asTutor }) {
 }
 
 /** The inquiry text the tutor reads, built from the template answers. */
+/** Picked courses are stored as "subject|course"; with several subjects the text says which subject each belongs to. */
+function levelTexts(f) {
+  if (!f.levels) return f.level ? [f.level] : [];
+  const many = new Set(f.levels.map((k) => k.split('|')[0])).size > 1;
+  return f.levels.map((k) => { const [subj, l] = k.split('|'); return many ? `${l} ב${subj}` : l; });
+}
+
 export function buildInquiryText(tutor, f) {
-  const lines = [`היי ${tutor.name.split(' ')[0]}, אשמח לשיעורים${f.subject ? ` ב${f.subject}` : ''}${f.level ? ` (${f.level})` : ''}.`];
+  // Several subjects and courses can be picked: "במתמטיקה ובפיזיקה (5 יח״ל, מכניקה)".
+  const subs = f.subjects || (f.subject ? [f.subject] : []);
+  const levels = levelTexts(f);
+  const subText = subs.map((x, i) => (i === 0 ? `ב${x}` : i === subs.length - 1 ? ` וב${x}` : `, ב${x}`)).join('');
+  const lines = [`היי ${tutor.name.split(' ')[0]}, אשמח לשיעורים${subText ? ` ${subText}` : ''}${levels.length ? ` (${levels.join(', ')})` : ''}.`];
   if (f.lessons) lines.push(`כמה שיעורים: ${labelOf(LESSON_COUNTS, f.lessons)}`);
   if (f.goal) lines.push(`מטרה: ${labelOf(GOALS, f.goal)}`);
   if (f.mode) lines.push(`איך: ${f.mode === 'online' ? 'אונליין' : 'פרונטלי'}`);
@@ -427,15 +438,21 @@ export function InquiryBox({ tutor }) {
   const blank = () => ({
     name: user?.name || '', phone: user?.phone || '', email: user?.email || '', save: true,
     via: user?.phone ? ['site', 'phone'] : ['site'],
-    subject: (tutor.subjects || [])[0] || '', level: '', lessons: '', goal: '', slots: [],
+    subjects: (tutor.subjects || []).slice(0, 1), levels: [], lessons: '', goal: '', slots: [],
     mode: both ? '' : tutor.teachesOnline ? 'online' : 'frontal', note: '',
   });
   const [f, setF] = useState(blank);
   // A tutor who ticked no course in this subject still gets the subject's school tracks, so the student can say which one.
   // Everything the tutor ticked under this subject: tracks (5 יח״ל), courses (חדו״א 1) and topics (מכניקה).
-  const subjectTopics = subtopicsOf(f.subject);
-  const tutorCourses = (tutor.topics || []).filter((x) => subjectTopics.includes(x));
-  const inqCourses = tutorCourses.length ? tutorCourses : schoolCoursesOf(f.subject);
+  // Courses for each chosen subject (several subjects and several courses can be picked).
+  const coursesOf = (subj) => { const st = subtopicsOf(subj); const mine = (tutor.topics || []).filter((x) => st.includes(x)); return mine.length ? mine : schoolCoursesOf(subj); };
+  const inqGroups = f.subjects.map((subj) => [subj, coursesOf(subj)]).filter(([, list]) => list.length);
+  const toggleSubject = (x) => setF((v) => {
+    const subjects = v.subjects.includes(x) ? v.subjects.filter((y) => y !== x) : [...v.subjects, x];
+    const keep = new Set(subjects.flatMap((s2) => coursesOf(s2).map((l) => `${s2}|${l}`)));
+    return { ...v, subjects, levels: v.levels.filter((l) => keep.has(l)) };
+  });
+  const toggleLevel = (l) => setF((v) => ({ ...v, levels: v.levels.includes(l) ? v.levels.filter((y) => y !== l) : [...v.levels, l] }));
   useEffect(() => {
     let live = true;
     if (!user) { setMine([]); return undefined; }
@@ -466,7 +483,7 @@ export function InquiryBox({ tutor }) {
     setBusy(true);
     try {
       const q = await api.sendInquiry({
-        tutorId: tutor.id, name: f.name.trim(), subject: f.subject, level: f.level, mode: f.mode, contactVia: f.via,
+        tutorId: tutor.id, name: f.name.trim(), subject: f.subjects.join(', '), level: levelTexts(f).join(', '), mode: f.mode, contactVia: f.via,
         lessons: f.lessons, goal: f.goal, slots: f.slots,
         phone: f.via.includes('phone') ? f.phone.trim() : '', email: f.via.includes('email') ? f.email.trim() : '',
         message: buildInquiryText(tutor, f),
@@ -514,20 +531,20 @@ export function InquiryBox({ tutor }) {
                 <>
                   {(tutor.subjects || []).length > 1 ? (
                     <>
-                      <span className="field-label" id="iq-subj">מקצוע</span>
+                      <span className="field-label" id="iq-subj">מקצוע <small className="muted-text">(אפשר לבחור כמה)</small></span>
                       <div className="chips wrap-chips" role="group" aria-labelledby="iq-subj">
-                        {tutor.subjects.map((x) => <button key={x} type="button" className="chip" aria-pressed={f.subject === x} onClick={() => setF({ ...f, subject: x, level: '' })}>{x}</button>)}
+                        {tutor.subjects.map((x) => <button key={x} type="button" className="chip" aria-pressed={f.subjects.includes(x)} onClick={() => toggleSubject(x)}>{x}</button>)}
                       </div>
                     </>
                   ) : null}
-                  {inqCourses.length ? (
-                    <>
-                      <span className="field-label" id="iq-level">איזה קורס או רמה?</span>
-                      <div className="chips wrap-chips" role="group" aria-labelledby="iq-level">
-                        {inqCourses.map((l) => <button key={l} type="button" className="chip" aria-pressed={f.level === l} onClick={() => setF({ ...f, level: f.level === l ? '' : l })}>{l}</button>)}
+                  {inqGroups.map(([subj, list]) => (
+                    <div key={subj} className="iq-courses">
+                      <span className="field-label" id={`iq-level-${subj}`}>{inqGroups.length > 1 ? `קורסים או רמה ב${subj}` : 'איזה קורס או רמה?'} <small className="muted-text">(אפשר לבחור כמה)</small></span>
+                      <div className="chips wrap-chips" role="group" aria-labelledby={`iq-level-${subj}`}>
+                        {list.map((l) => <button key={l} type="button" className="chip" aria-pressed={f.levels.includes(`${subj}|${l}`)} onClick={() => toggleLevel(`${subj}|${l}`)}>{l}</button>)}
                       </div>
-                    </>
-                  ) : null}
+                    </div>
+                  ))}
                   <span className="field-label" id="iq-lessons">כמה שיעורים בערך?</span>
                   <div className="chips wrap-chips" role="group" aria-labelledby="iq-lessons">
                     {LESSON_COUNTS.map(([v, l]) => <button key={v} type="button" className="chip" aria-pressed={f.lessons === v} onClick={() => setF({ ...f, lessons: v })}>{l}</button>)}
@@ -942,6 +959,12 @@ const ICONS = {
   panel: <Icon d={<><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18M9 9v11" /></>} />,
 };
 
+const POP_ICONS = {
+  tutor: <Icon d={<><rect x="3" y="4" width="18" height="12" rx="1.5" /><path d="M7 20h10M12 16v4M7 9l3 3 5-5" /></>} />,
+  student: <Icon d={<><path d="M2 9l10-5 10 5-10 5z" /><path d="M6 11v5c3 2.5 9 2.5 12 0v-5" /></>} />,
+  admin: <Icon d={<><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z" /><path d="M9 12l2 2 4-4" /></>} />,
+};
+
 export function UserMenu() {
   const { user, api } = useApp();
   const [mine] = useMyTutor();
@@ -961,18 +984,26 @@ export function UserMenu() {
       {open ? (
         <div className="user-pop">
           <b>{user.name}</b>{user.isAdmin ? <span className="tag brass">מנהל</span> : null}
+          {/* Each area is its own coloured box with an icon, so "פאנל מורה" and "פאנל תלמיד" are easy to tell apart. */}
           {isTutor ? (
-            <>
-              <small className="pop-head">פאנל מורה</small>
+            <section className="pop-sec pop-tutor" aria-label="פאנל מורה">
+              <span className="pop-title">{POP_ICONS.tutor}פאנל מורה</span>
               <a href="#panel" onClick={() => setOpen(false)}>פרופיל המורה שלי</a>
               <a href="#panel-inbox" onClick={() => setOpen(false)}>פניות מתלמידים</a>
               <a href="#panel-groups" onClick={() => setOpen(false)}>הקבוצות שלי</a>
-            </>
+            </section>
           ) : null}
-          <small className="pop-head">{isTutor ? 'פאנל תלמיד' : 'החשבון שלי'}</small>
-          <a href="#panel-seats" onClick={() => setOpen(false)}>השיחות וההרשמות שלי</a>
-          <a href="#panel-me" onClick={() => setOpen(false)}>הפרטים האישיים שלי</a>
-          {user.isAdmin ? <><small className="pop-head">ניהול האתר</small><a href="#panel-admin" onClick={() => setOpen(false)}>אישור וניהול מורים</a></> : null}
+          <section className="pop-sec pop-student" aria-label="פאנל תלמיד">
+            <span className="pop-title">{POP_ICONS.student}{isTutor ? 'פאנל תלמיד' : 'החשבון שלי'}</span>
+            <a href="#panel-seats" onClick={() => setOpen(false)}>השיחות וההרשמות שלי</a>
+            <a href="#panel-me" onClick={() => setOpen(false)}>הפרטים האישיים שלי</a>
+          </section>
+          {user.isAdmin ? (
+            <section className="pop-sec pop-admin" aria-label="ניהול האתר">
+              <span className="pop-title">{POP_ICONS.admin}ניהול האתר</span>
+              <a href="#panel-admin" onClick={() => setOpen(false)}>אישור וניהול מורים</a>
+            </section>
+          ) : null}
           <button type="button" onClick={() => { setOpen(false); api.auth.signOut(); }}>התנתקות</button>
         </div>
       ) : null}

@@ -11,7 +11,7 @@ export function Groups({ initialKind = 'any' }) {
   // Same "מה רוצים ללמוד?" field as the tutor search: a subject or one of its courses.
   const [pick, setPick] = useState({ subject: filters.subject || '', topic: filters.topic || '' });
   const { subject, topic } = pick;
-  const [mode, setMode] = useState('any');
+  const [mode, setMode] = useState(filters.mode === 'online' || filters.mode === 'frontal' ? filters.mode : 'any');
   const [kind, setKind] = useState(initialKind);
   const [q, setQ] = useState('');
   const [qFromTopic, setQFromTopic] = useState(false);
@@ -62,7 +62,7 @@ export function Groups({ initialKind = 'any' }) {
           <span className="sr-only" id="g-kind">סוג קבוצה</span>
           <Seg label="g-kind" value={kind} onChange={setKind} options={[['any', 'הכול'], ['marathon', 'מרתונים'], ['course', 'קבוצות קבועות']]} />
           <span className="sr-only" id="g-mode">איפה</span>
-          <Seg label="g-mode" value={mode} onChange={setMode} options={[['any', 'הכול'], ['online', 'אונליין'], ['frontal', 'פרונטלי']]} />
+          <Seg label="g-mode" value={mode} onChange={setMode} options={[['any', 'לא משנה'], ['online', 'אונליין'], ['frontal', 'פרונטלי']]} />
           <label className="check"><input type="checkbox" checked={onlyOpen} onChange={(e) => setOnlyOpen(e.target.checked)} /> רק עם מקום פנוי</label>
         </div>
         {groups ? <p className="muted-text gf-count"><bdi>{list.length}</bdi> {list.length === 1 ? 'קבוצה' : 'קבוצות'}{onlyOpen && hiddenFull ? ` (${hiddenFull === 1 ? 'מוסתרת קבוצה מלאה אחת' : `מוסתרות ${hiddenFull} קבוצות מלאות`})` : ''}</p> : null}

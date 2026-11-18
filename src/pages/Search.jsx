@@ -39,7 +39,7 @@ export default function Search() {
     );
   };
 
-  const activeCount = [f.mode !== 'any', f.maxPrice, f.maxKm, f.q, f.place].filter(Boolean).length;
+  const activeCount = [f.maxPrice, f.maxKm, f.q, f.place].filter(Boolean).length;
 
   return (
     <main className="wrap page-pad">
@@ -52,6 +52,11 @@ export default function Search() {
             ? { subject: o.subject, topic: o.topic, q: optionLabel(f) ? f.q : '' }
             : { subject: '', topic: '', q: '' })}
             onFree={(q) => set({ subject: '', topic: '', q })} />
+        </div>
+        {/* Online / frontal / "לא משנה" stays visible, without opening the filter panel. */}
+        <div className="learn-mode">
+          <span className="field-label" id="s-mode">איך לומדים?</span>
+          <Seg label="s-mode" value={f.mode} onChange={(mode) => { set({ mode, ...(mode === 'online' && f.sort === 'near' ? { sort: 'best' } : {}) }); if (mode !== 'online' && whereText === 'online') setWhereText(''); }} options={[['any', 'לא משנה'], ['frontal', 'פרונטלי'], ['online', 'אונליין']]} />
         </div>
         <p className="muted-text head-meta">{results ? `${results.length} מורים` : ''}{f.city && f.origin ? ` · מרחקים מ${f.city === 'המיקום שלי' ? 'המיקום שלכם' : f.city}` : ''} · <span className="marathon-link">מחפשים מרתון או קבוצה? <a href="#groups-marathons">לחיפוש מרתונים</a></span></p>
       </div>
@@ -77,10 +82,6 @@ export default function Search() {
               <input id="q" className="input" type="search" placeholder="שם מורה, עיר, מילה מהפרופיל…" value={f.q} onChange={(e) => set({ q: e.target.value })} />
               </div>
 
-              <div className="f-field">
-              <span className="field-label" id="f-mode">איך לומדים</span>
-              <Seg label="f-mode" value={f.mode} onChange={(mode) => set({ mode })} options={[['any', 'הכול'], ['frontal', 'פרונטלי'], ['online', 'אונליין']]} />
-              </div>
 
               <div className="f-field">
               <label className="field-label" htmlFor="f-city">המיקום שלי</label>

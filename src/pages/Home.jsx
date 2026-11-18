@@ -21,13 +21,15 @@ export default function Home() {
   const [topic, setTopic] = useState(filters.topic || '');
   const [where, setWhere] = useState(filters.mode === 'online' ? 'online' : filters.city || filters.place || '');
   const [kind, setKind] = useState('private');
+  // Online / frontal / "לא משנה", carried to the search and groups pages.
+  const [learn, setLearn] = useState(filters.mode === 'online' || filters.mode === 'frontal' ? filters.mode : 'any');
 
   const count = useMemo(() => {
     if (!tutors) return null;
-    if (kind === 'group') return (groups || []).filter((g) => !subject || g.subject === subject).length;
+    if (kind === 'group') return (groups || []).filter((g) => (!subject || g.subject === subject) && (learn === 'any' || g.mode === learn)).length;
     const w = resolveWhere(where);
-    return filterTutors(tutors, { subject, topic, mode: w.mode, place: w.place }).length;
-  }, [tutors, groups, subject, topic, where, kind]);
+    return filterTutors(tutors, { subject, topic, mode: learn !== 'any' ? learn : w.mode, place: w.place }).length;
+  }, [tutors, groups, subject, topic, where, kind, learn]);
 
   const featured = useMemo(() => (tutors ? sortTutors(tutors, 'best').filter((t) => t.ratingCount >= 10 && t.photo).slice(0, 3) : []), [tutors]);
   const upcoming = useMemo(() => (groups ? [...groups].filter((g) => g.seatsTaken < g.maxSeats && !groupEnded(g)).sort((a, b) => a.startDate.localeCompare(b.startDate)).slice(0, 3) : []), [groups]);
@@ -39,9 +41,9 @@ export default function Home() {
 
   const submit = (e) => {
     e.preventDefault();
-    if (kind === 'group') { setFilters((f) => ({ ...f, subject, topic })); go('groups'); return; }
+    if (kind === 'group') { setFilters((f) => ({ ...f, subject, topic, mode: learn })); go('groups'); return; }
     const w = resolveWhere(where);
-    setFilters((f) => ({ ...f, subject, topic, ...w, sort: w.origin ? 'near' : 'best' }));
+    setFilters((f) => ({ ...f, subject, topic, ...w, mode: learn !== 'any' ? learn : w.mode, sort: w.origin && learn !== 'online' ? 'near' : 'best' }));
     go('search');
   };
   const track = (subject, topic) => { setFilters((f) => ({ ...f, subject, topic, sort: 'best' })); go('search'); };
@@ -80,6 +82,14 @@ export default function Home() {
             <div>
               <label className="field-label" htmlFor="home-where">איפה?</label>
               <WherePicker id="home-where" value={where} onChange={setWhere} />
+            </div>
+          </div>
+          <div>
+            <span className="field-label" id="learn-label">איך לומדים?</span>
+            <div className="seg seg-3" role="group" aria-labelledby="learn-label">
+              <button type="button" aria-pressed={learn === 'any'} onClick={() => setLearn('any')}>לא משנה</button>
+              <button type="button" aria-pressed={learn === 'frontal'} onClick={() => setLearn('frontal')}>פרונטלי</button>
+              <button type="button" aria-pressed={learn === 'online'} onClick={() => setLearn('online')}>אונליין</button>
             </div>
           </div>
           <div>
