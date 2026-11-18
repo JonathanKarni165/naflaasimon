@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/prerender.mjs",
     "preview": "vite preview",
     "moderation-sql": "node scripts/build-moderation-sql.mjs",
     "test": "node scripts/test-moderation.mjs",

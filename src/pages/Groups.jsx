@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useApp, useLoad } from '../state.jsx';
+import { useApp, useLoad, to } from '../state.jsx';
 import { optionLabel, norm } from '../data/topics.js';
 import { money, dateLong, relDays, dateShort, isPhone, groupEnded } from '../lib/format.js';
 import { GroupCard, GuestRequest, Seg, TopicPicker, SeatDots, Avatar, Verified, Stars, Loading, Empty, ChatOverlay } from '../components/ui.jsx';
@@ -76,7 +76,7 @@ export function Groups({ initialKind = 'any' }) {
       )}
       <div className="band-inline">
         <div><h2>מלמדים? פתחו קבוצה או מרתון</h2><p className="muted-text">למשל ״מרתון לבגרות 472״ ביום שישי, 90 ₪ לתלמיד. אתם קובעים מטרה, תאריך, מחיר ומספר מקומות.</p></div>
-        <a className="btn btn-brand" href="#panel-groups">פתיחת קבוצה</a>
+        <a className="btn btn-brand" href={to('panel-groups')}>פתיחת קבוצה</a>
       </div>
     </main>
   );
@@ -146,7 +146,7 @@ export function Group({ id }) {
   const [busy, setBusy] = useState(false);
 
   if (loading && !group) return <main className="wrap page-pad"><Loading /></main>;
-  if (!group) return <main className="wrap page-pad"><Empty title="הקבוצה לא נמצאה"><a className="btn btn-brand" href="#groups">לכל הקבוצות</a></Empty></main>;
+  if (!group) return <main className="wrap page-pad"><Empty title="הקבוצה לא נמצאה"><a className="btn btn-brand" href={to('groups')}>לכל הקבוצות</a></Empty></main>;
 
   const t = group.tutor;
   const mine = (seats || []).find((s) => s.groupId === id);
@@ -184,7 +184,7 @@ export function Group({ id }) {
 
   return (
     <main className="wrap page-pad">
-      <a className="back" href="#groups">→ לכל הקבוצות</a>
+      <a className="back" href={to('groups')}>→ לכל הקבוצות</a>
       <div className="profile">
         <div className="profile-main">
           <header className="g-head">
@@ -193,7 +193,7 @@ export function Group({ id }) {
             <p className="p-headline">{group.subject}{group.level && group.level !== group.subject ? ` · ${group.level}` : ''}</p>
           </header>
           {t ? (
-            <a className="g-tutor" href={`#tutor-${t.id}`} aria-label={`המורה ${t.name}, לפרופיל המלא`}>
+            <a className="g-tutor" href={to(`tutor-${t.id}`)} aria-label={`המורה ${t.name}, לפרופיל המלא`}>
               <Avatar tutor={t} className="g-tutor-photo" size={112} />
               <span className="g-tutor-info">
                 <small>המורה בקבוצה</small>
@@ -264,8 +264,8 @@ export function Group({ id }) {
                 {t && !full ? <GuestRequest tutor={t} group={group} /> : null}
               </>
             )}
-            {t && !isTutor ? <a className="btn btn-line btn-sm" href={`#tutor-${t.id}`}>פנייה פרטית למורה</a> : null}
-            {isTutor ? <a className="btn btn-line btn-sm" href="#panel-groups">{group.pendingCount ? `${group.pendingCount} ממתינים לאישור בפאנל` : 'לרשימת הנרשמים בפאנל'}</a> : null}
+            {t && !isTutor ? <a className="btn btn-line btn-sm" href={to(`tutor-${t.id}`)}>פנייה פרטית למורה</a> : null}
+            {isTutor ? <a className="btn btn-line btn-sm" href={to('panel-groups')}>{group.pendingCount ? `${group.pendingCount} ממתינים לאישור בפאנל` : 'לרשימת הנרשמים בפאנל'}</a> : null}
           </div>
         </aside>
       </div>

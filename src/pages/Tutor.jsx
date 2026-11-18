@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useApp, useLoad } from '../state.jsx';
+import { useApp, useLoad, to } from '../state.jsx';
 import { bayesScore, globalMean } from '../lib/ranking.js';
 import { money, dateShort, rating1, reviewsLabel } from '../lib/format.js';
 import { Avatar, EduIcon, Stars, StarRow, Verified, InquiryBox, GroupCard, WeekGrid, ConfirmButton, Loading, Empty, placeLabel, ReportTutor } from '../components/ui.jsx';
@@ -13,14 +13,14 @@ export default function Tutor({ id }) {
   const weighted = useMemo(() => (tutor && tutors ? bayesScore(tutor.ratingAvg, tutor.ratingCount, globalMean(tutors)) : null), [tutor, tutors]);
 
   if (loading && !tutor) return <main className="wrap page-pad"><Loading /></main>;
-  if (!tutor) return <main className="wrap page-pad"><Empty title="המורה לא נמצא"><a className="btn btn-brand" href="#search">חזרה לחיפוש</a></Empty></main>;
+  if (!tutor) return <main className="wrap page-pad"><Empty title="המורה לא נמצא"><a className="btn btn-brand" href={to('search')}>חזרה לחיפוש</a></Empty></main>;
 
   const isOwner = user && (user.id === tutor.ownerId || user.isAdmin);
   const after = () => { refreshReviews(); reload(); };
 
   return (
     <main className="wrap page-pad">
-      <a className="back" href="#search">→ חזרה לתוצאות</a>
+      <a className="back" href={to('search')}>→ חזרה לתוצאות</a>
       <div className="profile">
         <div className="profile-main">
           <header className="p-head">
@@ -34,7 +34,7 @@ export default function Tutor({ id }) {
                 <Stars avg={tutor.ratingAvg} count={tutor.ratingCount} />
                 {tutor.experienceYears ? <span className="muted-text"><bdi>{tutor.experienceYears}</bdi> שנות ניסיון</span> : null}
               </div>
-              {isOwner ? <a className="btn btn-line btn-sm" href={user.id === tutor.ownerId ? '#panel' : `#panel-admin`}>עריכת הפרופיל</a> : null}
+              {isOwner ? <a className="btn btn-line btn-sm" href={to(user.id === tutor.ownerId ? 'panel' : 'panel-admin')}>עריכת הפרופיל</a> : null}
             </div>
           </header>
 

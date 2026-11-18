@@ -56,13 +56,15 @@ export const auth = {
   ready,
   onChange(cb) { listeners.add(cb); return () => listeners.delete(cb); },
   async signInWithGoogle() {
-    const redirectTo = window.location.origin + window.location.pathname + window.location.hash;
+    // Google always returns to the site's home address (the one allowed in Supabase); the page you were on is restored after sign-in.
+    try { sessionStorage.setItem('naflaasimon-oauth-return', window.location.pathname); } catch { /* private mode */ }
+    const redirectTo = window.location.origin + import.meta.env.BASE_URL;
     const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } });
     if (error) throw error;
   },
   /** Sign-up with email + password. Supabase mails a confirmation link; the account works once it is clicked. */
   async signUpEmail({ email, password, name, phone, birthDate, area }) {
-    const emailRedirectTo = window.location.origin + window.location.pathname;
+    const emailRedirectTo = window.location.origin + import.meta.env.BASE_URL;
     const data = { full_name: name || '', signup_form: 'true', ...(phone ? { phone } : {}), ...(birthDate ? { birth_date: birthDate } : {}), ...(area ? { area } : {}) };
     const { data: res, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo, data } });
     if (error) throw new Error(authError(error));
@@ -73,7 +75,7 @@ export const auth = {
     if (error) throw new Error(authError(error));
   },
   async resetPassword(email) {
-    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname });
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + import.meta.env.BASE_URL });
     if (error) throw new Error(authError(error));
   },
   async signOut() { await sb.auth.signOut(); user = null; listeners.forEach((cb) => cb(null)); },

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useApp, useLoad, useMyTutor, go } from '../state.jsx';
+import { useApp, useLoad, useMyTutor, go, to } from '../state.jsx';
 import { SUBJECTS, CITIES, GOALS, LESSON_COUNTS, labelOf, WEEK_DAYS, WEEK_DAY_NAMES } from '../data/constants.js';
 import { money, dateShort, dateLong, normalizePhone, isPhone, weekdayMismatch } from '../lib/format.js';
 import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, SpamNote, StatusTag, InquiryChat, ChatOverlay, VIA, viaOf, WeekGrid, ReportTutor, REPORT_REASONS, BirthDateInput } from '../components/ui.jsx';
@@ -79,11 +79,11 @@ function PanelTabs() {
       <div className="page-head"><h1>האזור האישי</h1><p className="muted-text">שלום {user.name}{user.isAdmin ? ' · ניהול האתר' : ''}</p></div>
       {areaKeys.length > 1 ? (
         <nav className="area-switch" aria-label="אזורים">
-          {areaKeys.map((k) => <a key={k} href={'#' + AREAS[k].home} aria-current={area === k ? 'page' : undefined}>{AREAS[k].label}</a>)}
+          {areaKeys.map((k) => <a key={k} href={to(AREAS[k].home)} aria-current={area === k ? 'page' : undefined}>{AREAS[k].label}</a>)}
         </nav>
       ) : null}
       <nav className="tabs" aria-label={AREAS[area].label}>
-        {tabs.map(([k, label]) => <a key={k} href={'#' + k} aria-current={tab === k ? 'page' : undefined}>{label}{k === 'panel-inbox' ? <FreshBadge /> : null}</a>)}
+        {tabs.map(([k, label]) => <a key={k} href={to(k)} aria-current={tab === k ? 'page' : undefined}>{label}{k === 'panel-inbox' ? <FreshBadge /> : null}</a>)}
       </nav>
       {tab === 'panel' && <MyProfile />}
       {tab === 'panel-inbox' && <Inbox />}
@@ -132,8 +132,8 @@ function MyProfile() {
           {mine.address ? <p>כתובת (לא מוצגת לתלמידים): {mine.address}</p> : null}
           <div className="form-actions">
             <button type="button" className="btn btn-brand" onClick={() => setEditing(true)}>עריכה</button>
-            <a className="btn btn-line" href={`#tutor-${mine.id}`}>איך תלמידים רואים אותי</a>
-            <a className="btn btn-line" href="#panel-groups">פתיחת קבוצה</a>
+            <a className="btn btn-line" href={to(`tutor-${mine.id}`)}>איך תלמידים רואים אותי</a>
+            <a className="btn btn-line" href={to('panel-groups')}>פתיחת קבוצה</a>
           </div>
         </div>
       </div>
@@ -468,14 +468,14 @@ function MyGroups() {
 
   if (loading && !mine && !loaded && !user.isAdmin) return <Loading />;
   if (mine && mine.approval !== 'approved' && !user.isAdmin) {
-    return <div className="panel-empty"><h2>הפרופיל עדיין לא אושר</h2><p className="muted-text">אפשר יהיה לפתוח קבוצות ברגע שהצוות יאשר את הפרופיל שלכם.</p><a className="btn btn-brand" href="#panel">לפרופיל</a></div>;
+    return <div className="panel-empty"><h2>הפרופיל עדיין לא אושר</h2><p className="muted-text">אפשר יהיה לפתוח קבוצות ברגע שהצוות יאשר את הפרופיל שלכם.</p><a className="btn btn-brand" href={to('panel')}>לפרופיל</a></div>;
   }
   if (!manageable.length) {
     return (
       <div className="panel-empty">
         <h2>קודם פותחים פרופיל מורה</h2>
         <p className="muted-text">קבוצה תמיד מופיעה עם המורה שמעביר אותה, כדי שתלמידים יוכלו לראות ביקורות ולפנות.</p>
-        <a className="btn btn-brand" href="#panel">פתיחת פרופיל מורה</a>
+        <a className="btn btn-brand" href={to('panel')}>פתיחת פרופיל מורה</a>
       </div>
     );
   }
@@ -496,7 +496,7 @@ function MyGroups() {
           {list.map((g) => (
             <article key={g.id} className="admin-item">
               <div className="ai-main">
-                <a className="t-name" href={`#group-${g.id}`}>{g.title}</a>
+                <a className="t-name" href={to(`group-${g.id}`)}>{g.title}</a>
                 <p className="t-meta">{dateLong(g.startDate)} · {g.time} · {g.mode === 'online' ? 'אונליין' : g.location || g.city} · {money(g.pricePerPerson)} לתלמיד{user.isAdmin && g.tutor ? ` · ${g.tutor.name}` : ''}</p>
                 <p className="ai-seats"><b><bdi>{g.seatsTaken}</bdi></b> מתוך <bdi>{g.maxSeats}</bdi> מקומות תפוסים · {g.joinMode === 'approval' ? 'באישור המורה' : 'פתוחה'}{g.pendingCount ? <b className="pending-note"> · {g.pendingCount} ממתינים לאישור</b> : null}</p>
               </div>
@@ -652,7 +652,7 @@ function MySeats({ openId }) {
     <div className="my-requests">
       <section>
         <h2 className="sub-h">פניות ששלחתי למורים</h2>
-        {!(inqs || []).length ? <p className="muted-text">עוד לא שלחתם פנייה. <a href="#search">חיפוש מורה</a></p> : (
+        {!(inqs || []).length ? <p className="muted-text">עוד לא שלחתם פנייה. <a href={to('search')}>חיפוש מורה</a></p> : (
           <div className="inq-list">
             {[...inqs].sort((a, b) => (b.lastAt || b.createdAt || '').localeCompare(a.lastAt || a.createdAt || '')).map((q) => <MyInquiry key={q.id} q={q} open={open === q.id} onToggle={() => setOpen(open === q.id ? null : q.id)} />)}
           </div>
@@ -660,15 +660,15 @@ function MySeats({ openId }) {
       </section>
       <section>
         <h2 className="sub-h">קבוצות שנרשמתי אליהן</h2>
-        {!list.length ? <p className="muted-text">עוד לא נרשמתם לקבוצה. <a href="#groups">לקבוצות הלמידה</a></p> : (
+        {!list.length ? <p className="muted-text">עוד לא נרשמתם לקבוצה. <a href={to('groups')}>לקבוצות הלמידה</a></p> : (
           <div className="admin-list">
             {list.map(({ s, g }) => (
               <article key={s.id} className="admin-item">
                 <div className="ai-main">
-                  <a className="t-name" href={`#group-${g.id}`}>{g.title}</a> <StatusTag status={s.status} map={SEAT_STATUS} />
+                  <a className="t-name" href={to(`group-${g.id}`)}>{g.title}</a> <StatusTag status={s.status} map={SEAT_STATUS} />
                   <p className="t-meta">{dateLong(g.startDate)} · {g.time} · {g.mode === 'online' ? 'אונליין' : g.location || g.city} · עם {g.tutor?.name}</p>
                 </div>
-                <div className="ai-actions"><a className="btn btn-brand btn-sm" href={`#group-${g.id}`}>{s.status === 'approved' ? 'לצ׳אט הקבוצה' : 'לעמוד הקבוצה'}</a></div>
+                <div className="ai-actions"><a className="btn btn-brand btn-sm" href={to(`group-${g.id}`)}>{s.status === 'approved' ? 'לצ׳אט הקבוצה' : 'לעמוד הקבוצה'}</a></div>
               </article>
             ))}
           </div>
@@ -704,7 +704,7 @@ function MyInquiry({ q, open, onToggle }) {
           {q.status === 'new' && !q.messageCount ? <p className="hint chat-win-hint">המורה עוד לא ענה. בינתיים אפשר להוסיף הודעה.</p> : null}
           <InquiryChat q={q} />
           <div className="my-inq-links chat-win-foot">
-            {q.tutor ? <a className="linkish small" href={`#tutor-${q.tutorId}`}>לפרופיל של {q.tutor.name.split(' ')[0]}</a> : null}
+            {q.tutor ? <a className="linkish small" href={to(`tutor-${q.tutorId}`)}>לפרופיל של {q.tutor.name.split(' ')[0]}</a> : null}
             {q.tutor ? <ReportTutor tutor={q.tutor} /> : null}
           </div>
         </ChatOverlay>
@@ -783,7 +783,7 @@ function AdminReports() {
             <article key={r.id} className="admin-item">
               <div className="ai-main">
                 <div className="inq-top">
-                  {r.tutor ? <a className="t-name" href={`#tutor-${r.tutorId}`}>{r.tutor.name}</a> : <b>מורה שהוסר/ה</b>}
+                  {r.tutor ? <a className="t-name" href={to(`tutor-${r.tutorId}`)}>{r.tutor.name}</a> : <b>מורה שהוסר/ה</b>}
                   <span className={'tag' + (r.status === 'open' ? ' brass' : '')}>{r.status === 'open' ? 'פתוח' : 'טופל'}</span>
                 </div>
                 <p className="t-meta">{labelOf(REPORT_REASONS, r.reason) || r.reason} · {dateShort(r.createdAt)}{r.userName ? ` · מאת ${r.userName}` : ''}</p>
@@ -828,7 +828,7 @@ function AdminTutors() {
             <article key={t.id} className="admin-item">
               <Avatar tutor={t} className="ai-photo" size={56} />
               <div className="ai-main">
-                <a className="t-name" href={`#tutor-${t.id}`}>{t.name}</a> <Verified tutor={t} />{t.approval && t.approval !== 'approved' ? <span className={'tag ' + (t.approval === 'pending' ? 'brass' : '')}>{t.approval === 'pending' ? 'ממתין' : 'נדחה'}</span> : null}
+                <a className="t-name" href={to(`tutor-${t.id}`)}>{t.name}</a> <Verified tutor={t} />{t.approval && t.approval !== 'approved' ? <span className={'tag ' + (t.approval === 'pending' ? 'brass' : '')}>{t.approval === 'pending' ? 'ממתין' : 'נדחה'}</span> : null}
                 <p className="t-meta">{(t.subjects || []).join(', ')} · {t.city || 'אונליין'} · {[t.teachesFrontal && t.priceFrontal ? `פרונטלי ${money(t.priceFrontal)}` : '', t.teachesOnline && t.priceOnline ? `אונליין ${money(t.priceOnline)}` : ''].filter(Boolean).join(' · ')}</p>
                 <Stars avg={t.ratingAvg} count={t.ratingCount} compact />
               </div>
