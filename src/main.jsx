@@ -1,12 +1,13 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AppProvider, useApp } from './state.jsx';
-import { Header, OfflineBar, BottomNav, Footer, LoginModal, GuestDialog, ProfileSetup, Toast, CoinTransition } from './components/ui.jsx';
+import { Header, OfflineBar, BottomNav, Footer, LoginModal, GuestDialog, ProfileSetup, Toast, CoinTransition, Loading } from './components/ui.jsx';
 import Home from './pages/Home.jsx';
 import Search from './pages/Search.jsx';
 import Tutor from './pages/Tutor.jsx';
 import { Groups, Group } from './pages/Groups.jsx';
-import Panel from './pages/Panel.jsx';
+// The personal area is big and only signed-in people open it, so it loads on demand and the public pages start faster.
+const Panel = lazy(() => import('./pages/Panel.jsx'));
 import About from './pages/About.jsx';
 import Auth from './pages/Auth.jsx';
 import { Privacy, Accessibility, Contact, NotFound } from './pages/Legal.jsx';
@@ -56,7 +57,7 @@ function Router() {
     case 'login': return <Auth mode="login" />;
     case 'signup': return <Auth mode="signup" />;
     default:
-      if (route.name.startsWith('panel') || route.name === 'chat') return <Panel />;
+      if (route.name.startsWith('panel') || route.name === 'chat') return <Suspense fallback={<main className="wrap page-pad" style={{ minHeight: '70vh' }}><Loading /></main>}><Panel /></Suspense>;
       if (route.name !== 'home') return <NotFound />;
       return <Home />;
   }

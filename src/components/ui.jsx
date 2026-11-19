@@ -15,11 +15,11 @@ export function Coin({ size = 30 }) {
   );
 }
 
-export function Avatar({ tutor, className = 'avatar', size }) {
+export function Avatar({ tutor, className = 'avatar', size, eager }) {
   // A photo that fails to load falls back to the default silhouette; while it loads the silhouette shows behind it.
   const [broken, setBroken] = useState(false);
   if (tutor?.photo && !broken) {
-    return <img className={className + ' photo-bg'} src={tutor.photo} alt={tutor.name} width={size || 520} height={size || 520} loading="lazy" decoding="async" onError={() => setBroken(true)} />;
+    return <img className={className + ' photo-bg'} src={tutor.photo} alt={tutor.name} width={size || 520} height={size || 520} loading={eager ? 'eager' : 'lazy'} fetchpriority={eager ? 'high' : undefined} decoding="async" onError={() => setBroken(true)} />;
   }
   return <TutorPhoto tutor={tutor} className={className + ' avatar-initials'} />;
 }
@@ -258,7 +258,9 @@ export const viaOf = (q) => (q.contactVia && q.contactVia.length ? q.contactVia 
 /** Declined inquiries the student has already opened: they move to "שיחות שנסגרו". Kept per browser. */
 const DECLINED_KEY = 'naflaasimon-declined-seen';
 export function declinedSeen() { try { return new Set(JSON.parse(localStorage.getItem(DECLINED_KEY) || '[]')); } catch { return new Set(); } }
-export function markDeclinedSeen(id) { try { const s = declinedSeen(); s.add(id); localStorage.setItem(DECLINED_KEY, JSON.stringify([...s].slice(-300))); } catch { /* private mode */ } window.dispatchEvent(new Event('naflaasimon:seen')); }
+/** Seen = on the server (any device) or in this browser. */
+export const isDeclineSeen = (q, local) => !!q.declineSeen || local.has(q.id);
+export function markDeclinedSeen(id, api) { api?.markDeclineSeen?.(id).catch(() => {}); try { const s = declinedSeen(); s.add(id); localStorage.setItem(DECLINED_KEY, JSON.stringify([...s].slice(-300))); } catch { /* private mode */ } window.dispatchEvent(new Event('naflaasimon:seen')); }
 
 export function InquiryChat({ q, asTutor }) {
   const { api, notify, version, reload } = useApp();
@@ -1031,7 +1033,7 @@ export function UserMenu() {
   const [, bump] = useState(0);
   useEffect(() => { const on = () => bump((n) => n + 1); window.addEventListener('naflaasimon:seen', on); return () => window.removeEventListener('naflaasimon:seen', on); }, []);
   const seenDeclined = declinedSeen();
-  const declinedNew = (myInq || []).filter((q) => q.status === 'declined' && !seenDeclined.has(q.id)).length;
+  const declinedNew = (myInq || []).filter((q) => q.status === 'declined' && !isDeclineSeen(q, seenDeclined)).length;
   const [mine] = useMyTutor();
   const isTutor = !!mine;
   const [open, setOpen] = useState(false);
@@ -1154,6 +1156,11 @@ export function Toast() {
 
 export function Empty({ title, children }) {
   return <div className="empty"><Coin size={40} /><h3>{title}</h3>{children}</div>;
+}
+
+/** Grey placeholder cards the size of the search results, so the footer stays put while the list loads. */
+export function SkeletonRows({ n = 4 }) {
+  return <div className="skel-list" aria-busy="true"><span className="sr-only">טוען…</span>{Array.from({ length: n }, (_, i) => <div key={i} className="skel-card" />)}</div>;
 }
 
 export function Loading() {

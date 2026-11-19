@@ -146,10 +146,11 @@ export async function reviewTutor(id, approve, reason) {
   return true;
 }
 export async function getTutor(id) {
-  const r = check(await sb.from('tutors').select('*').eq('id', id).maybeSingle());
-  if (!r) return null;
-  const s = check(await sb.from('tutor_stats').select('*').eq('tutor_id', id).maybeSingle());
-  return tutorFromRow(r, s || {});
+  const [r, s] = await Promise.all([
+    sb.from('tutors').select('*').eq('id', id).maybeSingle().then(check),
+    sb.from('tutor_stats').select('*').eq('tutor_id', id).maybeSingle().then(check),
+  ]);
+  return r ? tutorFromRow(r, s || {}) : null;
 }
 async function withPhone(t) {
   const { data: c } = await sb.from('tutor_contacts').select('phone, birth_date, address').eq('tutor_id', t.id).maybeSingle();
@@ -175,6 +176,7 @@ const inquiryFromRow = (q) => ({
   contactVia: q.contact_via || (q.phone ? ['phone'] : ['site']), lessons: q.lessons || '', goal: q.goal || '', slots: q.slots || [],
   subject: q.subject, level: q.level,
   mode: q.mode, message: q.message, status: q.status, reply: q.reply || '', createdAt: q.created_at, repliedAt: q.replied_at,
+  declineSeen: !!q.decline_seen_at,
 });
 async function attachTutors(list) {
   const ids = [...new Set(list.map((q) => q.tutorId))];
@@ -227,6 +229,11 @@ export async function sendInquiryMessage(inquiryId, text, asTutor) {
 export async function myInquiries() {
   if (!user) return [];
   return attachTutors(check(await sb.from('inquiries').select('*').eq('user_id', user.id).order('created_at', { ascending: false })).map(inquiryFromRow));
+}
+/** The student has read the "לא מתאים" notice (stored on the server, so other devices know too). */
+export async function markDeclineSeen(id) {
+  if (!user) return;
+  check(await sb.rpc('mark_decline_seen', { q: id }));
 }
 export async function tutorInquiries() {
   const u = need();

@@ -134,6 +134,10 @@ export async function myInquiries() {
   if (!user) return [];
   return wait(db().inquiries.filter((q) => q.userId === user.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(withTutor));
 }
+export async function markDeclineSeen(id) {
+  const d = db(); const q = d.inquiries.find((x) => x.id === id && x.userId === user?.id);
+  if (q) { q.declineSeen = true; save(d); }
+}
 export async function tutorInquiries() {
   need(); const d = db();
   const ids = d.tutors.filter((t) => t.ownerId === user.id || (user.isAdmin && !t.ownerId)).map((t) => t.id);
