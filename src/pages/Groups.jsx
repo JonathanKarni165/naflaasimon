@@ -1,21 +1,37 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useApp, useLoad, to } from '../state.jsx';
 import { optionLabel, norm } from '../data/topics.js';
-import { money, dateLong, relDays, dateShort, isPhone, groupEnded } from '../lib/format.js';
+import { money, dateLong, relDays, dateShort, isPhone, groupEnded, sessionsLeft } from '../lib/format.js';
 import { GroupCard, GuestRequest, Seg, TopicPicker, SeatDots, Avatar, Verified, Stars, Loading, Empty, ChatOverlay } from '../components/ui.jsx';
 
 export const isMarathon = (g) => Number(g.sessions) <= 1 || /מרתון/.test(g.title || '');
 
 export function Groups({ initialKind = 'any' }) {
   const { groups, filters } = useApp();
+  // Filters live in the address (/groups-marathons/?subject=…&mode=online), so reload and shared links keep them.
+  const [url] = useState(() => new URLSearchParams(window.location.search));
+  const fromUrl = [...url.keys()].length > 0;
+  const pickMode = (m) => (m === 'online' || m === 'frontal' ? m : 'any');
   // Same "מה רוצים ללמוד?" field as the tutor search: a subject or one of its courses.
-  const [pick, setPick] = useState({ subject: filters.subject || '', topic: filters.topic || '' });
+  const [pick, setPick] = useState(fromUrl ? { subject: url.get('subject') || '', topic: url.get('topic') || '' } : { subject: filters.subject || '', topic: filters.topic || '' });
   const { subject, topic } = pick;
-  const [mode, setMode] = useState(filters.mode === 'online' || filters.mode === 'frontal' ? filters.mode : 'any');
-  const [kind, setKind] = useState(initialKind);
-  const [q, setQ] = useState('');
+  const [mode, setMode] = useState(pickMode(fromUrl ? url.get('mode') : filters.mode));
+  const [kind, setKind] = useState(initialKind === 'any' && url.get('kind') === 'course' ? 'course' : initialKind);
+  const [q, setQ] = useState(url.get('q') || '');
   const [qFromTopic, setQFromTopic] = useState(false);
-  const [onlyOpen, setOnlyOpen] = useState(true);
+  const [onlyOpen, setOnlyOpen] = useState(url.get('full') !== '1');
+  useEffect(() => {
+    const p = new URLSearchParams();
+    if (subject) p.set('subject', subject);
+    if (topic) p.set('topic', topic);
+    if (mode !== 'any') p.set('mode', mode);
+    if (q.trim()) p.set('q', q.trim());
+    if (kind === 'course') p.set('kind', 'course');
+    if (!onlyOpen) p.set('full', '1');
+    const qs = p.toString();
+    const next = to(kind === 'marathon' ? 'groups-marathons' : 'groups') + (qs ? '?' + qs : '');
+    if (next !== window.location.pathname + window.location.search) history.replaceState(history.state, '', next);
+  }, [subject, topic, mode, q, kind, onlyOpen]);
   const list = useMemo(() => {
     const words = q.trim().split(/\s+/).filter(Boolean);
     const out = (groups || [])
@@ -235,7 +251,13 @@ export function Group({ id }) {
         <aside className="profile-side">
           <div className="side-card">
             <div className="side-price"><b><bdi>{money(group.pricePerPerson)}</bdi></b><span>{group.sessions > 1 ? 'לתלמיד למפגש' : 'לתלמיד, מפגש אחד'}</span></div>
-            {group.sessions > 1 ? <p className="hint">סה״כ <bdi>{money(group.pricePerPerson * group.sessions)}</bdi> ל־{group.sessions} מפגשים</p> : null}
+            {group.sessions > 1 ? (() => {
+              // A group that already started: the total covers only the sessions still ahead.
+              const left = sessionsLeft(group);
+              return left < group.sessions && left > 0
+                ? <p className="hint">הקבוצה כבר התחילה: נשארו {left === 1 ? 'מפגש אחד' : `${left} מפגשים`} מתוך {group.sessions}. סה״כ <bdi>{money(group.pricePerPerson * left)}</bdi> על המפגשים שנשארו.</p>
+                : <p className="hint">סה״כ <bdi>{money(group.pricePerPerson * group.sessions)}</bdi> ל־{group.sessions} מפגשים</p>;
+            })() : null}
             <SeatDots taken={group.seatsTaken} max={group.maxSeats} />
             <p className="join-mode">{approval ? 'הצטרפות באישור המורה: שולחים בקשה, והמורה מאשר.' : 'הרשמה פתוחה: נרשמים ונכנסים מיד.'}</p>
             {activeSeat ? (

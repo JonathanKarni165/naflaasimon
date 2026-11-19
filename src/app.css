@@ -231,7 +231,8 @@ textarea.input { resize: vertical; line-height: 1.6; }
 .bubble-msg.tutor { background: var(--purple-soft); border-color: var(--purple-soft); border-radius: 16px 16px 4px 16px; justify-self: end; }
 .bubble-msg b { font-size: 14px; }
 .bubble-msg small { color: var(--muted); font-size: 12px; }
-.msg-form { display: flex; gap: 8px; }
+.msg-form { display: flex; gap: 8px; align-items: center; }
+.msg-form .btn { flex: none; }
 .msg-form .input { flex: 1; min-width: 0; }
 
 /* Groups page */
@@ -685,6 +686,10 @@ footer .linkish { color: inherit; font-weight: 600; }
 .chat-win-hint { margin: 0; }
 .chat-win .chat { min-height: 0; grid-template-rows: minmax(0, 1fr) auto; }
 .chat-win .chat-list { max-height: none; min-height: 180px; }
+/* Group chat in the window: messages scroll on top, the send row stays a normal height at the bottom. */
+.chat-win .comments { min-height: 0; grid-template-rows: minmax(0, 1fr) auto; align-content: stretch; }
+.chat-win .comments > :first-child { overflow-y: auto; min-height: 120px; align-self: start; max-height: 100%; }
+.chat-win .comments > .msg-form { align-self: end; position: sticky; bottom: 0; background: var(--surface); padding-top: 8px; }
 @media (max-width: 600px) { .chat-overlay { padding: 0; } .chat-win { width: 100%; height: 100%; max-height: none; border-radius: 0; border-width: 0; } }
 .chat-win-foot { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-top: 8px; border-top: 1px solid var(--line); }
 .chat-win-info { margin: 0; }
@@ -824,3 +829,11 @@ img.photo-bg { background: #F4E29C url("data:image/svg+xml,%3Csvg xmlns='http://
 .chat-closed { margin: 0; padding: 12px 14px; border-top: 1px solid var(--line); background: var(--chip); border-radius: 0 0 12px 12px; font-weight: 600; }
 .user-btn { position: relative; }
 .dot-new { position: absolute; top: 2px; inset-inline-start: 2px; width: 11px; height: 11px; border-radius: 50%; background: var(--danger); border: 2px solid var(--surface); }
+
+/* Loading placeholders: same size as the content they stand for, so nothing below them jumps (CLS). */
+.skel-list { display: grid; gap: 16px; }
+.skel-card { height: var(--skel-h, 218px); border-radius: 18px; border: 2px solid var(--line); background: linear-gradient(90deg, var(--surface) 25%, var(--brass-soft) 50%, var(--surface) 75%) 0 0 / 200% 100%; animation: skel 1.4s ease-in-out infinite; }
+@media (max-width: 700px) { .skel-card { --skel-h: 315px; } }
+@keyframes skel { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .skel-card { animation: none; } }
+.reviews-wait { min-height: calc(var(--n) * 95px); }

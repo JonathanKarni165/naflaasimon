@@ -7,7 +7,9 @@ import { topicsBySubject } from '../data/topics.js';
 
 export default function Tutor({ id }) {
   const { api, tutors, groups, user, version, reload } = useApp();
-  const [tutor, loading] = useLoad(() => api.getTutor(id), [id, version]);
+  const [fresh, loading] = useLoad(() => api.getTutor(id), [id, version]);
+  // The cached tutors list already holds this tutor, so the page draws at once and the fresh copy replaces it quietly.
+  const tutor = fresh || (loading ? (tutors || []).find((t) => t.id === id) : null) || null;
   const [reviews, , , refreshReviews] = useLoad(() => api.listReviews(id), [id]);
   const myGroups = useMemo(() => (groups || []).filter((g) => g.tutorId === id), [groups, id]);
   const weighted = useMemo(() => (tutor && tutors ? bayesScore(tutor.ratingAvg, tutor.ratingCount, globalMean(tutors)) : null), [tutor, tutors]);
@@ -24,7 +26,7 @@ export default function Tutor({ id }) {
       <div className="profile">
         <div className="profile-main">
           <header className="p-head">
-            <Avatar tutor={tutor} className="p-photo" />
+            <Avatar tutor={tutor} className="p-photo" eager />
             <div className="p-id">
               <h1>{tutor.name}</h1>
               <p className="p-headline">{tutor.headline}</p>
@@ -184,6 +186,8 @@ function ReviewItem({ r, after }) {
 function ReviewList({ tutor, reviews, after, loaded }) {
   const [shown, setShown] = useState(SHOWN_REVIEWS);
   if (loaded && !reviews.length) return <p className="muted-text">עדיין אין ביקורות. למדתם עם {tutor.name.split(' ')[0]}? היו הראשונים לכתוב.</p>;
+  // While reviews load, keep about the room they will take, so the page below does not jump.
+  if (!loaded) return tutor.ratingCount ? <div className="reviews reviews-flat reviews-wait" style={{ '--n': Math.min(tutor.ratingCount, SHOWN_REVIEWS) }} aria-busy="true" /> : null;
   const left = reviews.length - shown;
   return (
     <>

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, to } from '../state.jsx';
 import { filterTutors, sortTutors, topicFirst, queryFirst, blendedRank } from '../lib/ranking.js';
 import { optionLabel } from '../data/topics.js';
-import { TutorRow, Seg, Loading, Empty, WherePicker, resolveWhere, TopicPicker } from '../components/ui.jsx';
+import { TutorRow, Seg, SkeletonRows, Empty, WherePicker, resolveWhere, TopicPicker } from '../components/ui.jsx';
 
 const SORTS = [
   ['best', 'מומלצים'],
@@ -156,7 +156,7 @@ export default function Search() {
             </div>
           ) : null}
 
-          {!results ? <Loading /> : results.length === 0 ? (
+          {!results ? <SkeletonRows /> : results.length === 0 ? (
             <Empty title={f.q ? `לא מצאנו מורים עם "${f.q}"` : 'לא מצאנו מורים שמתאימים לכל הסינונים'}>
               <p>{f.q ? 'נסו לבחור מקצוע או קורס מהרשימה, או לחפש מילה אחרת.' : 'נסו להסיר את הגבלת המחיר או המרחק, או לבחור רמה אחרת.'}</p>
               <button type="button" className="btn btn-brand" onClick={() => { resetFilters(); setWhereText(''); }}>ניקוי הסינון</button>

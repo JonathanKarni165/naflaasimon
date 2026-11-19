@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, useLoad, useMyTutor, go, to } from '../state.jsx';
 import { SUBJECTS, CITIES, GOALS, LESSON_COUNTS, labelOf, WEEK_DAYS, WEEK_DAY_NAMES } from '../data/constants.js';
 import { money, dateShort, dateLong, normalizePhone, isPhone, weekdayMismatch } from '../lib/format.js';
-import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, SpamNote, StatusTag, InquiryChat, ChatOverlay, VIA, viaOf, WeekGrid, ReportTutor, REPORT_REASONS, BirthDateInput, declinedSeen, markDeclinedSeen } from '../components/ui.jsx';
+import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, SpamNote, StatusTag, InquiryChat, ChatOverlay, VIA, viaOf, WeekGrid, ReportTutor, REPORT_REASONS, BirthDateInput, declinedSeen, markDeclinedSeen, isDeclineSeen } from '../components/ui.jsx';
 import { subtopicsOf, schoolCoursesOf, TOPICS } from '../data/topics.js';
 
 // Two separate areas: "תלמיד" (my conversations and sign-ups) and "מורה" (my profile, inquiries, groups).
@@ -650,14 +650,14 @@ function MySeats({ openId }) {
   const [seen, setSeen] = useState(declinedSeen);
   const toggle = (q) => {
     if (open === q.id) { setOpen(null); if (q.status === 'declined') setSeen(declinedSeen()); return; }
-    if (q.status === 'declined') markDeclinedSeen(q.id);
+    if (q.status === 'declined') markDeclinedSeen(q.id, api);
     setOpen(q.id);
   };
   if ((loading && !seats) || (loadingQ && !inqs)) return <Loading />;
   const sorted = [...(inqs || [])].sort((a, b) => (b.lastAt || b.createdAt || '').localeCompare(a.lastAt || a.createdAt || ''));
-  const closed = sorted.filter((q) => q.status === 'declined' && seen.has(q.id) && open !== q.id);
+  const closed = sorted.filter((q) => q.status === 'declined' && isDeclineSeen(q, seen) && open !== q.id);
   const active = sorted.filter((q) => !closed.includes(q))
-    .sort((a, b) => Number(b.status === 'declined' && !seen.has(b.id)) - Number(a.status === 'declined' && !seen.has(a.id)));
+    .sort((a, b) => Number(b.status === 'declined' && !isDeclineSeen(b, seen)) - Number(a.status === 'declined' && !isDeclineSeen(a, seen)));
   const list = (seats || []).map((s) => ({ s, g: (groups || []).find((g) => g.id === s.groupId) })).filter((x) => x.g);
   return (
     <div className="my-requests">
@@ -667,7 +667,7 @@ function MySeats({ openId }) {
           <>
             {active.length ? (
               <div className="inq-list">
-                {active.map((q) => <MyInquiry key={q.id} q={q} fresh={q.status === 'declined' && !seen.has(q.id)} open={open === q.id} onToggle={() => toggle(q)} />)}
+                {active.map((q) => <MyInquiry key={q.id} q={q} fresh={q.status === 'declined' && !isDeclineSeen(q, seen)} open={open === q.id} onToggle={() => toggle(q)} />)}
               </div>
             ) : <p className="muted-text">אין שיחות פתוחות. <a href={to('search')}>חיפוש מורה</a></p>}
             {closed.length ? (

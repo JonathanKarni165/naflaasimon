@@ -66,3 +66,14 @@ export function weekdayMismatch(startDate, time) {
   const day = DAY_LETTERS[new Date(startDate + 'T12:00:00').getDay()];
   return named.size && !named.has(day) ? day : '';
 }
+
+/** Weekly sessions not yet held (today's session still counts as ahead). */
+export function sessionsLeft(g) {
+  const total = Math.max(1, Number(g?.sessions) || 1);
+  if (!g?.startDate) return total;
+  const start = new Date(g.startDate + 'T00:00:00');
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  if (today <= start) return total;
+  const held = Math.floor((today - start) / (7 * 86400000)) + (((today - start) / 86400000) % 7 === 0 ? 0 : 1);
+  return Math.max(0, total - held);
+}

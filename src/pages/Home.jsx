@@ -126,7 +126,7 @@ export default function Home() {
             <a href={to('groups')}>כל הקבוצות</a>
           </div>
           <figure className="group-photo">
-            <img src="img/hero-3.jpg" loading="lazy" decoding="async" width="1200" height="960" alt="שלוש חברות לומדות יחד ליד שולחן עם מחשבים וצוחקות" />
+            <img src="img/hero-3-1200.webp" srcSet="img/hero-3-600.webp 600w, img/hero-3-1200.webp 1200w" sizes="(max-width: 900px) 100vw, 1100px" loading="lazy" decoding="async" width="1200" height="960" alt="שלוש חברות לומדות יחד ליד שולחן עם מחשבים וצוחקות" />
             <figcaption>לומדים יחד, בכיתה, בזום או בבית קפה</figcaption>
           </figure>
           <div className="groups">
@@ -185,19 +185,21 @@ export default function Home() {
 }
 
 // Warm, upbeat learning moments: one photo per day, a different one each day.
+// index.html preloads the same day's photo (same list and day math), so keep the two in step.
 const SLIDES = [
-  ['img/hero-1.jpg', 'שתי סטודנטיות יושבות על הדשא בפארק עם ספרים, צוחקות ולומדות יחד'],
-  ['img/hero-2.jpg', 'מורה פרטי מחייך עוזר לילד בשיעורי בית ליד מחשב נייד'],
+  ['hero-1', 'שתי סטודנטיות יושבות על הדשא בפארק עם ספרים, צוחקות ולומדות יחד'],
+  ['hero-2', 'מורה פרטי מחייך עוזר לילד בשיעורי בית ליד מחשב נייד'],
   // hero-3 is the groups-section photo, so it is not repeated here.
-  ['img/hero-4.jpg', 'קבוצת סטודנטים לומדת יחד בבית קפה בחיוך'],
+  ['hero-4', 'קבוצת סטודנטים לומדת יחד בבית קפה בחיוך'],
 ];
+const HERO_SIZES = '(max-width: 900px) 100vw, 560px';
 function HeroSlides() {
   const now = new Date();
   const day = Math.floor((now.getTime() - now.getTimezoneOffset() * 60000) / 86400000);
   const [src, alt] = SLIDES[day % SLIDES.length];
   return (
     <div className="hero-slides">
-      <img className="on" src={src} alt={alt} width="1200" height="960" decoding="async" fetchpriority="high" />
+      <img className="on" src={`img/${src}-1200.webp`} srcSet={`img/${src}-600.webp 600w, img/${src}-1200.webp 1200w`} sizes={HERO_SIZES} alt={alt} width="1200" height="960" decoding="async" fetchpriority="high" />
     </div>
   );
 }
