@@ -1042,6 +1042,14 @@ export function UserMenu() {
     const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
     document.addEventListener('click', close); return () => document.removeEventListener('click', close);
   }, []);
+  // On a phone the menu covers the whole screen, so the page behind must not scroll; Escape closes it.
+  useEffect(() => {
+    if (!open) return undefined;
+    const key = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('keydown', key);
+    document.documentElement.classList.add('menu-open');
+    return () => { document.removeEventListener('keydown', key); document.documentElement.classList.remove('menu-open'); };
+  }, [open]);
   return (
     <div className="user-menu" ref={ref}>
       <button type="button" className="user-btn" onClick={() => setOpen(!open)} aria-expanded={open}>
@@ -1050,8 +1058,11 @@ export function UserMenu() {
         {declinedNew ? <span className="dot-new" aria-label="יש עדכון בשיחות שלך" /> : null}
       </button>
       {open ? (
-        <div className="user-pop">
-          <b>{user.name}</b>{user.isAdmin ? <span className="tag brass">מנהל</span> : null}
+        <div className="user-pop" role="dialog" aria-label="התפריט שלי">
+          <div className="pop-head">
+            <b>{user.name}</b>{user.isAdmin ? <span className="tag brass">מנהל</span> : null}
+            <button type="button" className="pop-close" onClick={() => setOpen(false)} aria-label="סגירת התפריט">×</button>
+          </div>
           {/* Each area is its own coloured box with an icon, so "פאנל מורה" and "פאנל תלמיד" are easy to tell apart. */}
           {isTutor ? (
             <section className="pop-sec pop-tutor" aria-label="פאנל מורה">
@@ -1072,7 +1083,7 @@ export function UserMenu() {
               <a href={to('panel-admin')} onClick={() => setOpen(false)}>אישור וניהול מורים</a>
             </section>
           ) : null}
-          <button type="button" onClick={() => { setOpen(false); api.auth.signOut(); }}>התנתקות</button>
+          <button type="button" className="pop-out" onClick={() => { setOpen(false); api.auth.signOut(); }}>התנתקות</button>
         </div>
       ) : null}
     </div>
