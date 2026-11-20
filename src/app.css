@@ -843,3 +843,29 @@ img.photo-bg { background: #F4E29C url("data:image/svg+xml,%3Csvg xmlns='http://
 @keyframes skel { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { .skel-card { animation: none; } }
 .reviews-wait { min-height: calc(var(--n) * 95px); }
+
+/* Account menu: a dropdown on desktop, the whole screen on a phone. */
+.pop-head { display: flex; align-items: center; gap: 8px; }
+.pop-head b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-pop .pop-close { display: none; }
+@media (max-width: 759px) {
+  .user-pop {
+    position: fixed; inset: 0; z-index: 200; max-width: none; min-width: 0; border: 0; border-radius: 0;
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px));
+    display: flex; flex-direction: column; gap: 14px; overflow-y: auto; overscroll-behavior: contain;
+  }
+  .user-pop > * { flex: none; }
+  html.menu-open .top { z-index: 60; }
+  .pop-head { padding-bottom: 6px; border-bottom: 2px solid var(--line); }
+  .pop-head b { font-family: var(--display); font-weight: 400; font-size: 24px; }
+  .user-pop .pop-close {
+    display: grid; place-items: center; width: 44px; height: 44px; flex: none; padding: 0;
+    border: 2px solid var(--ink); border-radius: 50%; color: var(--ink); font-size: 28px; line-height: 1; background: var(--surface);
+  }
+  .pop-title { font-size: 19px; padding: 12px 14px; }
+  .pop-sec a { font-size: 18px; padding: 14px 10px; border-radius: 0; border-bottom: 1px solid var(--line); }
+  .pop-sec a:last-child { border-bottom: 0; }
+  .user-pop .pop-out { font-size: 18px; padding: 14px 10px; }
+  html.menu-open, html.menu-open body { overflow: hidden; }
+  html.menu-open .bottom-nav { display: none; }
+}
