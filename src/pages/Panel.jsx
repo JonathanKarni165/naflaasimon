@@ -263,12 +263,13 @@ function InquiryItem({ q, onChange, showTutor, open, onToggle }) {
         </span>
         <span className="t-meta">{[q.subject, q.level, q.mode != null ? MODE_LABEL[q.mode] : ''].filter(Boolean).join(' · ')}{showTutor && q.tutor ? ` · אל ${q.tutor.name}` : ''}</span>
         {q.goal || q.lessons ? <span className="inq-tags">{q.goal ? <span className="tag">{labelOf(GOALS, q.goal)}</span> : null}{q.lessons ? <span className="tag">{labelOf(LESSON_COUNTS, q.lessons)}</span> : null}</span> : null}
-        {!open ? <span className="inq-preview-line">{(q.message || '').split('\n').slice(1).join(' · ') || q.message}</span> : null}
+        {!open ? <span className="inq-preview-line">{(q.message || '').split('\n').slice(1).map((l) => l.trim()).filter(Boolean).join(' · ') || q.message}</span> : null}
         <span className="inq-toggle">{open ? 'פתיחת השיחה' : 'פתיחת השיחה'}</span>
       </button>
       {open ? (<ChatOverlay who={q.name} avatar={{ name: q.name }} status={q.status} onClose={onToggle}>
-      <p className="via-line chat-win-info">מעדיף/ה: {VIA.filter(([v]) => via.includes(v)).map(([, l]) => l).join(' · ')}</p>
-      <InquiryChat q={q} asTutor />
+      <p className="via-line chat-win-info">דרכי קשר מועדפות: {VIA.filter(([v]) => via.includes(v)).map(([, l]) => l).join(' · ')}</p>
+      {/* While confirming "לא מתאים" the confirm panel takes the chat's place, so the two never overlap on a phone. */}
+      {declining && q.status !== 'declined' ? null : <InquiryChat q={q} asTutor />}
       <div className="inq-actions chat-win-foot">
         <WaButton phone={q.phone} text={waText} />
         {q.phone ? <a className="btn btn-line btn-sm" href={`tel:${q.phone.replace(/[^\d+]/g, '')}`}><bdi>{q.phone}</bdi></a> : null}
@@ -310,6 +311,7 @@ function MyDetails() {
     setBusy(false);
   };
   return (
+    <>
     <form className="details-form" onSubmit={save}>
       <p className="muted-text">הפרטים האלה ימולאו לבד כשתפנו למורה או תירשמו לקבוצה. הם לא מוצגים באתר. מורה רואה את הטלפון שלכם רק אם בחרתם לשתף אותו בפנייה.</p>
       <label className="field-label" htmlFor="me-name">שם</label>
@@ -328,6 +330,39 @@ function MyDetails() {
       <p className="me-email"><bdi>{user.email || 'לא ידוע'}</bdi> <small className="muted-text">המייל הוא ההתחברות שלכם ולא ניתן לשינוי כאן</small></p>
       <div className="form-actions"><button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'שומרים…' : 'שמירת הפרטים'}</button></div>
     </form>
+    <DeleteAccount />
+    </>
+  );
+}
+
+/** Self-service account deletion, with a typed confirmation because it cannot be undone. */
+function DeleteAccount() {
+  const { api, notify } = useApp();
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState('');
+  const [busy, setBusy] = useState(false);
+  const del = async () => {
+    setBusy(true);
+    try { await api.deleteMyAccount(); notify('החשבון נמחק. תודה שהייתם איתנו'); go(''); } catch (e) { notify(e.message, true); setBusy(false); }
+  };
+  return (
+    <section className="delete-account" aria-labelledby="del-h">
+      <h2 id="del-h" className="sub-h">מחיקת החשבון</h2>
+      {!open ? (
+        <button type="button" className="linkish small" onClick={() => setOpen(true)}>אני רוצה למחוק את החשבון</button>
+      ) : (
+        <div className="decline-box">
+          <b>המחיקה סופית ואי אפשר לבטל אותה.</b>
+          <p className="hint">יימחקו הפרטים שלכם, הפניות והשיחות עם מורים, ההרשמות לקבוצות והביקורות שכתבתם. אם יש לכם פרופיל מורה, גם הוא והקבוצות שלו יימחקו.</p>
+          <label className="field-label" htmlFor="del-confirm">כדי לאשר, כתבו: מחיקה</label>
+          <input id="del-confirm" className="input" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" />
+          <div className="decline-actions">
+            <button type="button" className="btn btn-brand btn-sm danger" disabled={typed.trim() !== 'מחיקה' || busy} onClick={del}>{busy ? 'מוחקים…' : 'מחיקת החשבון לצמיתות'}</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setOpen(false); setTyped(''); }}>ביטול</button>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 

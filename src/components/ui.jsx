@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useApp, useMyTutor, useLoad, go, to, currentName } from '../state.jsx';
-import { money, rating1, reviewsLabel, initials, avatarColor, km, relDays, dateLong, dateTime, isPhone, isEmail, waLink } from '../lib/format.js';
+import { money, rating1, reviewsLabel, initials, avatarColor, km, relDays, dateLong, dateTime, isPhone, isEmail, waLink, isInAppBrowser } from '../lib/format.js';
 import { CITIES, NEIGHBORHOODS, WEEK_DAYS, WEEK_DAY_NAMES, DAY_SLOTS, LESSON_COUNTS, GOALS, slotLabel, labelOf } from '../data/constants.js';
 import { searchOptions, optionLabel, schoolCoursesOf, subtopicsOf } from '../data/topics.js';
 import { topicMatch } from '../lib/ranking.js';
@@ -916,6 +916,19 @@ export function rememberReturn() {
 }
 
 /** Choice screen: Google, email sign-in and sign-up open their own full pages; "phone only" opens the short form. */
+/** Google blocks sign-in inside Instagram/Facebook/TikTok browsers: say so, and offer to copy the link for Chrome or Safari. */
+export function InAppNote() {
+  const [copied, setCopied] = useState(false);
+  if (!isInAppBrowser()) return null;
+  const copy = () => navigator.clipboard?.writeText(window.location.href).then(() => setCopied(true), () => {});
+  return (
+    <div className="note inapp-note" role="note">
+      <b>נראה שפתחתם את האתר מתוך אפליקציה (אינסטגרם, פייסבוק או טיקטוק).</b> שם Google לא מאפשר להתחבר. אפשר להירשם עם מייל וסיסמה, או לפתוח את האתר ב־Chrome או ב־Safari.
+      <button type="button" className="btn btn-line btn-sm" onClick={copy}>{copied ? 'הקישור הועתק ✓' : 'העתקת הקישור'}</button>
+    </div>
+  );
+}
+
 function AuthFlow({ api, guest, onBack }) {
   const { openGuest, setLoginOpen, closeGuest } = useApp();
   const [err, setErr] = useState('');
@@ -924,6 +937,7 @@ function AuthFlow({ api, guest, onBack }) {
   return (
     <div className="auth-flow">
       {onBack ? <button type="button" className="back-btn" onClick={onBack}>→ חזרה</button> : null}
+      <InAppNote />
       <button type="button" className="btn btn-google" onClick={google}>{GOOGLE_ICON} המשך עם Google</button>
       <button type="button" className="btn btn-brand" onClick={() => page('login')}>כניסה עם מייל וסיסמה</button>
       <button type="button" className="btn btn-line" onClick={() => page('signup')}>פתיחת חשבון חדש</button>
@@ -989,24 +1003,29 @@ export function ProfileSetup() {
     if (show && !d.open) { setF({ name: user.name || '', phone: user.phone || '', birthDate: '', area: user.area || '' }); d.showModal(); }
     if (!show && d.open) d.close();
   }, [show, user]);
+  // A name taken from the email ("dana+1") is what tutors would see, so the window can't be skipped until a real name is set.
+  const emailName = (user?.email || '').split('@')[0];
+  const canSkip = !!user && (user.name || '').trim() !== emailName && (user.name || '').trim().length >= 2;
   const skip = () => { try { sessionStorage.setItem('naflaasimon-setup-skipped', '1'); } catch { /* private mode */ } setSkipped(true); };
   const save = async (e) => {
     e.preventDefault();
     if (!f.name.trim()) { notify('כתבו שם', true); return; }
+    if (f.name.trim().length < 2 || f.name.trim().length > 60) { notify('השם צריך להיות בין 2 ל־60 תווים', true); return; }
+    if (f.name.trim() === emailName) { notify('כתבו את השם שלכם, לא את המייל', true); return; }
     if (f.phone.trim() && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל \u2066050-1234567\u2069', true); return; }
     setBusy(true);
     try { await api.saveMyContact({ name: f.name.trim(), phone: f.phone.trim(), birthDate: f.birthDate, area: f.area }); notify('נשמר. ברוכים הבאים!'); } catch (err) { notify(err.message, true); }
     setBusy(false);
   };
   return (
-    <dialog ref={ref} className="modal" onCancel={(e) => { e.preventDefault(); skip(); }}>
+    <dialog ref={ref} className="modal" onCancel={(e) => { e.preventDefault(); if (canSkip) skip(); }}>
       {f ? (
         <form className="modal-body setup-form" onSubmit={save} noValidate>
           <Coin size={44} />
           <h2>ברוכים הבאים</h2>
           <p className="muted-text">שם נדרש כדי שמורים ידעו מי פונה. כל השאר לא חובה, והפרטים נשמרים אצלנו ולא מוצגים באתר.</p>
           <label className="field-label" htmlFor="su-name">שם</label>
-          <input id="su-name" className="input" autoComplete="name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+          <input id="su-name" className="input" autoComplete="name" maxLength={60} value={f.name === emailName ? '' : f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
           <label className="field-label" htmlFor="su-phone">טלפון (לא חובה)</label>
           <input id="su-phone" className="input" type="tel" inputMode="tel" dir="ltr" autoComplete="tel" placeholder="050-1234567" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
           <label className="field-label" htmlFor="su-birth">תאריך לידה (לא חובה, אי אפשר לשנות אחר כך)</label>
@@ -1015,7 +1034,7 @@ export function ProfileSetup() {
           <input id="su-area" className="input" list="su-cities" autoComplete="off" placeholder="עיר או שכונה" value={f.area} onChange={(e) => setF({ ...f, area: e.target.value })} />
           <datalist id="su-cities">{CITIES.map((c) => <option key={c.name} value={c.name} />)}</datalist>
           <p className="fine">המייל שלכם: <bdi>{user.email}</bdi></p>
-          <div className="form-actions"><button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'שומרים…' : 'שמירה והמשך'}</button><button type="button" className="btn btn-ghost" onClick={skip}>אחר כך</button></div>
+          <div className="form-actions"><button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'שומרים…' : 'שמירה והמשך'}</button>{canSkip ? <button type="button" className="btn btn-ghost" onClick={skip}>אחר כך</button> : null}</div>
         </form>
       ) : null}
     </dialog>
