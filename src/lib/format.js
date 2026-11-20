@@ -28,10 +28,20 @@ export function reviewsLabel(n) {
 }
 
 export function normalizePhone(p) {
-  const d = String(p || '').replace(/\D/g, '');
+  let d = String(p || '').replace(/\D/g, '');
+  if (d.startsWith('00')) d = d.slice(2); // 00972...
+  if (d.startsWith('9720')) return '972' + d.slice(4); // +972 (0)50...
   if (d.startsWith('972')) return d;
   if (d.startsWith('0')) return '972' + d.slice(1);
+  if (/^5\d{8}$/.test(d)) return '972' + d; // 501234567, the leading 0 dropped
   return d;
+}
+
+/** One-tap WhatsApp chat (wa.me) with an optional prefilled message. Empty when the number can't be used. */
+export function waLink(phone, text = '') {
+  const n = normalizePhone(phone);
+  if (n.length < 11 || n.length > 15) return '';
+  return `https://wa.me/${n}${text ? `?text=${encodeURIComponent(text)}` : ''}`;
 }
 
 export const initials = (name = '') => name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('');

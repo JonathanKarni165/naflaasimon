@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, useLoad, useMyTutor, go, to } from '../state.jsx';
 import { SUBJECTS, CITIES, GOALS, LESSON_COUNTS, labelOf, WEEK_DAYS, WEEK_DAY_NAMES } from '../data/constants.js';
-import { money, dateShort, dateLong, normalizePhone, isPhone, weekdayMismatch } from '../lib/format.js';
-import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, SpamNote, StatusTag, InquiryChat, ChatOverlay, VIA, viaOf, WeekGrid, ReportTutor, REPORT_REASONS, BirthDateInput, declinedSeen, markDeclinedSeen, isDeclineSeen } from '../components/ui.jsx';
+import { money, dateShort, dateLong, isPhone, weekdayMismatch } from '../lib/format.js';
+import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, SpamNote, StatusTag, InquiryChat, ChatOverlay, WaButton, VIA, viaOf, WeekGrid, ReportTutor, REPORT_REASONS, BirthDateInput, declinedSeen, markDeclinedSeen, isDeclineSeen } from '../components/ui.jsx';
 import { subtopicsOf, schoolCoursesOf, TOPICS } from '../data/topics.js';
 
 // Two separate areas: "תלמיד" (my conversations and sign-ups) and "מורה" (my profile, inquiries, groups).
@@ -159,7 +159,8 @@ function Stats({ tutorId, contactCount }) {
 const MODE_LABEL = { online: 'אונליין', frontal: 'פרונטלי', '': 'לא משנה' };
 
 function GuestInbox() {
-  const { api, user, version, notify } = useApp();
+  const { api, user, version, notify, tutors } = useApp();
+  const tutorName = (id) => (tutors || []).find((t) => t.id === id)?.name || 'המורה';
   const [list, , , refresh] = useLoad(() => (api.tutorGuestRequests ? api.tutorGuestRequests() : []), [user.id, version]);
   const open = (list || []).filter((g) => g.status === 'new');
   if (!open.length) return null;
@@ -167,7 +168,7 @@ function GuestInbox() {
   return (
     <section className="pending-box" aria-label="פניות מאנשים בלי חשבון">
       <h2>פניות בלי חשבון ({open.length})</h2>
-      <p className="muted-text">אנשים שהשאירו טלפון בלי להירשם. חזרו אליהם בטלפון, ובפעם הבאה אפשר להמליץ להם על חשבון.</p>
+      <p className="muted-text">אנשים שהשאירו טלפון בלי להירשם. חזרו אליהם בטלפון או בוואטסאפ, ובפעם הבאה אפשר להמליץ להם על חשבון.</p>
       <div className="admin-list">
         {open.map((g) => (
           <article key={g.id} className="admin-item">
@@ -176,7 +177,10 @@ function GuestInbox() {
               <p className="t-meta">{g.groupTitle ? `לקבוצה "${g.groupTitle}" · ` : ''}{dateShort(g.createdAt)}</p>
               <p style={{ margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{g.message}</p>
             </div>
-            <div className="ai-actions"><button type="button" className="btn btn-line btn-sm" onClick={() => done(g)}>סימון כטופל</button></div>
+            <div className="ai-actions">
+              <WaButton phone={g.phone} text={`היי ${g.name.split(' ')[0]}, כאן ${tutorName(g.tutorId)} מנפל האסימון. קיבלתי את הפנייה שלך${g.groupTitle ? ` לקבוצה "${g.groupTitle}"` : ''}.`} />
+              <button type="button" className="btn btn-line btn-sm" onClick={() => done(g)}>סימון כטופל</button>
+            </div>
           </article>
         ))}
       </div>
@@ -228,7 +232,7 @@ function InquiryItem({ q, onChange, showTutor, open, onToggle }) {
   }, [open]);
   const via = viaOf(q);
   const first = q.name.split(' ')[0];
-  const wa = q.phone ? `https://wa.me/${normalizePhone(q.phone)}?text=${encodeURIComponent(`היי ${first}, כאן ${q.tutor?.name || ''} מנפל האסימון. קיבלתי את הפנייה שלך.`)}` : '';
+  const waText = `היי ${first}, כאן ${q.tutor?.name || 'המורה'} מנפל האסימון. קיבלתי את הפנייה שלך${q.subject ? ` ב${q.subject}` : ''} ואשמח לתאם שיעור.`;
   const mail = q.email ? `mailto:${q.email}?subject=${encodeURIComponent('הפנייה שלך בנפל האסימון')}` : '';
   return (
     <article ref={ref} className={'inq' + (q.status === 'new' ? ' is-new' : '') + (open ? ' is-open' : '')}>
@@ -248,7 +252,7 @@ function InquiryItem({ q, onChange, showTutor, open, onToggle }) {
       <p className="via-line chat-win-info">מעדיף/ה: {VIA.filter(([v]) => via.includes(v)).map(([, l]) => l).join(' · ')}</p>
       <InquiryChat q={q} asTutor />
       <div className="inq-actions chat-win-foot">
-        {wa ? <a className="btn btn-wa btn-sm" href={wa} target="_blank" rel="noreferrer">וואטסאפ</a> : null}
+        <WaButton phone={q.phone} text={waText} />
         {q.phone ? <a className="btn btn-line btn-sm" href={`tel:${q.phone.replace(/[^\d+]/g, '')}`}><bdi>{q.phone}</bdi></a> : null}
         {mail ? <a className="btn btn-line btn-sm" href={mail}><bdi>{q.email}</bdi></a> : null}
         {q.status !== 'booked' ? <button type="button" className="btn btn-line btn-sm" onClick={() => onChange({ status: 'booked' }, 'סומן: נקבע שיעור')}>נקבע שיעור ✓</button> : null}
@@ -505,7 +509,7 @@ function MyGroups() {
                 <button type="button" className="btn btn-line btn-sm" onClick={() => setEditing(g)}>עריכה</button>
                 <ConfirmButton confirmText="למחוק את הקבוצה?" onConfirm={async () => { try { await api.deleteGroup(g.id); reload(); notify('הקבוצה נמחקה'); } catch (e) { notify(e.message, true); } }}>מחיקה</ConfirmButton>
               </div>
-              {openSeats === g.id ? <SeatList groupId={g.id} /> : null}
+              {openSeats === g.id ? <SeatList groupId={g.id} groupTitle={g.title} tutorName={g.tutor?.name || (tutors || []).find((t) => t.id === g.tutorId)?.name} /> : null}
             </article>
           ))}
         </div>
@@ -516,7 +520,7 @@ function MyGroups() {
 
 const SEAT_STATUS = { approved: ['אושר', 'st-booked'], pending: ['ממתין לאישור', 'st-new'], declined: ['נדחה', 'st-declined'] };
 
-function SeatList({ groupId }) {
+function SeatList({ groupId, groupTitle, tutorName }) {
   const { api, version, reload, notify } = useApp();
   const [seats, loading, error] = useLoad(() => api.listGroupSeats(groupId), [groupId, version]);
   if (loading && !seats) return <Loading />;
@@ -531,7 +535,8 @@ function SeatList({ groupId }) {
         <tbody>{[...seats].sort((a, b) => order[a.status] - order[b.status]).map((s) => (
           <tr key={s.id} className={s.status === 'pending' ? 'is-new' : ''}>
             <td>{s.name}<br /><small className="muted-text">{dateShort(s.createdAt)}</small></td>
-            <td><bdi>{s.phone}</bdi></td>
+            <td><a href={`tel:${(s.phone || '').replace(/[^\d+]/g, '')}`} dir="ltr"><bdi>{s.phone}</bdi></a>
+              <WaButton phone={s.phone} label="וואטסאפ" className="btn btn-wa btn-xs" text={`היי ${(s.name || '').split(' ')[0]}, כאן ${tutorName || 'המורה'} מנפל האסימון, לגבי הקבוצה "${groupTitle || ''}".`} /></td>
             <td>{s.note || '—'}</td>
             <td><StatusTag status={s.status} map={SEAT_STATUS} /></td>
             <td className="seat-acts">
