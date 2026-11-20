@@ -87,3 +87,30 @@ export function sessionsLeft(g) {
   const held = Math.floor((today - start) / (7 * 86400000)) + (((today - start) / 86400000) % 7 === 0 ? 0 : 1);
   return Math.max(0, total - held);
 }
+
+// Common typos in email domains ("gmial.com"): returns the corrected address, or '' when it looks fine.
+const DOMAIN_FIX = {
+  'gmial.com': 'gmail.com', 'gmai.com': 'gmail.com', 'gmal.com': 'gmail.com', 'gamil.com': 'gmail.com', 'gmali.com': 'gmail.com',
+  'gmail.co': 'gmail.com', 'gmail.co.il': 'gmail.com', 'gmaill.com': 'gmail.com', 'gnail.com': 'gmail.com', 'gmail.con': 'gmail.com', 'gmail.cm': 'gmail.com',
+  'walla.co': 'walla.co.il', 'wala.co.il': 'walla.co.il', 'walla.co.l': 'walla.co.il', 'walla.com': 'walla.co.il',
+  'hotmial.com': 'hotmail.com', 'hotmai.com': 'hotmail.com', 'hotmail.co': 'hotmail.com', 'hotmal.com': 'hotmail.com',
+  'outlok.com': 'outlook.com', 'outlook.co': 'outlook.com', 'yahoo.co': 'yahoo.com', 'yaho.com': 'yahoo.com', 'icloud.co': 'icloud.com',
+};
+export function emailTypo(email) {
+  const [local, domain] = String(email || '').trim().toLowerCase().split('@');
+  const fix = local && domain ? DOMAIN_FIX[domain] : '';
+  return fix ? `${local}@${fix}` : '';
+}
+
+// Instagram, Facebook, TikTok and similar apps open links in their own browser, where Google blocks sign-in.
+export const isInAppBrowser = () => typeof navigator !== 'undefined'
+  && /Instagram|FBAN|FBAV|FB_IAB|FBIOS|Line\/|TikTok|BytedanceWebview|musical_ly|Snapchat|LinkedInApp/i.test(navigator.userAgent || '');
+
+// Sign-up password: at least 8 characters with an English letter and a digit (the server checks the same).
+export function passwordProblem(p) {
+  const v = String(p || '');
+  if (v.length < 8) return 'הסיסמה צריכה לפחות 8 תווים';
+  if (!v.trim()) return 'הסיסמה לא יכולה להיות רק רווחים';
+  if (!/[A-Za-z]/.test(v) || !/\d/.test(v)) return 'הסיסמה צריכה לכלול לפחות אות אחת באנגלית ומספר אחד';
+  return '';
+}

@@ -44,9 +44,10 @@ sb.auth.onAuthStateChange((_e, session) => {
 function authError(e) {
   const m = (e.message || '').toLowerCase();
   if (m.includes('invalid login')) return 'המייל או הסיסמה לא נכונים';
-  if (m.includes('not confirmed')) return 'צריך לאשר את המייל קודם. חפשו את מייל האימות שלנו (גם בספאם)';
+  if (m.includes('not confirmed')) return 'NOT_CONFIRMED';
   if (m.includes('already registered')) return 'המייל הזה כבר רשום. נסו להיכנס, או לחצו על "שכחתי סיסמה"';
-  if (m.includes('password')) return 'הסיסמה חייבת להכיל לפחות 6 תווים';
+  if (m.includes('pwned') || m.includes('leaked')) return 'הסיסמה הזאת הופיעה בדליפות מידע. בחרו סיסמה אחרת';
+  if (m.includes('password')) return 'הסיסמה צריכה לפחות 8 תווים, עם אות באנגלית ומספר';
   if (m.includes('rate limit') || m.includes('too many')) return 'נשלחו הרבה בקשות. נסו שוב בעוד כמה דקות';
   return e.message || 'משהו השתבש, נסו שוב';
 }
@@ -72,6 +73,16 @@ export const auth = {
   },
   async signInEmail({ email, password }) {
     const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) {
+      const msg = authError(error);
+      const err = new Error(msg === 'NOT_CONFIRMED' ? 'צריך לאשר את המייל קודם. חפשו את מייל האימות שלנו (גם בספאם), או בקשו מייל חדש' : msg);
+      if (msg === 'NOT_CONFIRMED') err.code = 'not_confirmed';
+      throw err;
+    }
+  },
+  /** Sends the confirmation email again (for an account that was never confirmed). */
+  async resendConfirm(email) {
+    const { error } = await sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: window.location.origin + import.meta.env.BASE_URL } });
     if (error) throw new Error(authError(error));
   },
   async resetPassword(email) {
@@ -95,6 +106,9 @@ function check({ data, error }) {
     if (m.includes('tutor details required')) throw new Error('חסרים פרטי חובה למורה: ' + (m.split('required:')[1] || 'שם, טלפון, כתובת, תאריך לידה ותמונה').trim());
     if (m.includes('cannot contact yourself')) throw new Error('אי אפשר לשלוח פנייה לעצמכם');
     if (m.includes('not allowed')) throw new Error('אין הרשאה');
+    if (m.includes('profiles_name_len')) throw new Error('השם צריך להיות בין 2 ל־60 תווים');
+    if (m.includes('profiles_phone_chars')) throw new Error('מספר הטלפון יכול להכיל רק ספרות, רווחים ומקפים');
+    if (m.includes('profile: birth_date')) throw new Error('תאריך הלידה לא נראה נכון');
     if (m.includes('row-level security') && m.includes('reviews')) throw new Error('אפשר לכתוב ביקורת רק על מורה שפניתם אליו או שלמדתם אצלו בקבוצה');
     if (m.includes('tutors_experience_range')) throw new Error('שנות ניסיון: מספר בין 0 ל־60');
     if (m.includes('mime type')) throw new Error('אפשר להעלות רק תמונה (JPG, PNG או WebP)');
@@ -237,6 +251,12 @@ export async function myInquiries() {
   return attachTutors(check(await sb.from('inquiries').select('*').eq('user_id', user.id).order('created_at', { ascending: false })).map(inquiryFromRow));
 }
 /** The student has read the "לא מתאים" notice (stored on the server, so other devices know too). */
+/** Deletes the signed-in account and everything that belongs to it (supabase/round7.sql). */
+export async function deleteMyAccount() {
+  need();
+  check(await sb.rpc('delete_my_account'));
+  await sb.auth.signOut(); user = null; listeners.forEach((cb) => cb(null));
+}
 export async function markDeclineSeen(id) {
   if (!user) return;
   check(await sb.rpc('mark_decline_seen', { q: id }));

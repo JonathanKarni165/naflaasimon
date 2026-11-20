@@ -84,6 +84,7 @@ export async function saveMyContact({ name, phone }) {
 
 export async function listTutors() { return wait(db().tutors.map(publicTutor)); }
 export async function getTutor(id) { const t = db().tutors.find((x) => x.id === id); return wait(t ? publicTutor(t) : null); }
+export async function deleteMyAccount() { return wait(true); }
 export async function canReview(tutorId) {
   if (!user) return false;
   const d = db();
