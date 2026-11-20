@@ -877,3 +877,9 @@ img.photo-bg { background: #F4E29C url("data:image/svg+xml,%3Csvg xmlns='http://
 .decline-chips { flex-wrap: wrap; overflow: visible; }
 .decline-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .chat-win:has(.decline-box) .chat { min-height: 260px; }
+
+/* One-tap WhatsApp chat with a student (wa.me link, not the bot) */
+.wa-btn { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+.wa-btn svg { flex: none; }
+.btn-xs { padding: 4px 10px; font-size: 13px; }
+.seat-list td .wa-btn { margin-top: 4px; }
