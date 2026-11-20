@@ -856,8 +856,11 @@ img.photo-bg { background: #F4E29C url("data:image/svg+xml,%3Csvg xmlns='http://
   }
   .user-pop > * { flex: none; }
   html.menu-open .top { z-index: 60; }
-  .pop-head { padding-bottom: 6px; border-bottom: 2px solid var(--line); }
-  .pop-head b { font-family: var(--display); font-weight: 400; font-size: 24px; }
+  /* The site's grey (#7D7976) behind the boxes, so the full-screen menu isn't plain white. */
+  .user-pop { background: #7D7976; }
+  .pop-head { padding-bottom: 10px; border-bottom: 2px solid rgb(255 255 255 / .25); }
+  .pop-head b { font-family: var(--display); font-weight: 400; font-size: 26px; color: #fff; }
+  .pop-sec { background: var(--surface); border-width: 0; box-shadow: 4px 4px 0 var(--ink); }
   .user-pop .pop-close {
     display: grid; place-items: center; width: 44px; height: 44px; flex: none; padding: 0;
     border: 2px solid var(--ink); border-radius: 50%; color: var(--ink); font-size: 28px; line-height: 1; background: var(--surface);
@@ -865,7 +868,7 @@ img.photo-bg { background: #F4E29C url("data:image/svg+xml,%3Csvg xmlns='http://
   .pop-title { font-size: 19px; padding: 12px 14px; }
   .pop-sec a { font-size: 18px; padding: 14px 10px; border-radius: 0; border-bottom: 1px solid var(--line); }
   .pop-sec a:last-child { border-bottom: 0; }
-  .user-pop .pop-out { font-size: 18px; padding: 14px 10px; }
+  .user-pop .pop-out { font-size: 18px; padding: 14px; background: var(--surface); border-radius: 12px; text-align: center; font-weight: 700; box-shadow: 4px 4px 0 var(--ink); }
   html.menu-open, html.menu-open body { overflow: hidden; }
   html.menu-open .bottom-nav { display: none; }
 }
