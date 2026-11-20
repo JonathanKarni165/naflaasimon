@@ -47,6 +47,12 @@ begin
   return result;
 end $$;
 
+-- Meeting links (Zoom, Google Meet, Teams) are allowed; every other link stays blocked.
+create or replace function public.mod_strip_meetings(t text) returns text
+language sql immutable set search_path = '' as $$
+  select regexp_replace(coalesce(t, ''), '(https?://)?([a-z0-9-]+\\.)*(zoom\\.us|meet\\.google\\.com|teams\\.microsoft\\.com|teams\\.live\\.com)(?=[/?#\\s]|$)\\S*', ' ', 'gi')
+$$;
+
 -- Why the text is blocked ('profanity', 'link', 'phone', 'flood') or null when it is fine.
 create or replace function public.mod_check(t text, allow_phone boolean default false) returns text
 language plpgsql stable security definer set search_path = '' as $$
@@ -74,7 +80,7 @@ begin
     pair := tok || coalesce(toks[i + 1], '');
     if exists (select 1 from unnest(parts) p where position(p in pair) > 0) then return 'profanity'; end if;
   end loop;
-  if regexp_replace(t, '[\\u200B-\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF\\u00AD]', '', 'g')
+  if public.mod_strip_meetings(regexp_replace(t, '[\\u200B-\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF\\u00AD]', '', 'g'))
      ~* '(https?://|www\\.|\\yt\\.me/|\\ywa\\.me/|\\ybit\\.ly\\y|[a-z0-9-]+\\.(com|net|org|info|biz|io|co|il|ru|xyz|me|ly|link|site|online|app|shop|top|click)\\y|[^\\s@]+@[^\\s@]+\\.[a-z]{2,})'
     then return 'link'; end if;
   if not allow_phone and regexp_replace(t, '[\\s\\-.()]', '', 'g') ~ '(\\+?972|0)5[0-9]{8}|(\\+?972|0)[2-9][0-9]{7}'

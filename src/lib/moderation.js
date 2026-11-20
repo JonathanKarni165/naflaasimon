@@ -73,7 +73,10 @@ export function hasProfanity(text) {
 }
 
 const LINK = /(https?:\/\/|www\.|\bt\.me\/|\bwa\.me\/|\bbit\.ly\b|[a-z0-9-]+\.(com|net|org|info|biz|io|co|il|ru|xyz|me|ly|link|site|online|app|shop|top|click)\b|[^\s@]+@[^\s@]+\.[a-z]{2,})/i;
-export const hasLink = (text) => LINK.test(String(text || '').replace(HIDDEN, ''));
+// Meeting links (Zoom, Google Meet, Teams) are fine, e.g. a tutor sending the lesson link; every other link is blocked.
+// Same rule as public.mod_strip_meetings() in supabase/moderation.sql.
+const MEETING = /(https?:\/\/)?([a-z0-9-]+\.)*(zoom\.us|meet\.google\.com|teams\.microsoft\.com|teams\.live\.com)(?=[/?#\s]|$)\S*/gi;
+export const hasLink = (text) => LINK.test(String(text || '').replace(HIDDEN, '').replace(MEETING, ' '));
 
 // Israeli phone numbers, also written with spaces, dashes or dots between the digits.
 const PHONE = /(\+?972|0)5\d{8}|(\+?972|0)[2-9]\d{7}/;
@@ -84,7 +87,7 @@ export const hasFlood = (text) => /(.)\1{9,}/s.test(String(text || ''));
 
 export const MESSAGES = {
   profanity: 'הטקסט כולל מילים פוגעניות. נסחו אותו מחדש בבקשה',
-  link: 'אי אפשר לשלוח קישורים או כתובות מייל',
+  link: 'אי אפשר לשלוח קישורים או כתובות מייל (חוץ מקישור לזום, Google Meet או Teams)',
   phone: 'אי אפשר לפרסם מספר טלפון כאן. הפרטים נשלחים דרך האתר',
   flood: 'נראה כמו ספאם. נסו לכתוב בלי תווים חוזרים',
   duplicate: 'כבר שלחתם את ההודעה הזאת',

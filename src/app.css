@@ -872,6 +872,11 @@ img.photo-bg { background: #F4E29C url("data:image/svg+xml,%3Csvg xmlns='http://
   html.menu-open, html.menu-open body { overflow: hidden; }
   html.menu-open .bottom-nav { display: none; }
 }
+.decline-box { display: grid; gap: 8px; padding: 12px; border: 2px solid var(--ink); border-radius: 14px; background: var(--brass-soft); }
+.decline-box .hint { margin: 0; }
+.decline-chips { flex-wrap: wrap; overflow: visible; }
+.decline-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.chat-win:has(.decline-box) .chat { min-height: 260px; }
 
 /* One-tap WhatsApp chat with a student (wa.me link, not the bot) */
 .wa-btn { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }

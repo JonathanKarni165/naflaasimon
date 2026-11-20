@@ -98,16 +98,16 @@ export function BirthDateInput({ id, value, onChange, disabled }) {
     onChange(n.d && n.m && n.y ? `${n.y}-${String(n.m).padStart(2, '0')}-${String(n.d).padStart(2, '0')}` : '');
   };
   return (
-    <div className="date-3" role="group">
-      <select id={id} className="input" aria-label="יום" disabled={disabled} value={parts.d} onChange={(e) => set({ d: e.target.value })}>
+    <div className="date-3" role="group" aria-label="תאריך לידה">
+      <select id={id} className="input" aria-label="יום הלידה" title="יום" disabled={disabled} value={parts.d} onChange={(e) => set({ d: e.target.value })}>
         <option value="">יום</option>
         {Array.from({ length: days }, (_, i) => <option key={i} value={String(i + 1)}>{i + 1}</option>)}
       </select>
-      <select className="input" aria-label="חודש" disabled={disabled} value={parts.m} onChange={(e) => set({ m: e.target.value })}>
+      <select id={id && `${id}-m`} className="input" aria-label="חודש הלידה" title="חודש" disabled={disabled} value={parts.m} onChange={(e) => set({ m: e.target.value })}>
         <option value="">חודש</option>
         {HEB_MONTHS.map((name, i) => <option key={name} value={String(i + 1)}>{name}</option>)}
       </select>
-      <select className="input" aria-label="שנה" disabled={disabled} value={parts.y} onChange={(e) => set({ y: e.target.value })}>
+      <select id={id && `${id}-y`} className="input" aria-label="שנת הלידה" title="שנה" disabled={disabled} value={parts.y} onChange={(e) => set({ y: e.target.value })}>
         <option value="">שנה</option>
         {years.map((y) => <option key={y} value={String(y)}>{y}</option>)}
       </select>
@@ -378,7 +378,7 @@ const slotSort = (a, b) => { const [d1, h1] = a.split('-').map(Number); const [d
 export function SpamNote({ who = 'student' }) {
   return (
     <p className="spam-note" role="note">
-      <b>טיפ חשוב:</b> {who === 'tutor' ? 'הודעות על פניות חדשות' : 'המיילים שלנו'} עלולים להגיע לתיקיית הספאם. אם מצאתם מייל מנפל האסימון שם, סמנו אותו <b>״לא ספאם״</b> והוסיפו את <bdi dir="ltr">nafalaasimon@gmail.com</bdi> לאנשי הקשר, כדי שלא תפספסו עדכונים.
+      <b>טיפ חשוב:</b> {who === 'tutor' ? 'הודעות על פניות חדשות' : 'המיילים שלנו'} {who === 'tutor' ? 'עלולות' : 'עלולים'} להגיע לתיקיית הספאם. אם מצאתם מייל מנפל האסימון שם, סמנו אותו <b>״לא ספאם״</b> והוסיפו את <bdi dir="ltr">nafalaasimon@gmail.com</bdi> לאנשי הקשר, כדי שלא תפספסו עדכונים.
     </p>
   );
 }
@@ -441,8 +441,8 @@ export function GuestDialog() {
     e.preventDefault();
     const e2 = {};
     if (f.name.trim().length < 2) e2.name = 'כתבו את השם שלכם';
-    if (!f.phone.trim()) e2.phone = 'כתבו מספר טלפון, למשל 050‑1234567';
-    else if (!isPhone(f.phone)) e2.phone = 'המספר לא נראה תקין. כתבו מספר ישראלי, למשל 050‑1234567';
+    if (!f.phone.trim()) e2.phone = 'כתבו מספר טלפון, למשל \u2066050-1234567\u2069';
+    else if (!isPhone(f.phone)) e2.phone = 'המספר לא נראה תקין. כתבו מספר ישראלי, למשל \u2066050-1234567\u2069';
     if (f.email.trim() && !isEmail(f.email)) e2.email = 'כתובת המייל לא נראית תקינה';
     if (!f.message.trim()) e2.message = 'כתבו הודעה קצרה למורה';
     setErrs(e2);
@@ -547,9 +547,9 @@ export function InquiryBox({ tutor }) {
   const submit = async (e) => {
     e.preventDefault();
     if (!f.via.length) { notify('בחרו לפחות דרך אחת שבה המורה יחזור אליכם', true); return; }
-    if (f.via.includes('phone') && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל 050‑1234567', true); setEditDetails(true); return; }
+    if (f.via.includes('phone') && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל \u2066050-1234567\u2069', true); setEditDetails(true); return; }
     if (f.via.includes('email') && !isEmail(f.email)) { notify('בדקו את כתובת המייל', true); setEditDetails(true); return; }
-    if (f.phone.trim() && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל 050‑1234567', true); setEditDetails(true); return; }
+    if (f.phone.trim() && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל \u2066050-1234567\u2069', true); setEditDetails(true); return; }
     if (!f.lessons || !f.goal) { setStep(0); notify('בחרו כמה שיעורים ומה המטרה', true); return; }
     setBusy(true);
     try {
@@ -637,9 +637,9 @@ export function InquiryBox({ tutor }) {
                   <span className="field-label">מתי נוח לכם? <small className="muted-text">(לא חובה)</small></span>
                   <p className="hint wg-skip-hint">אפשר לסמן כמה זמנים, או לא לסמן כלום ולהמשיך. את השעות המדויקות אפשר לתאם עם המורה בצ׳אט.</p>
                   <WeekGrid mode="pick" value={f.slots} allowed={tutor.availability} onChange={(slots) => setF({ ...f, slots })} label="בחירת זמנים נוחים" />
-                  {(tutor.availability || []).length ? <p className="wg-legend"><span><i className="free" />המורה פנוי/ה</span><span><i />בחרתם</span></p> : null}
+                  {(tutor.availability || []).length ? <p className="wg-legend"><span><i className="free" />זמן פנוי אצל המורה</span><span><i />בחרתם</span></p> : null}
                   <div className="wg-actions">
-                    <span className="hint">{f.slots.length ? `נבחרו ${f.slots.length} זמנים` : 'לא נבחרו זמנים, זה בסדר גמור'}</span>
+                    <span className="hint">{f.slots.length ? (f.slots.length === 1 ? 'נבחר זמן אחד' : `נבחרו ${f.slots.length} זמנים`) : 'לא נבחרו זמנים, זה בסדר גמור'}</span>
                     {f.slots.length ? <button type="button" className="btn btn-ghost btn-sm" onClick={() => setF({ ...f, slots: [] })}>ניקוי הבחירה</button> : null}
                   </div>
                 </>
@@ -702,12 +702,12 @@ export function InquiryBox({ tutor }) {
         // The conversation itself lives in the personal area; here only a short status and a way there.
         <div className="inq-sent">
           <div className="inq-sent-top"><b>כבר פניתם ל{tutor.name.split(' ')[0]}</b><StatusTag status={last.status} /></div>
-          <p className="hint">{last.status === 'new' && !last.messageCount ? 'המורה עוד לא ענה. בדרך כלל עונים תוך יום.' : 'אפשר להמשיך את השיחה כאן.'}</p>
-          <button type="button" className="btn btn-brand go" onClick={() => setChat(true)} aria-expanded={chat}>לשיחה עם {tutor.name.split(' ')[0]}</button>
+          <p className="hint">{last.status === 'declined' ? `התשובה של ${tutor.name.split(' ')[0]}: הפנייה לא מתאימה כרגע, והשיחה נסגרה. אפשר לשלוח פנייה חדשה, למשל בזמנים או בנושא אחר.` : last.status === 'new' && !last.messageCount ? 'המורה עוד לא ענה. בדרך כלל עונים תוך יום.' : 'אפשר להמשיך את השיחה כאן.'}</p>
+          <button type="button" className={'btn go ' + (last.status === 'declined' ? 'btn-ghost btn-sm' : 'btn-brand')} onClick={() => setChat(true)} aria-expanded={chat}>{last.status === 'declined' ? 'לשיחה שנסגרה' : `לשיחה עם ${tutor.name.split(' ')[0]}`}</button>
         </div>
       ) : null}
       {last && chat ? <ChatWindow q={{ ...last, tutor }} onClose={() => setChat(false)} /> : null}
-      <button type="button" className={'btn go ' + (last ? 'btn-ghost btn-sm' : 'btn-brand')} onClick={start}>{last ? 'פנייה חדשה' : 'שליחת פנייה למורה'}</button>
+      <button type="button" className={'btn go ' + (last && last.status !== 'declined' ? 'btn-ghost btn-sm' : 'btn-brand')} onClick={start}>{last ? 'פנייה חדשה' : 'שליחת פנייה למורה'}</button>
       {!user ? <p className="hint">כניסה מהירה עם Google או עם מייל. אפשר לדבר עם המורה בצ׳אט באתר, בלי למסור טלפון.</p> : null}
       <GuestRequest tutor={tutor} />
       {wizard}
@@ -993,7 +993,7 @@ export function ProfileSetup() {
   const save = async (e) => {
     e.preventDefault();
     if (!f.name.trim()) { notify('כתבו שם', true); return; }
-    if (f.phone.trim() && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל 050‑1234567', true); return; }
+    if (f.phone.trim() && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל \u2066050-1234567\u2069', true); return; }
     setBusy(true);
     try { await api.saveMyContact({ name: f.name.trim(), phone: f.phone.trim(), birthDate: f.birthDate, area: f.area }); notify('נשמר. ברוכים הבאים!'); } catch (err) { notify(err.message, true); }
     setBusy(false);
@@ -1138,9 +1138,12 @@ export function Header() {
 }
 
 export function BottomNav() {
-  const { route } = useApp();
-  const items = [['', 'home', 'בית'], ['search', 'search', 'חיפוש'], ['groups', 'groups', 'קבוצות'], ['panel', 'panel', 'אזור אישי']];
-  const active = (n) => (n === '' ? route.name === 'home' : route.name === n || route.name.startsWith(n + '-') || (n === 'search' && route.name === 'tutor') || (n === 'groups' && route.name === 'group') || (n === 'panel' && route.name === 'chat'));
+  const { route, user } = useApp();
+  const [mine] = useMyTutor();
+  // Someone without a tutor profile opens their own conversations, not the tutor sign-up form.
+  const me = user && !mine ? 'panel-seats' : 'panel';
+  const items = [['', 'home', 'בית'], ['search', 'search', 'חיפוש'], ['groups', 'groups', 'קבוצות'], [me, 'panel', 'אזור אישי']];
+  const active = (n) => (n === '' ? route.name === 'home' : route.name === n || route.name.startsWith(n + '-') || (n === 'search' && route.name === 'tutor') || (n === 'groups' && route.name === 'group') || (n.startsWith('panel') && (route.name === 'chat' || route.name.startsWith('panel'))));
   return (
     <nav className="bottom-nav" aria-label="ניווט מהיר">
       {items.map(([h, icon, label]) => (
