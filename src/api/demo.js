@@ -84,6 +84,13 @@ export async function saveMyContact({ name, phone }) {
 
 export async function listTutors() { return wait(db().tutors.map(publicTutor)); }
 export async function getTutor(id) { const t = db().tutors.find((x) => x.id === id); return wait(t ? publicTutor(t) : null); }
+export async function canReview(tutorId) {
+  if (!user) return false;
+  const d = db();
+  return wait(d.inquiries.some((q) => q.tutorId === tutorId && q.userId === user.id && q.status !== 'declined')
+    || d.seats.some((s) => s.userId === user.id && d.groups.find((g) => g.id === s.groupId)?.tutorId === tutorId));
+}
+export async function reviewTutorChanges() { return wait(true); }
 export async function getMyTutor() { if (!user) return null; const t = db().tutors.find((x) => x.ownerId === user.id); return wait(t ? clone(t) : null); }
 export async function getTutorForEdit(id) {
   const t = db().tutors.find((x) => x.id === id);
@@ -184,6 +191,7 @@ export async function deleteTutor(id) {
 }
 
 export async function uploadPhoto(file) {
+  if (!/^image\//.test(file.type || '')) throw new Error('אפשר להעלות רק תמונה (JPG, PNG או WebP)');
   // Shrink to 480px and keep as a data URL (the real site uploads to storage).
   const url = URL.createObjectURL(file);
   try {

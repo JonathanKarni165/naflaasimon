@@ -30,7 +30,7 @@ export default function Auth({ mode }) {
     if (!isEmail(f.email.trim())) return setErr('כתבו כתובת מייל תקינה');
     if (signup && f.password.length < 8) return setErr('הסיסמה צריכה להכיל לפחות 8 תווים');
     if (!signup && !f.password) return setErr('כתבו סיסמה');
-    if (signup && f.phone.trim() && !isPhone(f.phone)) return setErr('בדקו את מספר הטלפון, למשל 050‑1234567');
+    if (signup && f.phone.trim() && !isPhone(f.phone)) return setErr('בדקו את מספר הטלפון, למשל \u2066050-1234567\u2069');
     setBusy(true);
     try {
       if (signup) {

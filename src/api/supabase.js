@@ -86,7 +86,7 @@ function check({ data, error }) {
   if (error) {
     const m = error.message || '';
     const mod = m.match(/moderation: (\w+)/);
-    if (mod) throw new Error(MESSAGES[mod[1]] || MESSAGES.profanity);
+    if (mod) { const err = new Error(MESSAGES[mod[1]] || MESSAGES.profanity); err.field = error.details || ''; throw err; }
     if (m.includes('rate limit')) throw new Error('שלחתם הרבה הודעות בזמן קצר. נסו שוב מאוחר יותר');
     if (m.includes('group full')) throw new Error('הקבוצה מלאה');
     if (m.includes('duplicate')) throw new Error('כבר נרשמתם');
@@ -95,6 +95,9 @@ function check({ data, error }) {
     if (m.includes('tutor details required')) throw new Error('חסרים פרטי חובה למורה: ' + (m.split('required:')[1] || 'שם, טלפון, כתובת, תאריך לידה ותמונה').trim());
     if (m.includes('cannot contact yourself')) throw new Error('אי אפשר לשלוח פנייה לעצמכם');
     if (m.includes('not allowed')) throw new Error('אין הרשאה');
+    if (m.includes('row-level security') && m.includes('reviews')) throw new Error('אפשר לכתוב ביקורת רק על מורה שפניתם אליו או שלמדתם אצלו בקבוצה');
+    if (m.includes('tutors_experience_range')) throw new Error('שנות ניסיון: מספר בין 0 ל־60');
+    if (m.includes('mime type')) throw new Error('אפשר להעלות רק תמונה (JPG, PNG או WebP)');
     throw new Error(m || 'משהו השתבש, נסו שוב');
   }
   return data;
@@ -108,6 +111,8 @@ const tutorFromRow = (r, stats = {}) => ({
   experienceYears: r.experience_years, verified: r.verified, contactCount: r.contact_count, createdAt: r.created_at,
   ratingCount: stats.rating_count || 0, ratingAvg: stats.rating_avg || 0,
   approval: r.approval || 'approved', rejectReason: r.reject_reason || '', isExample: !!r.is_example,
+  // Photo/headline/about an approved tutor changed, waiting for the admin (supabase/round6.sql).
+  pending: r.pending && Object.keys(r.pending).length ? r.pending : null,
 });
 const tutorToRow = (t) => {
   const c = cityByName(t.city);
@@ -159,7 +164,8 @@ async function withPhone(t) {
 export async function getMyTutor() {
   if (!user) return null;
   const r = check(await sb.from('tutors').select('*').eq('owner_id', user.id).maybeSingle());
-  return r ? withPhone(tutorFromRow(r)) : null;
+  // The owner edits their latest version, including changes still waiting for review.
+  return r ? withPhone(tutorFromRow({ ...r, ...(r.pending || {}) })) : null;
 }
 export async function getTutorForEdit(id) {
   const r = check(await sb.from('tutors').select('*').eq('id', id).single());
@@ -264,12 +270,24 @@ export async function saveTutor(input) {
     if (isNew) await sb.from('tutors').delete().eq('id', saved.id); // don't leave a half-filled application behind
     check({ error });
   }
-  return tutorFromRow(saved);
+  if (saved.owner_id === u.id && !u.isAdmin) cleanPhotos(u.id, [saved.photo, saved.pending?.photo]);
+  return tutorFromRow({ ...saved, ...(saved.pending || {}) });
+}
+/** Removes the owner's uploaded photos that the profile no longer uses (live or waiting), so storage does not fill up. */
+async function cleanPhotos(uid, keep) {
+  try {
+    const names = new Set(keep.filter(Boolean).map((u) => decodeURIComponent(String(u).split('/').pop().split('?')[0])));
+    const { data } = await sb.storage.from('tutor-photos').list(uid, { limit: 100 });
+    const old = (data || []).map((f) => f.name).filter((n) => !names.has(n));
+    if (old.length && names.size) await sb.storage.from('tutor-photos').remove(old.map((n) => `${uid}/${n}`));
+  } catch { /* best effort */ }
 }
 export async function deleteTutor(id) { need(); check(await sb.from('tutors').delete().eq('id', id)); return true; }
 
 export async function uploadPhoto(file) {
   const u = need();
+  if (!/^image\/(jpeg|png|webp|gif)$/.test(file.type || '')) throw new Error('אפשר להעלות רק תמונה (JPG, PNG או WebP)');
+  if (file.size > 8 * 1024 * 1024) throw new Error('התמונה גדולה מדי (עד 8MB)');
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
   const path = `${u.id}/${Date.now()}.${ext}`;
   check(await sb.storage.from('tutor-photos').upload(path, file, { upsert: true, contentType: file.type }));
@@ -277,6 +295,18 @@ export async function uploadPhoto(file) {
 }
 
 const reviewFromRow = (r) => ({ id: r.id, tutorId: r.tutor_id, userId: r.user_id, userName: r.user_name, rating: r.rating, text: r.text, createdAt: r.created_at });
+/** Only someone who contacted the tutor (an inquiry not declined, or a group seat) can review them. */
+export async function canReview(tutorId) {
+  if (!user) return false;
+  const { data, error } = await sb.rpc('can_review', { t: tutorId });
+  return error ? true : !!data; // if the check itself fails, the database policy still decides on save
+}
+/** Admin: publish or drop the photo/texts an approved tutor changed. */
+export async function reviewTutorChanges(id, approve) {
+  need();
+  check(await sb.rpc('review_tutor_changes', { t: id, p_approve: !!approve }));
+  return true;
+}
 export async function listReviews(tutorId) {
   return check(await sb.from('reviews').select('*').eq('tutor_id', tutorId).order('created_at', { ascending: false })).map(reviewFromRow);
 }

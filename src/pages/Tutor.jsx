@@ -14,7 +14,8 @@ export default function Tutor({ id }) {
   const myGroups = useMemo(() => (groups || []).filter((g) => g.tutorId === id), [groups, id]);
   const weighted = useMemo(() => (tutor && tutors ? bayesScore(tutor.ratingAvg, tutor.ratingCount, globalMean(tutors)) : null), [tutor, tutors]);
 
-  if (loading && !tutor) return <main className="wrap page-pad"><Loading /></main>;
+  // A full screen of room while the first load runs, so the footer does not jump up and down on a direct visit (CLS).
+  if (loading && !tutor) return <main className="wrap page-pad" style={{ minHeight: '100vh' }}><Loading /></main>;
   if (!tutor) return <main className="wrap page-pad"><Empty title="המורה לא נמצא"><a className="btn btn-brand" href={to('search')}>חזרה לחיפוש</a></Empty></main>;
 
   const isOwner = user && (user.id === tutor.ownerId || user.isAdmin);
@@ -23,6 +24,8 @@ export default function Tutor({ id }) {
   return (
     <main className="wrap page-pad">
       <a className="back" href={to('search')}>→ חזרה לתוצאות</a>
+      {isOwner && tutor.approval !== 'approved' ? <p className="note approval-note owner-preview" role="status"><b>{tutor.approval === 'rejected' ? 'הפרופיל לא אושר.' : 'הפרופיל ממתין לאישור.'}</b> רק אתם רואים את הדף הזה. הוא יופיע לתלמידים אחרי שהצוות יאשר אותו.</p> : null}
+      {isOwner && tutor.approval === 'approved' && tutor.pending ? <p className="note approval-note owner-preview" role="status"><b>יש לכם שינויים שממתינים לבדיקה.</b> כאן מוצגת הגרסה שתלמידים רואים עכשיו.</p> : null}
       <div className="profile">
         <div className="profile-main">
           <header className="p-head">
@@ -133,10 +136,14 @@ function ReviewForm({ tutor, reviews, onDone }) {
   const [rating, setRating] = useState(0);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+  // Reviews come only from people who really contacted the tutor (the database checks this too).
+  const [allowed] = useLoad(() => (user && api.canReview ? api.canReview(tutor.id) : true), [tutor.id, user?.id || '']);
 
   if (user && user.id === tutor.ownerId) return null;
   const start = () => {
     if (!requireLogin('כדי לכתוב ביקורת צריך להתחבר. ככה כל אדם כותב ביקורת אחת בלבד לכל מורה.')) return;
+    if (!mine && allowed === false) { setBlocked(true); return; }
     setRating(mine?.rating || 0); setText(mine?.text || ''); setOpen(true);
   };
   const submit = async (e) => {
@@ -147,7 +154,12 @@ function ReviewForm({ tutor, reviews, onDone }) {
     setBusy(false);
   };
   if (!open) {
-    return <button type="button" className="btn btn-brand" onClick={start}>{mine ? 'עריכת הביקורת שלי' : 'כתיבת ביקורת'}</button>;
+    return (
+      <>
+        <button type="button" className="btn btn-brand" onClick={start}>{mine ? 'עריכת הביקורת שלי' : 'כתיבת ביקורת'}</button>
+        {blocked ? <p className="hint" role="status">אפשר לכתוב ביקורת רק על מורה שפניתם אליו דרך האתר או שלמדתם אצלו בקבוצה. כך כל הביקורות כאן אמיתיות.</p> : null}
+      </>
+    );
   }
   return (
     <form className="review-form" onSubmit={submit}>

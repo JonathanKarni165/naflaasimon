@@ -3,6 +3,7 @@ import { useApp, useLoad, useMyTutor, go, to } from '../state.jsx';
 import { SUBJECTS, CITIES, GOALS, LESSON_COUNTS, labelOf, WEEK_DAYS, WEEK_DAY_NAMES } from '../data/constants.js';
 import { money, dateShort, dateLong, normalizePhone, isPhone, weekdayMismatch } from '../lib/format.js';
 import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, SpamNote, StatusTag, InquiryChat, ChatOverlay, VIA, viaOf, WeekGrid, ReportTutor, REPORT_REASONS, BirthDateInput, declinedSeen, markDeclinedSeen, isDeclineSeen } from '../components/ui.jsx';
+import { checkText, MESSAGES } from '../lib/moderation.js';
 import { subtopicsOf, schoolCoursesOf, TOPICS } from '../data/topics.js';
 
 // Two separate areas: "תלמיד" (my conversations and sign-ups) and "מורה" (my profile, inquiries, groups).
@@ -114,12 +115,13 @@ function MyProfile() {
     return (
       <TutorForm initial={mine} forSelf
         onCancel={() => setEditing(false)}
-        onSaved={(t) => { setEditing(false); refresh(); reload(); notify(mine ? 'הפרופיל עודכן' : 'הפרופיל נשלח לאישור. נעדכן במייל ברגע שיאושר'); }} />
+        onSaved={(t) => { setEditing(false); refresh(); reload(); notify(!mine ? 'הפרופיל נשלח לאישור. נעדכן במייל ברגע שיאושר' : t?.pending ? 'הפרופיל עודכן. השינויים בתמונה או בתיאור יופיעו באתר אחרי בדיקה של הצוות' : 'הפרופיל עודכן'); }} />
     );
   }
   return (
     <div className="my-profile">
       {mine.approval === 'pending' ? <p className="note approval-note" role="status"><b>הפרופיל ממתין לאישור.</b> הצוות בודק אותו, בדרך כלל תוך יום עסקים. עד אז הוא לא מופיע בחיפוש ואי אפשר לפתוח קבוצות.</p> : null}
+      {mine.approval === 'approved' && mine.pending ? <p className="note approval-note" role="status"><b>השינויים שלכם ממתינים לבדיקה.</b> שיניתם {pendingLabel(mine.pending)}. הצוות יבדוק בקרוב, ועד אז תלמידים רואים את הגרסה הקודמת.</p> : null}
       {mine.approval === 'rejected' ? <p className="note approval-note bad" role="status"><b>הפרופיל לא אושר.</b> {mine.rejectReason ? `סיבה: ${mine.rejectReason}. ` : ''}תקנו את הפרטים ושמרו, והוא יחזור לבדיקה.</p> : null}
       <div className="mp-card">
         <Avatar tutor={mine} className="mp-photo" />
@@ -219,8 +221,24 @@ function Inbox() {
 }
 
 /** One inquiry in the inbox: a short row; tapping it opens the conversation (one at a time, so the page stays short). */
+const DECLINE_REASONS = ['אין לי זמנים פנויים כרגע', 'הנושא או הרמה לא בתחום שלי', 'המיקום רחוק ממני'];
 function InquiryItem({ q, onChange, showTutor, open, onToggle }) {
+  const { api, notify } = useApp();
   const ref = useRef(null);
+  // "לא מתאים" closes the student's chat, so it asks first and lets the tutor add a short, optional explanation.
+  const [declining, setDeclining] = useState(false);
+  const [reason, setReason] = useState('');
+  const [busyDecline, setBusyDecline] = useState(false);
+  const decline = async (e) => {
+    e.preventDefault();
+    setBusyDecline(true);
+    try {
+      if (reason.trim()) await api.sendInquiryMessage(q.id, reason.trim(), true);
+      await onChange({ status: 'declined' }, 'הפנייה סומנה כלא מתאימה. אפשר להחזיר אותה לפתוחות בכל רגע.');
+      setDeclining(false); setReason('');
+    } catch (err) { notify(err.message, true); }
+    setBusyDecline(false);
+  };
   useEffect(() => {
     if (!open || !ref.current) return;
     const r = ref.current.getBoundingClientRect();
@@ -252,9 +270,22 @@ function InquiryItem({ q, onChange, showTutor, open, onToggle }) {
         {q.phone ? <a className="btn btn-line btn-sm" href={`tel:${q.phone.replace(/[^\d+]/g, '')}`}><bdi>{q.phone}</bdi></a> : null}
         {mail ? <a className="btn btn-line btn-sm" href={mail}><bdi>{q.email}</bdi></a> : null}
         {q.status !== 'booked' ? <button type="button" className="btn btn-line btn-sm" onClick={() => onChange({ status: 'booked' }, 'סומן: נקבע שיעור')}>נקבע שיעור ✓</button> : null}
-        {q.status !== 'declined' ? <button type="button" className="linkish small" onClick={() => onChange({ status: 'declined' }, 'הפנייה סומנה כלא מתאימה')}>לא מתאים</button>
+        {q.status !== 'declined' ? <button type="button" className="linkish small" aria-expanded={declining} onClick={() => { setDeclining(!declining); setTimeout(() => document.querySelector('.decline-box')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 50); }}>לא מתאים</button>
           : <button type="button" className="linkish small" onClick={() => onChange({ status: q.messageCount || q.reply ? 'replied' : 'new' }, 'הפנייה הוחזרה לפתוחות')}>החזרה לפתוחות</button>}
       </div>
+      {declining && q.status !== 'declined' ? (
+        <form className="decline-box" onSubmit={decline}>
+          <b>לסמן את הפנייה של {first} כלא מתאימה?</b>
+          <p className="hint">תישלח הודעה ל{first}, והשיחה תיסגר. אם תתחרטו, אפשר להחזיר את הפנייה לפתוחות.</p>
+          <label className="field-label" htmlFor={`dr-${q.id}`}>הסבר קצר ל{first} (לא חובה)</label>
+          <div className="chips decline-chips">{DECLINE_REASONS.map((r) => <button key={r} type="button" className={'chip' + (reason === r ? ' on' : '')} aria-pressed={reason === r} onClick={() => setReason(reason === r ? '' : r)}>{r}</button>)}</div>
+          <textarea id={`dr-${q.id}`} className="input" rows={2} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="למשל: אין לי זמנים פנויים החודש, נסו שוב בינואר" />
+          <div className="decline-actions">
+            <button type="submit" className="btn btn-brand btn-sm" disabled={busyDecline}>{busyDecline ? 'שולחים…' : 'כן, לא מתאים'}</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setDeclining(false); setReason(''); }}>ביטול</button>
+          </div>
+        </form>
+      ) : null}
       </ChatOverlay>) : null}
     </article>
   );
@@ -269,7 +300,7 @@ function MyDetails() {
   const save = async (e) => {
     e.preventDefault();
     if (!f.name.trim()) { notify('כתבו שם', true); return; }
-    if (f.phone.trim() && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל 050‑1234567', true); return; }
+    if (f.phone.trim() && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל \u2066050-1234567\u2069', true); return; }
     setBusy(true);
     try { await api.saveMyContact({ name: f.name.trim(), phone: f.phone.trim(), birthDate: f.birthDate, area: f.area, whatsappOptin: f.whatsappOptin }); notify('הפרטים נשמרו'); } catch (err) { notify(err.message, true); }
     setBusy(false);
@@ -301,6 +332,9 @@ const EMPTY_TUTOR = {
   teachesFrontal: true, priceFrontal: '', teachesOnline: true, priceOnline: '', experienceYears: '', phone: '', birthDate: '', address: '', verified: false, availability: [],
 };
 
+const PENDING_NAMES = { photo: 'את התמונה', headline: 'את השורה עליכם', about: 'את התיאור' };
+const pendingLabel = (p) => Object.keys(p || {}).map((k) => PENDING_NAMES[k]).filter(Boolean).join(', ');
+
 export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
   const { api, user, notify } = useApp();
   const [t, setT] = useState(() => ({ ...EMPTY_TUTOR, ...(initial || {}), ...(initial ? {} : forSelf ? { name: user.name } : {}) }));
@@ -328,13 +362,20 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
     const priceErr = (v) => (!(Number(v) > 0) ? 'כתבו מחיר לשעה' : Number(v) < PRICE_MIN || Number(v) > PRICE_MAX ? `מחיר לשעה בין ${PRICE_MIN} ל-${PRICE_MAX} ₪` : '');
     if (t.teachesFrontal && priceErr(t.priceFrontal)) e.priceFrontal = priceErr(t.priceFrontal);
     if (t.teachesOnline && priceErr(t.priceOnline)) e.priceOnline = priceErr(t.priceOnline);
-    if (strict || t.phone) { if (!/^0\d{1,2}-?\d{7}$/.test((t.phone || '').replace(/\s/g, ''))) e.phone = 'מספר טלפון ישראלי, למשל 050‑1234567'; }
+    const exp = t.experienceYears;
+    if (exp !== '' && exp != null && !(Number.isInteger(Number(exp)) && Number(exp) >= 0 && Number(exp) <= 60)) e.experienceYears = 'שנות ניסיון: מספר שלם בין 0 ל־60';
+    // The spam/profanity check runs here too, so the message points at the field to fix.
+    for (const [k, opts] of [['headline', {}], ['about', {}], ['education', {}]]) {
+      const why = checkText(t[k], opts);
+      if (why) e[k] = MESSAGES[why];
+    }
+    if (strict || t.phone) { if (!/^0\d{1,2}-?\d{7}$/.test((t.phone || '').replace(/\s/g, ''))) e.phone = 'מספר טלפון ישראלי, למשל \u2066050-1234567\u2069'; }
     setErrors(e);
     return !Object.keys(e).length;
   };
   const submit = async (ev) => {
     ev.preventDefault();
-    if (!validate()) { notify('יש כמה שדות לתקן', true); return; }
+    if (!validate()) { notify('יש כמה שדות לתקן, הם מסומנים באדום', true); return; }
     setBusy(true);
     try {
       const saved = await api.saveTutor({
@@ -344,14 +385,19 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
         experienceYears: t.experienceYears === '' ? null : Number(t.experienceYears),
       });
       onSaved(saved);
-    } catch (e) { notify(e.message, true); }
+    } catch (e) {
+      // A moderation error from the server names the column; mark that field.
+      if (e.field && ['headline', 'about', 'education', 'name', 'city', 'area'].includes(e.field)) setErrors((x) => ({ ...x, [e.field]: e.message }));
+      notify(e.message, true);
+    }
     setBusy(false);
   };
   const upload = async (e) => {
     const f = e.target.files?.[0]; if (!f) return;
     if (f.size > 8 * 1024 * 1024) { notify('התמונה גדולה מדי (עד 8MB)', true); return; }
     setUploading(true);
-    try { set({ photo: await api.uploadPhoto(f) }); } catch (err) { notify('ההעלאה נכשלה: ' + err.message, true); }
+    if (!/^image\/(jpeg|png|webp|gif)$/.test(f.type || '')) { notify('אפשר להעלות רק תמונה (JPG, PNG או WebP)', true); e.target.value = ''; return; }
+    try { set({ photo: await api.uploadPhoto(f) }); } catch (err) { notify(/[א-ת]/.test(err.message) ? err.message : 'ההעלאה נכשלה, נסו שוב או תמונה אחרת', true); }
     setUploading(false);
   };
   const Err = ({ k }) => (errors[k] ? <span className="err">{errors[k]}</span> : null);
@@ -364,7 +410,7 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
           <Avatar tutor={{ ...t, id: t.id || 'new' }} className="mp-photo" />
           <div>
             <label className="btn btn-line btn-sm" htmlFor="tf-photo">{uploading ? 'מעלים…' : t.photo ? 'החלפת תמונה' : 'העלאת תמונה'}</label>
-            <input id="tf-photo" type="file" accept="image/*" className="sr-only" onChange={upload} />
+            <input id="tf-photo" type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={upload} />
             {t.photo ? <button type="button" className="linkish" onClick={() => set({ photo: '' })}>הסרה</button> : null}
             <p className="hint">חובה: תמונה ברורה של הפנים, בלי משקפי שמש. היא מגדילה פניות בערך פי שניים.</p>
             <Err k="photo" />
@@ -379,14 +425,15 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
           <div><label className="field-label" htmlFor="tf-address">כתובת מגורים (לא מוצגת באתר)</label><input id="tf-address" className="input" autoComplete="street-address" placeholder="רחוב, מספר, עיר" value={t.address || ''} onChange={(e) => set({ address: e.target.value })} /><Err k="address" /></div>
         </div>
         <p className="hint">המייל שלכם הוא המייל של החשבון: <bdi>{user.email}</bdi>. כל הפרטים האלה נחוצים לאימות, ורק הצוות רואה אותם.</p>
+        {locked ? <p className="hint">שינוי בתמונה, בשורה עליכם או בתיאור עובר בדיקה קצרה של הצוות לפני שהוא מופיע באתר. עד אז תלמידים רואים את הגרסה הקודמת.</p> : null}
         <label className="field-label" htmlFor="tf-headline">שורה אחת עליכם</label>
-        <input id="tf-headline" className="input" maxLength={80} placeholder="למשל: סטודנטית לתואר שני במתמטיקה" value={t.headline} onChange={(e) => set({ headline: e.target.value })} />
+        <input id="tf-headline" className="input" maxLength={80} placeholder="למשל: סטודנטית לתואר שני במתמטיקה" value={t.headline} onChange={(e) => set({ headline: e.target.value })} aria-invalid={!!errors.headline} /><Err k="headline" />
         <label className="field-label" htmlFor="tf-edu">מוסד לימודים (לא חובה)</label>
-        <input id="tf-edu" className="input" maxLength={100} placeholder="למשל: האוניברסיטה העברית, תואר במתמטיקה" value={t.education || ''} onChange={(e) => set({ education: e.target.value })} />
+        <input id="tf-edu" className="input" maxLength={100} placeholder="למשל: האוניברסיטה העברית, תואר במתמטיקה" value={t.education || ''} onChange={(e) => set({ education: e.target.value })} aria-invalid={!!errors.education} /><Err k="education" />
         <label className="field-label" htmlFor="tf-about">על השיעורים שלכם</label>
-        <textarea id="tf-about" className="input" rows={5} maxLength={1500} placeholder="איך אתם מלמדים, למי זה מתאים, הישגים של תלמידים…" value={t.about} onChange={(e) => set({ about: e.target.value })} />
+        <textarea id="tf-about" className="input" rows={5} maxLength={1500} placeholder="איך אתם מלמדים, למי זה מתאים, הישגים של תלמידים…" value={t.about} onChange={(e) => set({ about: e.target.value })} aria-invalid={!!errors.about} /><Err k="about" />
         <div className="f2">
-          <div><label className="field-label" htmlFor="tf-exp">שנות ניסיון</label><input id="tf-exp" className="input" type="number" min="0" max="60" value={t.experienceYears ?? ''} onChange={(e) => set({ experienceYears: e.target.value })} /></div>
+          <div><label className="field-label" htmlFor="tf-exp">שנות ניסיון</label><input id="tf-exp" className="input" type="number" min="0" max="60" step="1" inputMode="numeric" value={t.experienceYears ?? ''} onChange={(e) => set({ experienceYears: e.target.value })} aria-invalid={!!errors.experienceYears} /><Err k="experienceYears" /></div>
           {user.isAdmin ? <label className="check big-check"><input type="checkbox" checked={!!t.verified} onChange={(e) => set({ verified: e.target.checked })} /> מורה מאומת (✓)</label> : <div />}
         </div>
       </fieldset>
@@ -428,7 +475,8 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
             {t.teachesFrontal ? (
               <div className="f3">
                 <div><label className="field-label" htmlFor="tf-city">עיר</label>
-                  <select id="tf-city" className="select" value={t.city} onChange={(e) => set({ city: e.target.value })}><option value="">בחרו עיר</option>{CITIES.map((c) => <option key={c.name}>{c.name}</option>)}</select><Err k="city" /></div>
+                  <input id="tf-city" className="input" list="tf-cities" autoComplete="off" placeholder="התחילו להקליד, למשל קריית טבעון" value={t.city || ''} onChange={(e) => set({ city: e.target.value })} /><datalist id="tf-cities">{CITIES.map((c) => <option key={c.name} value={c.name} />)}</datalist><Err k="city" />
+                  <p className="hint">היישוב לא ברשימה? כתבו את השם שלו.</p></div>
                 <div><label className="field-label" htmlFor="tf-area">שכונה או אזור (לא חובה)</label><input id="tf-area" className="input" placeholder="למשל: ליד הבורסה" value={t.area} onChange={(e) => set({ area: e.target.value })} /></div>
                 <div><label className="field-label" htmlFor="tf-pf">מחיר לשעה, פרונטלי (₪)</label><input id="tf-pf" className="input" type="number" min={PRICE_MIN} max={PRICE_MAX} inputMode="numeric" value={t.priceFrontal ?? ''} onChange={(e) => set({ priceFrontal: e.target.value })} /><Err k="priceFrontal" /></div>
               </div>
@@ -781,7 +829,42 @@ function PendingTutors({ onChange }) {
           ))}
         </div>
       )}
+      <ChangedTutors all={all} onDone={() => { refresh(); reload(); }} />
     </section>
+  );
+}
+
+/** Approved tutors who changed their photo, headline or description: the old version stays public until approved. */
+function ChangedTutors({ all, onDone }) {
+  const { api, notify } = useApp();
+  const list = (all || []).filter((t) => t.approval === 'approved' && t.pending);
+  if (!list.length) return null;
+  const decide = async (t, approve) => {
+    try { await api.reviewTutorChanges(t.id, approve); notify(approve ? 'השינויים פורסמו' : 'השינויים נדחו, הגרסה הקודמת נשארת'); onDone(); } catch (e) { notify(e.message, true); }
+  };
+  return (
+    <>
+      <h2>שינויים בפרופילים מאושרים ({list.length})</h2>
+      <div className="admin-list">
+        {list.map((t) => (
+          <article key={t.id} className="admin-item pending-item">
+            <Avatar tutor={t} className="ai-photo" size={64} />
+            <div className="ai-main">
+              <a className="t-name" href={to(`tutor-${t.id}`)}>{t.name}</a>
+              <div className="pending-details changes">
+                {t.pending.photo ? <div><span className="field-label">תמונה חדשה</span><img className="ai-photo" src={t.pending.photo} alt={`התמונה החדשה של ${t.name}`} width="96" height="96" /></div> : null}
+                {t.pending.headline != null ? <div><span className="field-label">שורה חדשה</span><p>{t.pending.headline || '(ריק)'}</p><p className="muted-text">היה: {t.headline || '(ריק)'}</p></div> : null}
+                {t.pending.about != null ? <div><span className="field-label">תיאור חדש</span><p>{t.pending.about || '(ריק)'}</p></div> : null}
+                <div className="form-actions">
+                  <button type="button" className="btn btn-brand btn-sm" onClick={() => decide(t, true)}>פרסום השינויים</button>
+                  <button type="button" className="btn btn-line btn-sm" onClick={() => decide(t, false)}>דחייה</button>
+                </div>
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+    </>
   );
 }
 
