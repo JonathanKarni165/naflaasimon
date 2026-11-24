@@ -182,13 +182,13 @@ export default function Home() {
   );
 }
 
-// Bright outdoor study moments in parks (Mixkit free licence, no sound), played slowly and crossfading
+// Calm, still-camera study moments on the grass (Mixkit free licence, no sound), played slowly and crossfading
 // one into the next. Only the playing clip and the next one are loaded. People who prefer reduced motion
 // or save data get the first still frame.
 // [file, where the people are in the frame], so the crop keeps them in view on wide and narrow screens.
-const HERO_CLIPS = [['img/hero-park-1.mp4', '62% 85%'], ['img/hero-park-2.mp4', '40% 50%'], ['img/hero-park-3.mp4', '35% 70%'], ['img/hero-park-4.mp4', '40% 35%']];
+const HERO_CLIPS = [['img/hero-park-1.mp4', '38% 60%'], ['img/hero-park-2.mp4', '62% 85%'], ['img/hero-park-3.mp4', '35% 70%'], ['img/hero-park-4.mp4', '30% 55%']];
 const HERO_POSTER = 'img/hero-park-1.webp';
-const HERO_RATE = 0.7; // slower than real time, calm to watch
+const HERO_RATE = 0.6; // slower than real time, calm to watch
 function HeroVideo() {
   const calm = typeof window !== 'undefined' && (
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || navigator.connection?.saveData);
