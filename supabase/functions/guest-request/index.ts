@@ -1,31 +1,14 @@
 // נפל האסימון: a request from someone without an account (they leave a phone number).
 // Public endpoint (the site calls it from the browser). It checks the details, rate-limits by phone,
 // address and tutor, runs the same word filter as the rest of the site, stores the request in
-// public.guest_requests and emails the tutor. Secrets: GMAIL_USER + GMAIL_APP_PASSWORD (or RESEND_API_KEY).
+// public.guest_requests and emails the tutor. Sending lives in ../_shared/mail.ts.
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
-import nodemailer from 'npm:nodemailer@6.9.14';
+import { SITE, esc, layout, button, quote, send } from '../_shared/mail.ts';
 
 const env = (k: string) => Deno.env.get(k) || '';
-const SITE = (env('SITE_URL') || 'https://jonathankarni165.github.io/naflaasimon/').replace(/\/?$/, '/');
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'content-type, authorization, apikey, x-client-info', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
-const esc = (s: string) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 
-async function send(to: string, subject: string, html: string, text: string) {
-  if (env('RESEND_API_KEY')) {
-    const r = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${env('RESEND_API_KEY')}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: env('MAIL_FROM') || 'נפל האסימון <noreply@naflaasimon.co.il>', to, subject, html, text }),
-    });
-    if (!r.ok) throw new Error(`resend ${r.status}: ${await r.text()}`);
-    return;
-  }
-  const user = env('GMAIL_USER');
-  if (!user || !env('GMAIL_APP_PASSWORD')) throw new Error('no mail provider configured');
-  const transport = nodemailer.createTransport({ host: 'smtp.gmail.com', port: 465, secure: true, auth: { user, pass: env('GMAIL_APP_PASSWORD') } });
-  await transport.sendMail({ from: { name: 'נפל האסימון', address: user }, to, subject, text, html });
-}
 
 async function sha(s: string) {
   const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s + env('SUPABASE_SERVICE_ROLE_KEY').slice(-12)));
@@ -81,8 +64,8 @@ Deno.serve(async (req) => {
         const about = groupTitle ? ` לקבוצה "${groupTitle}"` : '';
         const subject = `פנייה חדשה מ${name} (בלי חשבון)`;
         const text = `היי ${first},\n\n${name} השאיר/ה פנייה${about} בלי להירשם לאתר:\n\n${message}\n\nטלפון: ${phone}${email ? `\nמייל: ${email}` : ''}\n\nאפשר לראות ולסמן כטופל כאן: ${link}`;
-        const html = `<div dir="rtl" style="font-family:Arial,sans-serif;font-size:16px;line-height:1.6;color:#3A3130;max-width:560px"><p>היי ${esc(first)},</p><p><b>${esc(name)}</b> השאיר/ה פנייה${esc(about)} בלי להירשם לאתר:</p><div style="white-space:pre-wrap;background:#F3F0E9;border-radius:10px;padding:12px 14px">${esc(message)}</div><p>טלפון: <b dir="ltr">${esc(phone)}</b>${email ? `<br>מייל: <b dir="ltr">${esc(email)}</b>` : ''}</p><p><a href="${link}" style="display:inline-block;background:#3A3130;color:#F3F0E9;text-decoration:none;padding:10px 18px;border-radius:999px;font-weight:bold">לפניות בפאנל</a></p><p style="color:#7D7976;font-size:13px">קיבלת את המייל כי יש לך פרופיל מורה בנפל האסימון.</p></div>`;
-        await send(to, subject, html, text);
+        const html = layout(subject, `<p>היי ${esc(first)},</p><p><b>${esc(name)}</b> השאיר/ה פנייה${esc(about)} בלי להירשם לאתר:</p>${quote(message)}<p>טלפון: <b dir="ltr">${esc(phone)}</b>${email ? `<br>מייל: <b dir="ltr">${esc(email)}</b>` : ''}</p>${button(link, 'לפניות בפאנל')}`, 'קיבלת את המייל כי יש לך פרופיל מורה בנפל האסימון.');
+        await send({ to, subject, html, text, replyTo: email || undefined });
       }
     } catch (e) { console.error(e); }
   }
