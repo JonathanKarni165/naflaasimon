@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, go, to } from '../state.jsx';
 import { filterTutors, sortTutors, globalMean } from '../lib/ranking.js';
 import { GroupCard, Avatar, WherePicker, resolveWhere, TopicPicker } from '../components/ui.jsx';
@@ -182,16 +182,35 @@ export default function Home() {
   );
 }
 
-// A calm looping clip of a private lesson behind the headline (Mixkit free licence, no sound).
-// The still frame shows first and stays for people who prefer reduced motion or are on a data saver.
-const HERO_POSTER = 'img/hero-tutoring-1280.webp';
+// Bright outdoor study moments in parks (Mixkit free licence, no sound), played slowly and crossfading
+// one into the next. Only the playing clip and the next one are loaded. People who prefer reduced motion
+// or save data get the first still frame.
+// [file, where the people are in the frame], so the crop keeps them in view on wide and narrow screens.
+const HERO_CLIPS = [['img/hero-park-1.mp4', '62% 85%'], ['img/hero-park-2.mp4', '40% 50%'], ['img/hero-park-3.mp4', '35% 70%'], ['img/hero-park-4.mp4', '40% 35%']];
+const HERO_POSTER = 'img/hero-park-1.webp';
+const HERO_RATE = 0.7; // slower than real time, calm to watch
 function HeroVideo() {
   const calm = typeof window !== 'undefined' && (
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || navigator.connection?.saveData);
-  if (calm) return <img className="hero-media" src={HERO_POSTER} srcSet="img/hero-tutoring-720.webp 720w, img/hero-tutoring-1280.webp 1280w" sizes="100vw" alt="" width="1280" height="720" fetchpriority="high" />;
-  return (
-    <video className="hero-media" autoPlay muted loop playsInline preload="auto" poster={HERO_POSTER} aria-hidden="true">
-      <source src="img/hero-tutoring.mp4" type="video/mp4" />
+  const [on, setOn] = useState(0);
+  const refs = useRef([]);
+  useEffect(() => {
+    if (calm) return;
+    const v = refs.current[on];
+    if (!v) return;
+    v.playbackRate = HERO_RATE;
+    v.currentTime = 0;
+    v.play().catch(() => {});
+    const next = refs.current[(on + 1) % HERO_CLIPS.length];
+    if (next) next.preload = 'auto';
+  }, [on, calm]);
+  if (calm) return <img className="hero-media on" src={HERO_POSTER} alt="" width="1280" height="720" fetchpriority="high" style={{ objectPosition: HERO_CLIPS[0][1] }} />;
+  return HERO_CLIPS.map(([src, pos], i) => (
+    <video key={src} ref={(el) => { refs.current[i] = el; }} className={'hero-media' + (i === on ? ' on' : '')} style={{ objectPosition: pos }}
+      muted playsInline preload={i === 0 ? 'auto' : 'none'} poster={i === 0 ? HERO_POSTER : undefined} aria-hidden="true"
+      onLoadedMetadata={(e) => { e.currentTarget.playbackRate = HERO_RATE; }}
+      onEnded={() => setOn((n) => (n + 1) % HERO_CLIPS.length)}>
+      <source src={src} type="video/mp4" />
     </video>
-  );
+  ));
 }
