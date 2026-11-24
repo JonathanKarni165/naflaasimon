@@ -4,6 +4,7 @@ import { SUBJECTS, CITIES, GOALS, LESSON_COUNTS, labelOf, WEEK_DAYS, WEEK_DAY_NA
 import { money, dateShort, dateLong, isPhone, weekdayMismatch } from '../lib/format.js';
 import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, SpamNote, StatusTag, InquiryChat, ChatOverlay, WaButton, VIA, viaOf, WeekGrid, ReportTutor, REPORT_REASONS, BirthDateInput, declinedSeen, markDeclinedSeen, isDeclineSeen } from '../components/ui.jsx';
 import { checkText, MESSAGES } from '../lib/moderation.js';
+import AdminStats from './Stats.jsx';
 import { subtopicsOf, schoolCoursesOf, TOPICS } from '../data/topics.js';
 
 // Two separate areas: "תלמיד" (my conversations and sign-ups) and "מורה" (my profile, inquiries, groups).
@@ -18,12 +19,13 @@ const TABS = [
   ['panel-me', 'הפרטים האישיים שלי'],
   ['panel-admin', 'אישור וניהול מורים'],
   ['panel-reports', 'דיווחים'],
+  ['panel-stats', 'סטטיסטיקות'],
 ];
-const ADMIN_TABS = ['panel-admin', 'panel-reports'];
+const ADMIN_TABS = ['panel-admin', 'panel-reports', 'panel-stats'];
 const AREAS = {
   student: { label: 'פאנל תלמיד', home: 'panel-seats', tabs: ['panel-seats', 'panel-me'] },
   tutor: { label: 'פאנל מורה', home: 'panel', tabs: ['panel', 'panel-inbox', 'panel-groups', 'panel-me'] },
-  admin: { label: 'ניהול האתר', home: 'panel-admin', tabs: ['panel-admin', 'panel-reports'] },
+  admin: { label: 'ניהול האתר', home: 'panel-admin', tabs: ['panel-admin', 'panel-reports', 'panel-stats'] },
 };
 
 export default function Panel() {
@@ -93,6 +95,7 @@ function PanelTabs() {
       {tab === 'panel-me' && <MyDetails />}
       {tab === 'panel-admin' && <AdminTutors />}
       {tab === 'panel-reports' && <AdminReports />}
+      {tab === 'panel-stats' && <AdminStats />}
     </main>
   );
 }

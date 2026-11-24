@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, to } from '../state.jsx';
 import { filterTutors, sortTutors, topicFirst, queryFirst, blendedRank } from '../lib/ranking.js';
 import { optionLabel } from '../data/topics.js';
+import { useSearchLog } from '../lib/searchlog.js';
 import { TutorRow, Seg, SkeletonRows, Empty, WherePicker, resolveWhere, TopicPicker } from '../components/ui.jsx';
 
 const SORTS = [
@@ -72,6 +73,10 @@ export default function Search() {
     const url = window.location.pathname + (qs ? '?' + qs : '');
     if (url !== window.location.pathname + window.location.search) history.replaceState(history.state, '', url);
   }, [f, whereText]);
+
+  // Statistics for the admin: what was searched and how many real (not example) tutors it found.
+  useSearchLog('tutors', { subject: f.subject, topic: f.topic, q: f.q, place: f.city || f.place, mode: f.mode, maxPrice: f.maxPrice },
+    results ? results.length : null, results ? results.filter((t) => !t.isExample).length : null);
 
   const activeCount = [f.maxPrice, f.maxKm, f.q, f.place].filter(Boolean).length;
 
