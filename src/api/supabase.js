@@ -9,6 +9,8 @@ import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 // PKCE: the sign-in result comes back as ?code=... in the query string. The default (implicit) flow appends
 // #access_token=... to the address, which collides with this site's #hash routes and silently drops the login.
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: 'pkce' } });
+// Version of the terms a person agreed to; bump it when the terms change materially.
+const TERMS_VERSION = '2026-11-24';
 
 export const mode = 'supabase';
 export const demoUsers = [];
@@ -66,10 +68,15 @@ export const auth = {
   /** Sign-up with email + password. Supabase mails a confirmation link; the account works once it is clicked. */
   async signUpEmail({ email, password, name, phone, birthDate, area }) {
     const emailRedirectTo = window.location.origin + import.meta.env.BASE_URL;
-    const data = { full_name: name || '', signup_form: 'true', ...(phone ? { phone } : {}), ...(birthDate ? { birth_date: birthDate } : {}), ...(area ? { area } : {}) };
+    const data = { full_name: name || '', signup_form: 'true', terms_accepted: TERMS_VERSION, terms_accepted_at: new Date().toISOString(), ...(phone ? { phone } : {}), ...(birthDate ? { birth_date: birthDate } : {}), ...(area ? { area } : {}) };
     const { data: res, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo, data } });
     if (error) throw new Error(authError(error));
     return { needsConfirm: !res.session };
+  },
+  /** Records agreement to the terms in the account's metadata (no table change needed). */
+  async acceptTerms() {
+    const { error } = await sb.auth.updateUser({ data: { terms_accepted: TERMS_VERSION, terms_accepted_at: new Date().toISOString() } });
+    if (error) throw new Error(authError(error));
   },
   async signInEmail({ email, password }) {
     const { error } = await sb.auth.signInWithPassword({ email, password });

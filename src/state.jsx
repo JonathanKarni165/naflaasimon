@@ -7,7 +7,7 @@ export const useApp = () => useContext(Ctx);
 // Routes are real paths (/naflaasimon/tutor/<id>) so search engines, AI tools and link previews can read each page.
 // Old links with #tutor-<id> still work: they are moved to the path on load.
 export const BASE = import.meta.env.BASE_URL || '/';
-const ROUTE_RE = /^(search|groups|groups-marathons|about|privacy|accessibility|contact|login|signup|panel(-[a-z]+)?|(tutor|group|chat)-.+)$/;
+const ROUTE_RE = /^(search|groups|groups-marathons|about|terms|privacy|cookies|accessibility|contact|login|signup|panel(-[a-z]+)?|(tutor|group|chat)-.+)$/;
 
 /** Route name ("tutor-abc", "search", "") to its path. */
 export function to(name = '') {

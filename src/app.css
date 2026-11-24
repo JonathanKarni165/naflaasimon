@@ -330,6 +330,14 @@ textarea.input { resize: vertical; line-height: 1.6; }
 .prose h1 { font-size: 38px; }
 .prose h2 { font-size: 24px; margin-top: 12px; }
 .prose ul { margin: 0; padding-inline-start: 20px; display: grid; gap: 6px; }
+.legal h2 { font-size: 21px; }
+.legal p, .legal li { line-height: 1.7; }
+.legal-nav { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; font-weight: 600; padding-bottom: 10px; border-bottom: 1px solid var(--line, #e5e1d8); }
+.legal-nav [aria-current] { color: var(--muted); }
+.fine a, .terms-check a { color: inherit; text-decoration: underline; }
+.terms-check { font-size: 14px; text-align: start; }
+.terms-check span { text-align: start; }
+.terms-check input { flex: none; width: 18px; height: 18px; margin-top: 3px; accent-color: var(--purple); }
 
 footer .linkish { color: inherit; font-weight: 600; }
 
