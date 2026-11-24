@@ -134,7 +134,7 @@
 </style>
 <script>document.documentElement.classList.add('js');
 // Home page: start loading today's hero photo before the app's JavaScript arrives (same list and day math as Home.jsx).
-(function(){if(location.pathname.replace(/\/+$/,'/')!=='/naflaasimon/')return;var n=new Date(),d=Math.floor((n.getTime()-n.getTimezoneOffset()*6e4)/864e5),h=['hero-1','hero-2','hero-4'][d%3],l=document.createElement('link');l.rel='preload';l.as='image';l.setAttribute('fetchpriority','high');l.setAttribute('imagesrcset','img/'+h+'-600.webp 600w, img/'+h+'-1200.webp 1200w');l.setAttribute('imagesizes','(max-width: 900px) 100vw, 560px');l.href='img/'+h+'-1200.webp';document.head.appendChild(l)})()</script>
+(function(){if(location.pathname.replace(/\/+$/,'/')!=='/naflaasimon/')return;var l=document.createElement('link');l.rel='preload';l.as='image';l.setAttribute('fetchpriority','high');l.href='img/hero-tutoring-1280.webp';document.head.appendChild(l)})()</script>
 <style>.js .prerender{display:none}.prerender{max-width:960px;margin:0 auto;padding:16px;font-family:Assistant,Arial,sans-serif;color:#3A3130;line-height:1.6}</style>
 </head>
 <body>
