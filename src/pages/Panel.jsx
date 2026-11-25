@@ -426,6 +426,7 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
     if (!t.subjects.length) e.subjects = 'בחרו לפחות מקצוע אחד';
     if (!t.teachesFrontal && !t.teachesOnline) e.mode = 'בחרו פרונטלי, אונליין או את שניהם';
     if (t.teachesFrontal && !t.city) e.city = 'בחרו עיר לשיעורים פרונטליים';
+    if (t.teachesFrontal && !['tutor', 'student', 'both'].includes(t.lessonPlace)) e.lessonPlace = 'בחרו איפה מתקיים השיעור';
     // Hourly price must be realistic (QA: a tutor entered 4 ₪).
     const priceErr = (v) => (!(Number(v) > 0) ? 'כתבו מחיר לשעה' : Number(v) < PRICE_MIN || Number(v) > PRICE_MAX ? `מחיר לשעה בין ${PRICE_MIN} ל-${PRICE_MAX} ₪` : '');
     if (t.teachesFrontal && priceErr(t.priceFrontal)) e.priceFrontal = priceErr(t.priceFrontal);
@@ -552,7 +553,7 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
                 <div className="f-full"><span className="field-label" id="tf-place-l">איפה מתקיים השיעור?</span>
                   <div className="seg seg-3" role="group" aria-labelledby="tf-place-l">
                     {[['tutor', 'אצלי בבית'], ['student', 'בבית התלמיד'], ['both', 'שניהם']].map(([k, l]) => <button key={k} type="button" aria-pressed={t.lessonPlace === k} onClick={() => set({ lessonPlace: k })}>{l}</button>)}
-                  </div></div>
+                  </div><Err k="lessonPlace" /></div>
                 <div><label className="field-label" htmlFor="tf-area">שכונה או אזור (לא חובה)</label><input id="tf-area" className="input" placeholder="למשל: ליד הבורסה" value={t.area} onChange={(e) => set({ area: e.target.value })} /></div>
                 <div><label className="field-label" htmlFor="tf-pf">מחיר לשעה, פרונטלי (₪)</label><input id="tf-pf" className="input" type="number" min={PRICE_MIN} max={PRICE_MAX} inputMode="numeric" value={t.priceFrontal ?? ''} onChange={(e) => set({ priceFrontal: e.target.value })} /><Err k="priceFrontal" /></div>
               </div>
