@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, useLoad, to } from '../state.jsx';
 import { bayesScore, globalMean } from '../lib/ranking.js';
 import { money, dateShort, rating1, reviewsLabel } from '../lib/format.js';
-import { Avatar, TutorBadges, Stars, StarRow, Verified, InquiryBox, GroupCard, WeekGrid, ConfirmButton, Loading, Empty, placeLabel, ReportTutor, MyTutorBadge, useMyTutorEntry, studentsLabel } from '../components/ui.jsx';
+import { Avatar, TutorBadges, Stars, StarRow, Verified, InquiryBox, GroupCard, WeekGrid, ConfirmButton, Loading, Empty, placeLabel, ReportTutor, MyTutorBadge, LESSON_PLACES, useMyTutorEntry, studentsLabel } from '../components/ui.jsx';
 import { topicsBySubject } from '../data/topics.js';
 
 export default function Tutor({ id }) {
@@ -90,7 +90,7 @@ export default function Tutor({ id }) {
           <div className="side-card">
             <h2 className="side-h">מחיר לשעה</h2>
             <div className="side-prices">
-              {tutor.teachesFrontal && tutor.priceFrontal ? <div className="sp-frontal"><PriceArt kind="frontal" /><span>פרונטלי</span><b><bdi>{money(tutor.priceFrontal)}</bdi></b><small>{tutor.city}</small></div> : null}
+              {tutor.teachesFrontal && tutor.priceFrontal ? <div className="sp-frontal"><PriceArt kind="frontal" /><span>פרונטלי</span><b><bdi>{money(tutor.priceFrontal)}</bdi></b><small>{[tutor.city, LESSON_PLACES[tutor.lessonPlace]].filter(Boolean).join(' · ')}</small></div> : null}
               {tutor.teachesOnline && tutor.priceOnline ? <div className="sp-online"><PriceArt kind="online" /><span>אונליין</span><b><bdi>{money(tutor.priceOnline)}</bdi></b><small>זום או לוח משותף</small></div> : null}
             </div>
             <h2 className="side-h">פנייה למורה</h2>
