@@ -1046,3 +1046,9 @@ img.photo-bg { background: #F4E29C url("data:image/svg+xml,%3Csvg xmlns='http://
 .side-card > .hint::before { content: ""; width: 20px; height: 20px; flex: none; border-radius: 50%; background: var(--brass) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233A3130' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5.5 12.5 4 4 9-9'/%3E%3C/svg%3E") center / 14px no-repeat; }
 .side-h { color: var(--ink); }
 @media (prefers-reduced-motion: reduce) { .side-card .btn-brand { transition: none; } .side-card .btn-brand:hover { transform: none; } }
+/* Teal in the prices too: the lesson type as a small teal tag, the amount in deep teal. */
+.side-prices > div { gap: 4px; justify-items: start; }
+.side-prices span { background: var(--purple); color: #fff; padding: 1px 10px; border-radius: 999px; font-size: 13.5px; }
+.side-prices b { color: var(--purple-ink); }
+.side-prices > div { position: relative; }
+.sp-art { position: absolute; top: 10px; inset-inline-end: 10px; width: 46px; height: 38px; color: var(--ink); }
