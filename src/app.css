@@ -1011,3 +1011,13 @@ img.photo-bg { background: #F4E29C url("data:image/svg+xml,%3Csvg xmlns='http://
 #top { overflow-x: clip; }
 .search::before { content: ""; position: absolute; z-index: -1; top: 66px; /* overlaps the hero a little: no hairline seam on iPhone */ bottom: -44px; inset-inline: calc(50% - 50vw); background: var(--ink); }
 .search + .block { padding-top: 88px; }
+
+/* Outlines (user, 2026-11-25: black was too harsh): every card, panel and photo frame uses the site grey,
+   and turns gold on hover where it is clickable. Buttons keep the dark outline as the thing to press. */
+:root { --edge: #7D7976; }
+.card, .track, .tc, .filters-inner, .side-card, .review-form, .panel-gate, .mp-card, .modal-body, .combo-list, .chat, .inq,
+.pending-box, .hero-slides, .chat-win, .g-tutor, .decline-box, .st-kpis, .user-pop, .group-photo img, .group-photo figcaption,
+.avatar, .avatar-sq, .p-photo, .mp-photo, .inq-av, .chat-win-av, .avatar-initials, .h-chip, .t-rows:not(.tc-list) { border-color: var(--edge); }
+.st-unmet { border-color: var(--edge); border-top-color: var(--brass); }
+.tabs, .st-table thead th { border-bottom-color: var(--edge); }
+.track:hover, .tc:hover, .g-tutor:hover { border-color: var(--brass); }
