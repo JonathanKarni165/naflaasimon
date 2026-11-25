@@ -372,7 +372,7 @@ function DeleteAccount() {
 }
 
 const EMPTY_TUTOR = {
-  name: '', photo: '', headline: '', about: '', education: '', subjects: ['מתמטיקה'], topics: [], city: '', area: '',
+  name: '', photo: '', headline: '', about: '', education: '', workplace: '', lessonPlace: '', subjects: ['מתמטיקה'], topics: [], city: '', area: '',
   teachesFrontal: true, priceFrontal: '', teachesOnline: true, priceOnline: '', experienceYears: '', phone: '', birthDate: '', address: '', verified: false, availability: [],
 };
 
@@ -411,7 +411,7 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
     const exp = t.experienceYears;
     if (exp !== '' && exp != null && !(Number.isInteger(Number(exp)) && Number(exp) >= 0 && Number(exp) <= 60)) e.experienceYears = 'שנות ניסיון: מספר שלם בין 0 ל־60';
     // The spam/profanity check runs here too, so the message points at the field to fix.
-    for (const [k, opts] of [['headline', {}], ['about', {}], ['education', {}]]) {
+    for (const [k, opts] of [['headline', {}], ['about', {}], ['education', {}], ['workplace', {}]]) {
       const why = checkText(t[k], opts);
       if (why) e[k] = MESSAGES[why];
     }
@@ -434,7 +434,7 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
       onSaved(saved);
     } catch (e) {
       // A moderation error from the server names the column; mark that field.
-      if (e.field && ['headline', 'about', 'education', 'name', 'city', 'area'].includes(e.field)) setErrors((x) => ({ ...x, [e.field]: e.message }));
+      if (e.field && ['headline', 'about', 'education', 'workplace', 'name', 'city', 'area'].includes(e.field)) setErrors((x) => ({ ...x, [e.field]: e.message }));
       notify(e.message, true);
     }
     setBusy(false);
@@ -477,6 +477,9 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
         <input id="tf-headline" className="input" maxLength={80} placeholder="למשל: סטודנטית לתואר שני במתמטיקה" value={t.headline} onChange={(e) => set({ headline: e.target.value })} aria-invalid={!!errors.headline} /><Err k="headline" />
         <label className="field-label" htmlFor="tf-edu">מוסד לימודים (לא חובה)</label>
         <input id="tf-edu" className="input" maxLength={100} placeholder="למשל: האוניברסיטה העברית, תואר במתמטיקה" value={t.education || ''} onChange={(e) => set({ education: e.target.value })} aria-invalid={!!errors.education} /><Err k="education" />
+        <label className="field-label" htmlFor="tf-work">חברה שעבדתם בה (לא חובה)</label>
+        <input id="tf-work" className="input" maxLength={60} placeholder="למשל: Google, אינטל, רפאל" value={t.workplace || ''} onChange={(e) => set({ workplace: e.target.value })} aria-invalid={!!errors.workplace} /><Err k="workplace" />
+        <p className="hint">מוסד הלימודים והחברה מופיעים כתגיות קטנות על הכרטיס שלכם.</p>
         <label className="field-label" htmlFor="tf-about">על השיעורים שלכם</label>
         <textarea id="tf-about" className="input" rows={5} maxLength={1500} placeholder="איך אתם מלמדים, למי זה מתאים, הישגים של תלמידים…" value={t.about} onChange={(e) => set({ about: e.target.value })} aria-invalid={!!errors.about} /><Err k="about" />
         <div className="f2">
@@ -524,6 +527,10 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
                 <div><label className="field-label" htmlFor="tf-city">עיר</label>
                   <input id="tf-city" className="input" list="tf-cities" autoComplete="off" placeholder="התחילו להקליד, למשל קריית טבעון" value={t.city || ''} onChange={(e) => set({ city: e.target.value })} /><datalist id="tf-cities">{CITIES.map((c) => <option key={c.name} value={c.name} />)}</datalist><Err k="city" />
                   <p className="hint">היישוב לא ברשימה? כתבו את השם שלו.</p></div>
+                <div className="f-full"><span className="field-label" id="tf-place-l">איפה מתקיים השיעור?</span>
+                  <div className="seg seg-3" role="group" aria-labelledby="tf-place-l">
+                    {[['tutor', 'אצלי בבית'], ['student', 'בבית התלמיד'], ['both', 'שניהם']].map(([k, l]) => <button key={k} type="button" aria-pressed={t.lessonPlace === k} onClick={() => set({ lessonPlace: k })}>{l}</button>)}
+                  </div></div>
                 <div><label className="field-label" htmlFor="tf-area">שכונה או אזור (לא חובה)</label><input id="tf-area" className="input" placeholder="למשל: ליד הבורסה" value={t.area} onChange={(e) => set({ area: e.target.value })} /></div>
                 <div><label className="field-label" htmlFor="tf-pf">מחיר לשעה, פרונטלי (₪)</label><input id="tf-pf" className="input" type="number" min={PRICE_MIN} max={PRICE_MAX} inputMode="numeric" value={t.priceFrontal ?? ''} onChange={(e) => set({ priceFrontal: e.target.value })} /><Err k="priceFrontal" /></div>
               </div>

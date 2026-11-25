@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, useLoad, to } from '../state.jsx';
 import { bayesScore, globalMean } from '../lib/ranking.js';
 import { money, dateShort, rating1, reviewsLabel } from '../lib/format.js';
-import { Avatar, EduIcon, Stars, StarRow, Verified, InquiryBox, GroupCard, WeekGrid, ConfirmButton, Loading, Empty, placeLabel, ReportTutor } from '../components/ui.jsx';
+import { Avatar, TutorBadges, Stars, StarRow, Verified, InquiryBox, GroupCard, WeekGrid, ConfirmButton, Loading, Empty, placeLabel, ReportTutor } from '../components/ui.jsx';
 import { topicsBySubject } from '../data/topics.js';
 
 export default function Tutor({ id }) {
@@ -33,7 +33,7 @@ export default function Tutor({ id }) {
             <div className="p-id">
               <h1>{tutor.name}</h1>
               <p className="p-headline">{tutor.headline}</p>
-              {tutor.education ? <p className="p-edu"><EduIcon /> {tutor.education}</p> : null}
+              <TutorBadges tutor={tutor} className="p-badges-row" />
               <div className="p-badges">
                 <Verified tutor={tutor} />
                 <Stars avg={tutor.ratingAvg} count={tutor.ratingCount} />
