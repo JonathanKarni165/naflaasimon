@@ -18,22 +18,41 @@ const gmailUser = () => env('GMAIL_USER');
 // Where replies and unsubscribe requests land: an inbox someone reads.
 const contact = () => env('MAIL_REPLY_TO') || gmailUser() || 'nafalaasimon@gmail.com';
 
-// Branded frame shared by all notification emails (same look as the auth templates in supabase/email/).
+// Branded frame shared by all notification emails (the auth templates in supabase/email/ use the same markup).
+// Site colours: butter #F4E29C header, gold coin #DFC166, teal #0F5C5B, ink #3A3130 on cream #F3F0E9.
+// Tables + inline styles only, so Gmail, Outlook and phone mail apps all show it the same; no images
+// (the coin is drawn with CSS, it shows as a gold square in old Outlook).
+const COIN = `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate"><tr><td width="34" height="34" align="center" valign="middle" style="width:34px;height:34px;background:#DFC166;border:2px solid #3A3130;border-radius:50%;mso-line-height-rule:exactly;line-height:34px"><div style="width:18px;height:4px;margin:0 auto;background:#6B5A2A;border-radius:2px;font-size:0;line-height:0">&nbsp;</div></td></tr></table>`;
 export function layout(title: string, inner: string, why: string) {
-  return `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head>
-<body style="margin:0;background:#F3F0E9">
-<div dir="rtl" style="font-family:Arial,Helvetica,sans-serif;background:#F3F0E9;padding:24px 12px;color:#3A3130">
-  <div style="max-width:520px;margin:0 auto;background:#ffffff;border:2px solid #3A3130;border-radius:18px;padding:24px;text-align:right">
-    <div style="font-size:20px;font-weight:bold">${NAME}</div>
-    <div style="color:#7D7976;font-size:13px;margin-bottom:18px">מורים פרטיים למתמטיקה ועוד</div>
-    <div style="font-size:16px;line-height:1.6">${inner}</div>
-    <p style="color:#7D7976;font-size:12px;line-height:1.5;margin:20px 0 0;border-top:1px solid #F3F0E9;padding-top:12px">${why}<br>לא רוצים לקבל מיילים כאלה? אפשר להשיב למייל הזה במילה "הסרה".</p>
-  </div>
-</div></body></html>`;
+  return `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"><title>${esc(title)}</title></head>
+<body style="margin:0;padding:0;background:#F3F0E9">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0">${esc(title)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" dir="rtl" style="background:#F3F0E9"><tr><td align="center" style="padding:24px 12px">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:540px;border-collapse:separate">
+    <tr><td style="background:#F4E29C;border:2px solid #3A3130;border-bottom:0;border-radius:18px 18px 0 0;padding:16px 22px">
+      <a href="${SITE}" style="text-decoration:none;color:#3A3130"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+        <td style="padding-left:10px">${COIN}</td>
+        <td style="font-family:Arial,Helvetica,sans-serif;text-align:right"><div style="font-size:21px;font-weight:bold;color:#3A3130;line-height:1.2">${NAME}</div><div style="font-size:13px;color:#4F4644">מורים פרטיים למתמטיקה ועוד</div></td>
+      </tr></table></a>
+    </td></tr>
+    <tr><td style="background:#ffffff;border:2px solid #3A3130;border-top:4px solid #DFC166;border-radius:0 0 18px 18px;padding:26px 22px 22px;font-family:Arial,Helvetica,sans-serif;color:#3A3130;text-align:right;font-size:16px;line-height:1.65">
+      <div style="font-size:20px;font-weight:bold;line-height:1.35;margin:0 0 14px">${esc(title)}</div>
+      ${inner}
+    </td></tr>
+    <tr><td style="padding:16px 8px 0;font-family:Arial,Helvetica,sans-serif;color:#7D7976;font-size:12px;line-height:1.6;text-align:center">
+      ${why}<br>לא רוצים לקבל מיילים כאלה? אפשר להשיב למייל הזה במילה "הסרה".<br>
+      <a href="${SITE}" style="color:#0F5C5B;font-weight:bold;text-decoration:none">${NAME}</a> · בלי עמלות, פונים ישירות למורה
+    </td></tr>
+  </table>
+</td></tr></table></body></html>`;
 }
+// A big gold button that works everywhere, with the plain link under it for copying.
 export const button = (link: string, label: string) =>
-  `<p style="margin:18px 0"><a href="${link}" style="display:inline-block;background:#3A3130;color:#ffffff;text-decoration:none;padding:11px 20px;border-radius:999px;font-weight:bold">${esc(label)}</a></p>`;
-export const quote = (t: string) => `<div style="white-space:pre-wrap;background:#F3F0E9;border-radius:10px;padding:12px 14px">${esc(t)}</div>`;
+  `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:22px 0 8px;border-collapse:separate"><tr><td align="center" style="background:#DFC166;border:2px solid #3A3130;border-radius:12px">
+    <a href="${link}" style="display:inline-block;padding:13px 28px;font-family:Arial,Helvetica,sans-serif;font-size:17px;font-weight:bold;color:#3A3130;text-decoration:none">${esc(label)} &larr;</a></td></tr></table>
+  <p style="margin:0;font-size:12px;color:#7D7976;line-height:1.5">הכפתור לא עובד? אפשר להעתיק את הקישור:<br><span dir="ltr" style="display:block;text-align:right"><a href="${link}" style="color:#0F5C5B;word-break:break-all">${esc(link)}</a></span></p>`;
+// The quoted message: cream box with a teal edge on the reading side.
+export const quote = (t: string) => `<div style="white-space:pre-wrap;background:#F3F0E9;border-right:4px solid #0F5C5B;border-radius:8px;padding:12px 14px;margin:12px 0">${esc(t)}</div>`;
 
 type Mail = { to: string; subject: string; html: string; text: string; replyTo?: string };
 
