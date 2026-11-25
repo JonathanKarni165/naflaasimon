@@ -1007,3 +1007,7 @@ img.photo-bg { background: #F4E29C url("data:image/svg+xml,%3Csvg xmlns='http://
     background: linear-gradient(to top, var(--ink) 0%, rgb(58 49 48 / 0) 38%); }
   .hero-video .hero-v-inner { position: relative; z-index: 2; margin-top: -64px; padding-block: 0; }
 }
+/* The hero's dark brown carries on behind the search form and ends a little below it (user, 2026-11-25). */
+#top { overflow-x: clip; }
+.search::before { content: ""; position: absolute; z-index: -1; top: 72px; bottom: -44px; inset-inline: calc(50% - 50vw); background: var(--ink); }
+.search + .block { padding-top: 88px; }
