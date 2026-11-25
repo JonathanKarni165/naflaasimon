@@ -40,7 +40,8 @@ function canEditTutor(t) { return user && (user.isAdmin || t.ownerId === user.id
 function stats(tutorId) {
   const rs = db().reviews.filter((r) => r.tutorId === tutorId);
   const sum = rs.reduce((a, r) => a + r.rating, 0);
-  return { ratingCount: rs.length, ratingAvg: rs.length ? sum / rs.length : 0 };
+  const students = new Set([...rs.map((r) => r.userId), ...db().inquiries.filter((q) => q.tutorId === tutorId && q.status === 'booked').map((q) => q.userId)]);
+  return { ratingCount: rs.length, ratingAvg: rs.length ? sum / rs.length : 0, studentCount: students.size };
 }
 function publicTutor(t) {
   const { phone, ...rest } = t; // the phone number never leaves the "server" without login
@@ -88,9 +89,17 @@ export async function deleteMyAccount() { return wait(true); }
 export async function canReview(tutorId) {
   if (!user) return false;
   const d = db();
-  return wait(d.inquiries.some((q) => q.tutorId === tutorId && q.userId === user.id && q.status !== 'declined')
-    || d.seats.some((s) => s.userId === user.id && d.groups.find((g) => g.id === s.groupId)?.tutorId === tutorId));
+  return wait(d.inquiries.some((q) => q.tutorId === tutorId && q.userId === user.id && q.status === 'booked')
+    || d.seats.some((s) => s.userId === user.id && (s.status || 'approved') === 'approved' && d.groups.find((g) => g.id === s.groupId)?.tutorId === tutorId));
 }
+export async function myTutors() {
+  if (!user) return [];
+  const d = db(); const ids = new Set();
+  d.inquiries.filter((q) => q.userId === user.id && q.status === 'booked').forEach((q) => ids.add(q.tutorId));
+  d.seats.filter((s) => s.userId === user.id && (s.status || 'approved') === 'approved').forEach((s) => { const g = d.groups.find((x) => x.id === s.groupId); if (g) ids.add(g.tutorId); });
+  return wait([...ids].map((tutorId) => ({ tutorId, since: null, reviewed: d.reviews.some((r) => r.tutorId === tutorId && r.userId === user.id) })));
+}
+export async function markInquiryOpened() { return true; }
 export async function reviewTutorChanges() { return wait(true); }
 export async function getMyTutor() { if (!user) return null; const t = db().tutors.find((x) => x.ownerId === user.id); return wait(t ? clone(t) : null); }
 export async function getTutorForEdit(id) {

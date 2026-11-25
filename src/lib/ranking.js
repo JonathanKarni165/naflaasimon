@@ -132,17 +132,19 @@ export function sortTutors(tutors, sort, { origin, mode } = {}) {
 /**
  * One weighted score per tutor (a linear objective): score = sum(w_i * x_i) / sum(w_i of the signals that apply).
  * Signals, each scaled 0..1: text match (name > profile), chosen topic, rating (Bayesian, so few reviews count less),
- * review volume + demand (log scale) and distance (when a location is chosen). Signals that don't apply are left out,
+ * review volume + demand (log scale), confirmed students (lessons the tutor marked + group seats) and distance (when a location is chosen). Signals that don't apply are left out,
  * so the same formula works for every search.
  */
-export const SEARCH_WEIGHTS = { text: 0.30, topic: 0.20, rating: 0.30, volume: 0.10, near: 0.10 };
+export const SEARCH_WEIGHTS = { text: 0.30, topic: 0.20, rating: 0.30, volume: 0.10, students: 0.10, near: 0.10 };
 export function blendedRank(list, { q, topic, origin, mode } = {}) {
   const m = globalMean(list);
   const hasQ = !!(q && normText(q));
   const W = SEARCH_WEIGHTS;
   return list.map((t) => {
     const parts = [[W.rating, Math.max(0, Math.min(1, bayesScore(t.ratingAvg || 0, t.ratingCount || 0, m) / 5))],
-      [W.volume, Math.min(1, Math.log1p(popularity(t)) / Math.log1p(60))]];
+      [W.volume, Math.min(1, Math.log1p(popularity(t)) / Math.log1p(60))],
+      // Tutors who mark their active students ("נקבע שיעור") rank higher: the emails to tutors promise this.
+      [W.students, Math.min(1, Math.log1p(t.studentCount || 0) / Math.log1p(20))]];
     if (hasQ) parts.push([W.text, nameRelevance(t, q) === 2 ? 1 : 0.4]);
     if (topic) parts.push([W.topic, topicMatch(t, topic) ? 1 : 0]);
     if (origin && mode !== 'online') { const d = distanceKm(origin, tutorPoint(t)); parts.push([W.near, d == null ? 0 : Math.max(0, 1 - d / 40)]); }
@@ -151,7 +153,7 @@ export function blendedRank(list, { q, topic, origin, mode } = {}) {
   }).sort((a, b) => b.rank - a.rank);
 }
 
-/** Demand: inquiries sent through the site plus reviewers (each review is a lesson that happened). */
+/** Demand: inquiries sent through the site, reviewers, and confirmed students (lessons the tutor marked, group seats). */
 export function popularity(t) {
-  return (t.contactCount || 0) + 3 * (t.ratingCount || 0);
+  return (t.contactCount || 0) + 3 * (t.ratingCount || 0) + 3 * (t.studentCount || 0);
 }

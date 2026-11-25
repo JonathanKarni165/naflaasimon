@@ -117,7 +117,7 @@ function check({ data, error }) {
     if (m.includes('profiles_name_len')) throw new Error('השם צריך להיות בין 2 ל־60 תווים');
     if (m.includes('profiles_phone_chars')) throw new Error('מספר הטלפון יכול להכיל רק ספרות, רווחים ומקפים');
     if (m.includes('profile: birth_date')) throw new Error('תאריך הלידה לא נראה נכון');
-    if (m.includes('row-level security') && m.includes('reviews')) throw new Error('אפשר לכתוב ביקורת רק על מורה שפניתם אליו או שלמדתם אצלו בקבוצה');
+    if (m.includes('row-level security') && m.includes('reviews')) throw new Error('רק תלמידים יכולים לכתוב ביקורת: המורה צריך לסמן שנקבע איתכם שיעור, או לאשר אתכם לקבוצה שלו');
     if (m.includes('tutors_experience_range')) throw new Error('שנות ניסיון: מספר בין 0 ל־60');
     if (m.includes('mime type')) throw new Error('אפשר להעלות רק תמונה (JPG, PNG או WebP)');
     throw new Error(m || 'משהו השתבש, נסו שוב');
@@ -131,7 +131,7 @@ const tutorFromRow = (r, stats = {}) => ({
   availability: r.availability || [], city: r.city, area: r.area, lat: r.lat, lng: r.lng,
   teachesOnline: r.teaches_online, teachesFrontal: r.teaches_frontal, priceOnline: r.price_online, priceFrontal: r.price_frontal,
   experienceYears: r.experience_years, verified: r.verified, contactCount: r.contact_count, createdAt: r.created_at,
-  ratingCount: stats.rating_count || 0, ratingAvg: stats.rating_avg || 0,
+  ratingCount: stats.rating_count || 0, ratingAvg: stats.rating_avg || 0, studentCount: stats.students || 0,
   approval: r.approval || 'approved', rejectReason: r.reject_reason || '', isExample: !!r.is_example,
   // Photo/headline/about an approved tutor changed, waiting for the admin (supabase/round6.sql).
   pending: r.pending && Object.keys(r.pending).length ? r.pending : null,
@@ -153,8 +153,14 @@ const tutorToRow = (t) => {
 };
 
 async function statsMap() {
-  const rows = check(await sb.from('tutor_stats').select('*'));
-  return Object.fromEntries(rows.map((r) => [r.tutor_id, r]));
+  const [rows, students] = await Promise.all([
+    sb.from('tutor_stats').select('*').then(check),
+    // Students per tutor (supabase/verified-reviews.sql). Before that file runs the list is just empty.
+    sb.rpc('tutor_student_counts').then(({ data }) => data || []),
+  ]);
+  const map = Object.fromEntries(rows.map((r) => [r.tutor_id, { ...r }]));
+  students.forEach((s) => { (map[s.tutor_id] ||= {}).students = s.students; });
+  return map;
 }
 
 export async function listTutors() {
@@ -204,7 +210,7 @@ const inquiryFromRow = (q) => ({
   contactVia: q.contact_via || (q.phone ? ['phone'] : ['site']), lessons: q.lessons || '', goal: q.goal || '', slots: q.slots || [],
   subject: q.subject, level: q.level,
   mode: q.mode, message: q.message, status: q.status, reply: q.reply || '', createdAt: q.created_at, repliedAt: q.replied_at,
-  declineSeen: !!q.decline_seen_at,
+  declineSeen: !!q.decline_seen_at, openedAt: q.tutor_opened_at || null, bookedAt: q.booked_at || null,
 });
 async function attachTutors(list) {
   const ids = [...new Set(list.map((q) => q.tutorId))];
@@ -322,8 +328,20 @@ export async function uploadPhoto(file) {
   return sb.storage.from('tutor-photos').getPublicUrl(path).data.publicUrl;
 }
 
-const reviewFromRow = (r) => ({ id: r.id, tutorId: r.tutor_id, userId: r.user_id, userName: r.user_name, rating: r.rating, text: r.text, createdAt: r.created_at });
-/** Only someone who contacted the tutor (an inquiry not declined, or a group seat) can review them. */
+const reviewFromRow = (r) => ({ id: r.id, tutorId: r.tutor_id, userId: r.user_id, userName: r.user_name, rating: r.rating, text: r.text, createdAt: r.created_at, updatedAt: r.updated_at || null });
+/** The signed-in student's tutors ("מורה שלי"): the tutor marked a lesson or approved a group seat, so they may review them (supabase/verified-reviews.sql). */
+export async function myTutors() {
+  if (!user) return [];
+  const { data, error } = await sb.rpc('my_tutors');
+  if (error) return [];
+  return data.map((r) => ({ tutorId: r.tutor_id, since: r.since, reviewed: !!r.reviewed }));
+}
+/** The tutor opened an inquiry: a few days later the site asks them by email whether a lesson happened. */
+export async function markInquiryOpened(id) {
+  if (!user) return;
+  try { await sb.rpc('mark_inquiry_opened', { q: id }); } catch { /* never blocks opening the chat */ }
+}
+/** Only the tutor's students can review them: the tutor marked "נקבע שיעור" or approved a group seat. */
 export async function canReview(tutorId) {
   if (!user) return false;
   const { data, error } = await sb.rpc('can_review', { t: tutorId });

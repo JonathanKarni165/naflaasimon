@@ -46,6 +46,20 @@ export function Verified({ tutor }) {
   return <span className="verified" title="המורה נבדק על ידי צוות האתר">✓ מאומת</span>;
 }
 
+/** "מורה שלי": the tutor marked a lesson with the signed-in student (or approved a group seat), so they may review them. */
+export function useMyTutorEntry(tutorId) {
+  const { myTutors } = useApp();
+  return (myTutors || []).find((m) => m.tutorId === tutorId) || null;
+}
+export function MyTutorBadge({ tutor, line }) {
+  const mine = useMyTutorEntry(tutor?.id);
+  if (!mine) return null;
+  const badge = <span className="my-tutor" title="המורה סימן/ה שלמדתם יחד">✓ מורה שלי</span>;
+  return line ? <div className="my-tutor-line">{badge}</div> : badge;
+}
+/** "12 תלמידים דרך נפל האסימון": lessons the tutor marked and approved group seats. */
+export const studentsLabel = (n) => (n === 1 ? 'תלמיד/ה אחד/ת' : `${n} תלמידים`);
+
 export function PriceLines({ tutor }) {
   return (
     <div className="price-lines">
@@ -145,6 +159,7 @@ export function TutorRow({ tutor, sort, topic }) {
     <article className="tc">
       <a href={href} className="tc-photo" tabIndex={-1} aria-hidden="true"><TutorPhoto tutor={tutor} /></a>
       <div className="tc-head">
+        <MyTutorBadge tutor={tutor} line />
         <h3 className="tc-name"><a className="t-name" href={href}>{tutor.name}</a></h3>
         <Verified tutor={tutor} />
         {tutor.headline ? <p className="tc-headline">{tutor.headline}</p> : null}
@@ -156,6 +171,7 @@ export function TutorRow({ tutor, sort, topic }) {
         {subjects.map((s) => <li key={s}>{s}</li>)}
         {placeLabel(tutor) ? <li className="tc-place">{placeLabel(tutor)}</li> : null}
         {tutor.distance != null && tutor.teachesFrontal ? <li className={'tc-place' + (sort === 'near' ? ' hot' : '')}>{km(tutor.distance)}</li> : null}
+        {tutor.studentCount ? <li className="tc-place">{studentsLabel(tutor.studentCount)} דרך האתר</li> : null}
         {tutor.contactCount && sort ? <li className={'tc-place' + (sort === 'popular' ? ' hot' : '')}><bdi>{tutor.contactCount}</bdi> פניות</li> : null}
       </ul>
       <div className="tc-side">

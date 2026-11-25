@@ -1032,6 +1032,21 @@ img.photo-bg { background: #F4E29C url("data:image/svg+xml,%3Csvg xmlns='http://
 }
 .wiz-actions { flex-wrap: wrap; } .wiz-actions .wiz-missing { flex-basis: 100%; margin: 0; }
 
+/* Verified reviews: "מורה שלי" badge, students count, review prompt (supabase/verified-reviews.sql) */
+.my-tutor { display: inline-block; background: var(--brass-soft); color: var(--ink); border: 1.5px solid var(--ink); border-radius: 4px; padding: 1px 9px; font-size: 13px; font-weight: 800; line-height: 1.5; white-space: nowrap; }
+.my-tutor-line { flex-basis: 100%; margin-bottom: 2px; }
+.p-students { font-weight: 700; }
+.review-ask { border: 2px solid var(--ink); border-radius: 4px; background: var(--brass-soft); padding: 14px 16px; margin: 0 0 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.review-ask p { margin: 0; flex: 1 1 240px; }
+.rv-verified { font-size: 12.5px; font-weight: 700; color: var(--good); }
+.rv-edited { font-size: 12.5px; }
+.my-tutors-list { list-style: none; margin: 0 0 8px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); }
+.my-tutors-list li { display: flex; align-items: center; gap: 12px; padding: 12px 14px; flex-wrap: wrap; }
+.my-tutors-list li + li { border-top: 1px solid var(--line); }
+.my-tutors-list .mt-name { font-weight: 800; flex: 1 1 140px; color: var(--ink); text-decoration: none; }
+.my-tutors-list .mt-name:hover { text-decoration: underline; }
+.lesson-ask { margin: 0; padding: 10px 14px; background: var(--brass-soft); border-bottom: 1px solid var(--line); font-size: 14.5px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.lesson-ask span { flex: 1 1 220px; }
 /* Tutor page side card: the site's yellows (user, 2026-11-25). Butter and pale-gold price boxes with gold
    edges, the contact button in the coin's gold like the home search button, and the no-commission note as a
    pale-yellow strip with the gold check. */
