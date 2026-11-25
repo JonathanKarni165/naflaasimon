@@ -472,3 +472,15 @@ export function subscribe(onChange) {
   ch.subscribe();
   return () => { sb.removeChannel(ch); };
 }
+
+// Search statistics (supabase/stats.sql). A search row holds only what was searched, never who searched
+// (some visitors are minors). Anyone can add one, only the admin can read them. Logging never breaks the page.
+export async function logSearch(row) {
+  try { await sb.from('search_log').insert({ ...row, signed_in: !!user }); } catch { /* not important */ }
+}
+export async function adminStats(days) {
+  if (!user?.isAdmin) throw new Error('רק לניהול האתר');
+  const { data, error } = await sb.rpc('admin_stats', { p_days: days || 0 });
+  if (error) throw new Error(/admin_stats|function/.test(error.message) ? 'טבלת הסטטיסטיקות עוד לא הותקנה במסד הנתונים (supabase/stats.sql).' : 'לא הצלחנו לטעון את הסטטיסטיקות. נסו שוב.');
+  return data;
+}

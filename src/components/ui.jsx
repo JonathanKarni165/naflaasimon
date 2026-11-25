@@ -1132,6 +1132,7 @@ export function UserMenu() {
             <section className="pop-sec pop-admin" aria-label="ניהול האתר">
               <span className="pop-title">{POP_ICONS.admin}ניהול האתר</span>
               <a href={to('panel-admin')} onClick={() => setOpen(false)}>אישור וניהול מורים</a>
+              <a href={to('panel-stats')} onClick={() => setOpen(false)}>סטטיסטיקות</a>
             </section>
           ) : null}
           <button type="button" className="pop-out" onClick={() => { setOpen(false); api.auth.signOut(); }}>התנתקות</button>
