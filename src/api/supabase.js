@@ -125,9 +125,10 @@ function check({ data, error }) {
   return data;
 }
 
+const LESSON_PLACE_KEYS = ['tutor', 'student', 'both'];
 const tutorFromRow = (r, stats = {}) => ({
   ...coursesFromLegacy(r.subjects || [], r.levels || [], r.topics || []),
-  id: r.id, ownerId: r.owner_id, name: r.name, photo: r.photo, headline: r.headline, about: r.about, education: r.education || '',
+  id: r.id, ownerId: r.owner_id, name: r.name, photo: r.photo, headline: r.headline, about: r.about, education: r.education || '', workplace: r.workplace || '', lessonPlace: r.lesson_place || '',
   availability: r.availability || [], city: r.city, area: r.area, lat: r.lat, lng: r.lng,
   teachesOnline: r.teaches_online, teachesFrontal: r.teaches_frontal, priceOnline: r.price_online, priceFrontal: r.price_frontal,
   experienceYears: r.experience_years, verified: r.verified, contactCount: r.contact_count, createdAt: r.created_at,
@@ -140,7 +141,10 @@ const tutorToRow = (t) => {
   const c = cityByName(t.city);
   return {
     name: t.name, photo: t.photo || null, headline: t.headline || null, about: t.about || null,
-    ...(t.education ? { education: t.education.trim().slice(0, 100) } : {}), // column from supabase/education.sql
+    // columns from supabase/tutor-badges.sql
+    education: (t.education || '').trim().slice(0, 100) || null,
+    workplace: (t.workplace || '').trim().slice(0, 60) || null,
+    lesson_place: t.teachesFrontal && LESSON_PLACE_KEYS.includes(t.lessonPlace) ? t.lessonPlace : null,
     subjects: t.subjects || [], levels: [], city: t.city || null, area: t.area || null,
     topics: t.topics || [], availability: t.availability || [], // columns from supabase/contact.sql
     lat: c?.lat ?? null, lng: c?.lng ?? null,

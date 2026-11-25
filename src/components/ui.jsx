@@ -86,6 +86,26 @@ export function tutorQuote(t) {
   return cut.slice(0, Math.max(cut.lastIndexOf(' '), 100)).replace(/[,;:\s]+$/, '') + '…';
 }
 
+export const LESSON_PLACES = { tutor: 'בבית המורה', student: 'בבית התלמיד', both: 'בבית המורה או התלמיד' };
+const BADGE_ICONS = {
+  home: <><path d="M3 11l9-7 9 7" /><path d="M5 10v10h14V10" /><path d="M10 20v-6h4v6" /></>,
+  laptop: <><rect x="4" y="5" width="16" height="11" rx="1.5" /><path d="M2 19h20" /></>,
+  cap: <><path d="M2 9l10-5 10 5-10 5z" /><path d="M6 11v5c3 2.5 9 2.5 12 0v-5" /><path d="M22 9v6" /></>,
+  work: <><circle cx="12" cy="7" r="3.2" /><path d="M5 21c0-4 3.1-7 7-7s7 3 7 7" /><path d="M9.5 14.5l2.5 3 2.5-3" /><rect x="15.5" y="15" width="6" height="5" rx="1" /><path d="M17.5 15v-1.2h2V15" /></>,
+};
+function Badge({ icon, kind, children, title }) {
+  return <li className={'tb tb-' + kind} title={title}><svg className="tb-ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{BADGE_ICONS[icon]}</svg><span>{children}</span></li>;
+}
+/** Small tags on the tutor card and profile: where lessons happen, online, where they studied, where they worked. */
+export function TutorBadges({ tutor: t, className = '' }) {
+  const items = [];
+  if (t.teachesFrontal) items.push(<Badge key="p" icon="home" kind="place">{LESSON_PLACES[t.lessonPlace] || 'שיעור פרונטלי'}</Badge>);
+  if (t.teachesOnline) items.push(<Badge key="o" icon="laptop" kind="online">אונליין</Badge>);
+  if (t.education) items.push(<Badge key="e" icon="cap" kind="edu" title="מוסד לימודים">{t.education}</Badge>);
+  if (t.workplace) items.push(<Badge key="w" icon="work" kind="work" title="עבד/ה ב">{t.workplace}</Badge>);
+  return items.length ? <ul className={'tbadges ' + className}>{items}</ul> : null;
+}
+
 /** Graduation cap, next to the tutor's place of study. */
 export function EduIcon() {
   return (
@@ -163,13 +183,13 @@ export function TutorRow({ tutor, sort, topic }) {
         <h3 className="tc-name"><a className="t-name" href={href}>{tutor.name}</a></h3>
         <Verified tutor={tutor} />
         {tutor.headline ? <p className="tc-headline">{tutor.headline}</p> : null}
-        {tutor.education ? <p className="tc-edu"><EduIcon /> {tutor.education}</p> : null}
+        <TutorBadges tutor={tutor} />
         {topic && topicMatch(tutor, topic) ? <p className="t-topic">✓ מלמדים כאן {topic}</p> : null}
       </div>
       {quote ? <blockquote className="tc-quote"><p>{quote.replace(/\S+$/, '')}<span className="q-end">{quote.match(/\S+$/)?.[0]}</span></p></blockquote> : null}
       <ul className="tc-tags">
         {subjects.map((s) => <li key={s}>{s}</li>)}
-        {placeLabel(tutor) ? <li className="tc-place">{placeLabel(tutor)}</li> : null}
+        {tutor.teachesFrontal && tutor.city ? <li className="tc-place">{tutor.city + (tutor.area ? `, ${tutor.area}` : '')}</li> : null}
         {tutor.distance != null && tutor.teachesFrontal ? <li className={'tc-place' + (sort === 'near' ? ' hot' : '')}>{km(tutor.distance)}</li> : null}
         {tutor.studentCount ? <li className="tc-place">{studentsLabel(tutor.studentCount)} דרך האתר</li> : null}
         {tutor.contactCount && sort ? <li className={'tc-place' + (sort === 'popular' ? ' hot' : '')}><bdi>{tutor.contactCount}</bdi> פניות</li> : null}
