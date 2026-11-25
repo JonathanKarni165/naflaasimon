@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useApp, go } from '../state.jsx';
-import { Coin, GOOGLE_ICON, SpamNote, rememberReturn, BirthDateInput, InAppNote } from '../components/ui.jsx';
+import { Coin, GOOGLE_ICON, SpamNote, rememberReturn, BirthDateInput, InAppNote, TermsCheck, TERMS_ERROR } from '../components/ui.jsx';
+import { to } from '../state.jsx';
 import { CITIES } from '../data/constants.js';
 import { isEmail, isPhone, emailTypo, passwordProblem } from '../lib/format.js';
 
@@ -13,7 +14,7 @@ function leave() {
 export default function Auth({ mode }) {
   const { user, api, notify } = useApp();
   const signup = mode === 'signup';
-  const [f, setF] = useState({ name: '', email: '', password: '', phone: '', birthDate: '', area: '' });
+  const [f, setF] = useState({ name: '', email: '', password: '', phone: '', birthDate: '', area: '', agree: false });
   const [err, setErr] = useState('');
   const [errs, setErrs] = useState({}); // per field, all shown at once
   const [info, setInfo] = useState(''); // lasting notice in the form (e.g. after "שכחתי סיסמה")
@@ -46,6 +47,7 @@ export default function Auth({ mode }) {
     if (signup && passwordProblem(f.password)) x.password = passwordProblem(f.password);
     if (!signup && !f.password) x.password = 'כתבו סיסמה';
     if (signup && f.phone.trim() && !isPhone(f.phone)) x.phone = 'בדקו את מספר הטלפון, למשל \u2066050-1234567\u2069';
+    if (signup && !f.agree) x.agree = TERMS_ERROR;
     setErrs(x);
     if (Object.keys(x).length) return;
     setBusy(true);
@@ -89,6 +91,7 @@ export default function Auth({ mode }) {
       <p className="muted-text">{signup ? 'חשבון מאפשר צ׳אט עם מורים, הצטרפות לקבוצות וקבלת עדכונים במייל. בחינם.' : 'ברוכים השבים.'}</p>
       <InAppNote />
       <button type="button" className="btn btn-google" onClick={google}>{GOOGLE_ICON} המשך עם Google</button>
+      {signup ? <p className="fine">בהמשך עם Google תתבקשו לאשר את <a href={to('terms')}>תנאי השימוש</a> ואת <a href={to('privacy')}>מדיניות הפרטיות</a>.</p> : null}
       <div className="login-or"><span>או עם מייל</span></div>
       <form className="auth-form" onSubmit={submit} noValidate>
         {signup ? (<>
@@ -109,6 +112,7 @@ export default function Auth({ mode }) {
           <input id="a-area" className="input" list="a-cities" autoComplete="off" placeholder="עיר או שכונה" value={f.area} onChange={set('area')} />
           <datalist id="a-cities">{CITIES.map((c) => <option key={c.name} value={c.name} />)}</datalist>
           <p className="fine">הפרטים נשמרים אצלנו ולא מוצגים באתר.</p>
+          <TermsCheck id="a-terms" checked={f.agree} onChange={(v) => setF((x) => ({ ...x, agree: v }))} error={errs.agree} />
         </>) : null}
         {err ? <p className="err" role="alert">{err}</p> : null}
         {unconfirmed ? <button type="button" className="btn btn-line" onClick={resend}>שליחה חוזרת של מייל האימות</button> : null}
