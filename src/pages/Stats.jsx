@@ -36,7 +36,7 @@ function Bars({ title, rows, empty = 'עוד אין נתונים.', showZero = t
             <li key={r.label}>
               <span className="st-label">{r.label}{r.subject && r.subject !== r.label ? <small> · {r.subject}</small> : null}</span>
               <span className="st-bar" aria-hidden="true"><i style={{ width: `${(r.count / max) * 100}%` }} /></span>
-              <span className="st-num"><bdi>{n(r.count)}</bdi>{showZero && r.zero ? <small className="st-zero" title="בלי מורה אמיתי בתוצאות"> · {n(r.zero)} בלי תוצאות</small> : null}</span>
+              <span className="st-num"><bdi>{n(r.count)}</bdi>{showZero && r.zero ? <small className="st-zero" title="לא הופיע אף מורה"> · {n(r.zero)} בלי תוצאות</small> : null}</span>
             </li>
           ))}
         </ul>
@@ -48,11 +48,15 @@ function Bars({ title, rows, empty = 'עוד אין נתונים.', showZero = t
 export default function Stats() {
   const { api, user, version } = useApp();
   const [period, setPeriod] = useState('30');
+  const [zeroShow, setZeroShow] = useState('none'); // none = nothing at all came up; examples = only example tutors came up
   const [data, loading, error] = useLoad(() => api.adminStats(Number(period)), [user.id, version, period]);
   if (error) return <p className="err" role="alert">{error.message || String(error)}</p>;
   if (!data) return <Loading />;
   const t = data.totals || {};
-  const zero = data.zero || [];
+  const allZero = data.zero || [];
+  const zeroNone = allZero.filter((z) => !z.examplesOnly);
+  const zeroEx = allZero.filter((z) => z.examplesOnly);
+  const zero = zeroShow === 'none' ? zeroNone : zeroEx;
   const ages = data.ages || [];
   const ageMax = Math.max(1, ...ages.map((a) => Math.max(a.students, a.tutors)));
   const modes = data.modes || {};
@@ -72,13 +76,15 @@ export default function Stats() {
         <div><dt>תלמידים</dt><dd><bdi>{n(t.students)}</bdi></dd><small>חשבונות בלי פרופיל מורה</small></div>
         <div><dt>מורים פעילים</dt><dd><bdi>{n(t.tutors)}</bdi></dd><small>{t.tutorsPending ? `${n(t.tutorsPending)} ממתינים לאישור · ` : ''}{n(t.exampleTutors)} לדוגמה לא נספרים</small></div>
         <div><dt>חיפושים</dt><dd><bdi>{n(t.searches)}</bdi></dd><small>{periodText}</small></div>
-        <div className="st-kpi-alert"><dt>חיפושים בלי מורה</dt><dd><bdi>{n(t.zeroSearches)}</bdi></dd><small>{t.searches ? `${Math.round((t.zeroSearches / t.searches) * 100)}% מהחיפושים` : 'עוד אין חיפושים'}</small></div>
+        <div className="st-kpi-alert"><dt>חיפושים בלי תוצאות</dt><dd><bdi>{n(t.zeroSearches)}</bdi></dd><small>{t.searches ? `${Math.round((t.zeroSearches / t.searches) * 100)}% מהחיפושים` : 'עוד אין חיפושים'}{t.examplesOnlySearches ? ` · עוד ${n(t.examplesOnlySearches)} מצאו רק מורים לדוגמה` : ''}</small></div>
         <div><dt>פניות למורים</dt><dd><bdi>{n(t.inquiries)}</bdi></dd><small>{t.inquiriesToExamples ? `${n(t.inquiriesToExamples)} מהן למורים לדוגמה · ` : ''}{n(t.groupSignups)} הרשמות לקבוצות</small></div>
       </dl>
 
       <section className="st-block st-unmet" aria-labelledby="st-unmet-h">
         <h2 id="st-unmet-h">חיפשו ולא מצאו מורה</h2>
-        <p className="muted-text">חיפושים שלא הציגו אף מורה אמיתי {periodText}. ״רק לדוגמה״ = הופיעו רק מורים לדוגמה. לחיצה פותחת את אותו חיפוש.</p>
+        <p className="muted-text">חיפושים {periodText} שלא הופיע בהם אף מורה, ובנפרד חיפושים שהופיעו בהם רק מורים לדוגמה (כלומר אין עדיין מורה אמיתי שמתאים). לחיצה פותחת את אותו חיפוש.</p>
+        <span className="sr-only" id="st-zero-show">אילו חיפושים להציג</span>
+        <Seg label="st-zero-show" value={zeroShow} onChange={setZeroShow} options={[['none', `בלי תוצאות בכלל (${zeroNone.reduce((a, z) => a + z.count, 0)})`], ['examples', `רק מורים לדוגמה (${zeroEx.reduce((a, z) => a + z.count, 0)})`]]} />
         {!zero.length ? <p className="muted-text">אין חיפושים כאלה {periodText}.</p> : (
           <div className="st-table-wrap">
             <table className="st-table">
@@ -90,7 +96,6 @@ export default function Stats() {
                       <a href={searchHref(z)}>{[z.subject, z.topic].filter(Boolean).join(' · ') || (z.q ? `״${z.q}״` : 'כל המקצועות')}</a>
                       {z.subject && z.q ? <small> · ״{z.q}״</small> : null}
                       {z.kind === 'groups' ? <span className="tag">קבוצות</span> : null}
-                      {z.examplesOnly ? <span className="tag brass">רק לדוגמה</span> : null}
                       {z.maxPrice ? <small> · עד {z.maxPrice} ₪</small> : null}
                     </td>
                     <td>{[z.place, MODE[z.mode]].filter(Boolean).join(' · ') || '—'}</td>

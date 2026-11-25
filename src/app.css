@@ -900,7 +900,7 @@ img.photo-bg { background: #F4E29C url("data:image/svg+xml,%3Csvg xmlns='http://
 .stats { display: grid; gap: 22px; }
 .stats.is-loading { opacity: .6; transition: opacity .2s; }
 .st-head { display: grid; gap: 10px; }
-.st-head .seg { max-width: 460px; }
+.st-head .seg, .st-unmet .seg { max-width: 460px; }
 .st-kpis { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); background: var(--surface); border: 2px solid var(--ink); }
 .st-kpis > div { padding: 12px 14px; border-bottom: 1px solid var(--line); border-inline-start: 1px solid var(--line); display: grid; gap: 2px; align-content: start; }
 .st-kpis dt { font-size: 14px; color: var(--muted); }

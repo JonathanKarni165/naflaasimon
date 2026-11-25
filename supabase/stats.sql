@@ -47,6 +47,7 @@ create trigger search_log_guard before insert on public.search_log for each row 
 -- 2. admin_stats(days): everything the statistics panel shows, in one call. Admin only.
 --    days = 0 means all time (for the search lists); the monthly table always covers the last 12 months.
 --    The 42 example tutors (is_example) are left out of every tutor count.
+--    "Zero" = the search showed nothing at all; "examples only" = it showed only example tutors (listed apart).
 create or replace function public.admin_stats(p_days integer default 30) returns jsonb
 language plpgsql stable security definer set search_path = public as $$
 declare
@@ -88,7 +89,8 @@ begin
       'exampleTutors', (select count(*) from public.tutors where coalesce(is_example, false)),
       'newUsers', (select count(*) from people where created_at >= since),
       'searches', (select count(*) from s),
-      'zeroSearches', (select count(*) from s where real_results = 0),
+      'zeroSearches', (select count(*) from s where results = 0),
+      'examplesOnlySearches', (select count(*) from s where results > 0 and real_results = 0),
       'inquiries', (select count(*) from public.inquiries where created_at >= since)
                  + (select count(*) from public.guest_requests where created_at >= since),
       'inquiriesToExamples', (select count(*) from public.inquiries i join public.tutors t on t.id = i.tutor_id
@@ -114,22 +116,22 @@ begin
     ),
     'subjects', (
       select coalesce(jsonb_agg(jsonb_build_object('label', subject, 'count', n, 'zero', z) order by n desc), '[]'::jsonb)
-      from (select subject, count(*) n, count(*) filter (where real_results = 0) z from s
+      from (select subject, count(*) n, count(*) filter (where results = 0) z from s
             where coalesce(subject, '') <> '' group by subject order by n desc limit 15) x
     ),
     'topics', (
       select coalesce(jsonb_agg(jsonb_build_object('label', topic, 'subject', subject, 'count', n, 'zero', z) order by n desc), '[]'::jsonb)
-      from (select topic, max(subject) subject, count(*) n, count(*) filter (where real_results = 0) z from s
+      from (select topic, max(subject) subject, count(*) n, count(*) filter (where results = 0) z from s
             where coalesce(topic, '') <> '' group by topic order by n desc limit 15) x
     ),
     'places', (
       select coalesce(jsonb_agg(jsonb_build_object('label', place, 'count', n, 'zero', z) order by n desc), '[]'::jsonb)
-      from (select place, count(*) n, count(*) filter (where real_results = 0) z from s
+      from (select place, count(*) n, count(*) filter (where results = 0) z from s
             where coalesce(place, '') <> '' group by place order by n desc limit 15) x
     ),
     'words', (
       select coalesce(jsonb_agg(jsonb_build_object('label', w, 'count', n, 'zero', z) order by n desc), '[]'::jsonb)
-      from (select lower(btrim(q)) w, count(*) n, count(*) filter (where real_results = 0) z from s
+      from (select lower(btrim(q)) w, count(*) n, count(*) filter (where results = 0) z from s
             where coalesce(btrim(q), '') <> '' group by 1 order by n desc limit 15) x
     ),
     'modes', (
@@ -154,7 +156,7 @@ begin
         'signups', (select count(*) from people p where to_char(p.created_at at time zone tz, 'YYYY-MM') = m.m),
         'tutors', (select count(*) from real_tutors r where to_char(r.created_at at time zone tz, 'YYYY-MM') = m.m),
         'searches', (select count(*) from public.search_log l where to_char(l.created_at at time zone tz, 'YYYY-MM') = m.m),
-        'zeroSearches', (select count(*) from public.search_log l where l.real_results = 0 and to_char(l.created_at at time zone tz, 'YYYY-MM') = m.m),
+        'zeroSearches', (select count(*) from public.search_log l where l.results = 0 and to_char(l.created_at at time zone tz, 'YYYY-MM') = m.m),
         'inquiries', (select count(*) from public.inquiries i where to_char(i.created_at at time zone tz, 'YYYY-MM') = m.m)
                    + (select count(*) from public.guest_requests g where to_char(g.created_at at time zone tz, 'YYYY-MM') = m.m),
         'groupSignups', (select count(*) from public.group_seats g where to_char(g.created_at at time zone tz, 'YYYY-MM') = m.m)
