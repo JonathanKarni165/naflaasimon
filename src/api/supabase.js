@@ -9,6 +9,8 @@ import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 // PKCE: the sign-in result comes back as ?code=... in the query string. The default (implicit) flow appends
 // #access_token=... to the address, which collides with this site's #hash routes and silently drops the login.
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { flowType: 'pkce' } });
+// Version of the terms a person agreed to; bump it when the terms change materially.
+const TERMS_VERSION = '2026-11-24';
 
 export const mode = 'supabase';
 export const demoUsers = [];
@@ -66,10 +68,15 @@ export const auth = {
   /** Sign-up with email + password. Supabase mails a confirmation link; the account works once it is clicked. */
   async signUpEmail({ email, password, name, phone, birthDate, area }) {
     const emailRedirectTo = window.location.origin + import.meta.env.BASE_URL;
-    const data = { full_name: name || '', signup_form: 'true', ...(phone ? { phone } : {}), ...(birthDate ? { birth_date: birthDate } : {}), ...(area ? { area } : {}) };
+    const data = { full_name: name || '', signup_form: 'true', terms_accepted: TERMS_VERSION, terms_accepted_at: new Date().toISOString(), ...(phone ? { phone } : {}), ...(birthDate ? { birth_date: birthDate } : {}), ...(area ? { area } : {}) };
     const { data: res, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo, data } });
     if (error) throw new Error(authError(error));
     return { needsConfirm: !res.session };
+  },
+  /** Records agreement to the terms in the account's metadata (no table change needed). */
+  async acceptTerms() {
+    const { error } = await sb.auth.updateUser({ data: { terms_accepted: TERMS_VERSION, terms_accepted_at: new Date().toISOString() } });
+    if (error) throw new Error(authError(error));
   },
   async signInEmail({ email, password }) {
     const { error } = await sb.auth.signInWithPassword({ email, password });
@@ -464,4 +471,16 @@ export function subscribe(onChange) {
   LIVE_TABLES.forEach((table) => ch.on('postgres_changes', { event: '*', schema: 'public', table }, () => onChange(table)));
   ch.subscribe();
   return () => { sb.removeChannel(ch); };
+}
+
+// Search statistics (supabase/stats.sql). A search row holds only what was searched, never who searched
+// (some visitors are minors). Anyone can add one, only the admin can read them. Logging never breaks the page.
+export async function logSearch(row) {
+  try { await sb.from('search_log').insert({ ...row, signed_in: !!user }); } catch { /* not important */ }
+}
+export async function adminStats(days) {
+  if (!user?.isAdmin) throw new Error('רק לניהול האתר');
+  const { data, error } = await sb.rpc('admin_stats', { p_days: days || 0 });
+  if (error) throw new Error(/admin_stats|function/.test(error.message) ? 'טבלת הסטטיסטיקות עוד לא הותקנה במסד הנתונים (supabase/stats.sql).' : 'לא הצלחנו לטעון את הסטטיסטיקות. נסו שוב.');
+  return data;
 }

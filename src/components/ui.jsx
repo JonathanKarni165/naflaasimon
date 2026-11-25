@@ -422,7 +422,7 @@ export function useBackToClose(open, close) {
 
 export function GuestDialog() {
   const { api, user, notify, guestTarget, closeGuest } = useApp();
-  const [f, setF] = useState({ name: '', phone: '', email: '', message: '', hp: '' });
+  const [f, setF] = useState({ name: '', phone: '', email: '', message: '', hp: '', agree: false });
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [signin, setSignin] = useState(false);
@@ -445,8 +445,9 @@ export function GuestDialog() {
     else if (!isPhone(f.phone)) e2.phone = 'המספר לא נראה תקין. כתבו מספר ישראלי, למשל \u2066050-1234567\u2069';
     if (f.email.trim() && !isEmail(f.email)) e2.email = 'כתובת המייל לא נראית תקינה';
     if (!f.message.trim()) e2.message = 'כתבו הודעה קצרה למורה';
+    if (!f.agree) e2.agree = TERMS_ERROR;
     setErrs(e2);
-    if (Object.keys(e2).length) { document.getElementById({ name: 'gr-name', phone: 'gr-phone', email: 'gr-email', message: 'gr-msg' }[Object.keys(e2)[0]])?.focus(); return; }
+    if (Object.keys(e2).length) { document.getElementById({ name: 'gr-name', phone: 'gr-phone', email: 'gr-email', message: 'gr-msg', agree: 'gr-terms' }[Object.keys(e2)[0]])?.focus(); return; }
     setBusy(true);
     try { await api.sendGuestRequest({ tutorId: tutor.id, groupId: group?.id, ...f, name: f.name.trim(), message: f.message.trim() }); setSent(true); setF((x) => ({ ...x, message: '', hp: '' })); } catch (err) { setErrs({ form: err.message }); notify(err.message, true); }
     setBusy(false);
@@ -486,6 +487,8 @@ export function GuestDialog() {
             {errs.message ? <p className="err">{errs.message}</p> : null}
             {errs.form ? <p className="err" role="alert">{errs.form}</p> : null}
             <input className="sr-only" tabIndex={-1} autoComplete="off" aria-hidden="true" name="website" value={f.hp} onChange={(e) => setF({ ...f, hp: e.target.value })} />
+            <p className="fine">הפרטים יישלחו רק למורה.</p>
+            <TermsCheck id="gr-terms" checked={f.agree} onChange={(v) => { setF((x) => ({ ...x, agree: v })); if (v) setErrs((x) => ({ ...x, agree: '' })); }} error={errs.agree} />
             <div className="form-actions"><button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'שולחים…' : 'שליחה'}</button><button type="button" className="btn btn-ghost" onClick={closeGuest}>ביטול</button></div>
           </form>
         ) : null}
@@ -984,11 +987,25 @@ export function LoginModal() {
             ))}
           </div>
         ) : <AuthFlow key={round} api={api} guest={loginGuest} />}
-        <p className="fine">בכניסה אתם מסכימים לתנאי השימוש. לא נפרסם דבר בשמכם.</p>
+        <p className="fine">בכניסה או בהרשמה אתם מסכימים ל<a href={to('terms')} onClick={() => setLoginOpen(false)}>תנאי השימוש</a> ול<a href={to('privacy')} onClick={() => setLoginOpen(false)}>מדיניות הפרטיות</a>. לא נפרסם דבר בשמכם.</p>
       </div>
     </dialog>
   );
 }
+
+/** Required agreement to the terms and privacy policy, at sign-up. Minors confirm a parent agrees. */
+export function TermsCheck({ id, checked, onChange, error }) {
+  return (
+    <>
+      <label className="check-row terms-check" htmlFor={id}>
+        <input id={id} type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} aria-invalid={!!error} aria-describedby={error ? `${id}-err` : undefined} />
+        <span>קראתי ואני מסכים/ה ל<a href={to('terms')} target="_blank" rel="noopener">תנאי השימוש</a> ול<a href={to('privacy')} target="_blank" rel="noopener">מדיניות הפרטיות</a>. אם אני מתחת לגיל 18, הוריי מסכימים לכך.</span>
+      </label>
+      {error ? <span className="err" id={`${id}-err`}>{error}</span> : null}
+    </>
+  );
+}
+export const TERMS_ERROR = 'כדי להמשיך צריך לאשר את תנאי השימוש ומדיניות הפרטיות';
 
 /** Shown once after a new person signs up: name is needed, the rest is optional. */
 export function ProfileSetup() {
@@ -996,6 +1013,8 @@ export function ProfileSetup() {
   const [skipped, setSkipped] = useState(() => { try { return sessionStorage.getItem('naflaasimon-setup-skipped') === '1'; } catch { return false; } });
   const [f, setF] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [agree, setAgree] = useState(false);
+  const [agreeErr, setAgreeErr] = useState('');
   const ref = useRef(null);
   const show = !!user && api.mode !== 'demo' && user.profileDone === false && !skipped;
   useEffect(() => {
@@ -1006,15 +1025,17 @@ export function ProfileSetup() {
   // A name taken from the email ("dana+1") is what tutors would see, so the window can't be skipped until a real name is set.
   const emailName = (user?.email || '').split('@')[0];
   const canSkip = !!user && (user.name || '').trim() !== emailName && (user.name || '').trim().length >= 2;
-  const skip = () => { try { sessionStorage.setItem('naflaasimon-setup-skipped', '1'); } catch { /* private mode */ } setSkipped(true); };
+  const needAgree = () => { if (agree) return false; setAgreeErr(TERMS_ERROR); return true; };
+  const skip = () => { if (needAgree()) return; api.auth.acceptTerms?.().catch(() => {}); try { sessionStorage.setItem('naflaasimon-setup-skipped', '1'); } catch { /* private mode */ } setSkipped(true); };
   const save = async (e) => {
     e.preventDefault();
+    if (needAgree()) return;
     if (!f.name.trim()) { notify('כתבו שם', true); return; }
     if (f.name.trim().length < 2 || f.name.trim().length > 60) { notify('השם צריך להיות בין 2 ל־60 תווים', true); return; }
     if (f.name.trim() === emailName) { notify('כתבו את השם שלכם, לא את המייל', true); return; }
     if (f.phone.trim() && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל \u2066050-1234567\u2069', true); return; }
     setBusy(true);
-    try { await api.saveMyContact({ name: f.name.trim(), phone: f.phone.trim(), birthDate: f.birthDate, area: f.area }); notify('נשמר. ברוכים הבאים!'); } catch (err) { notify(err.message, true); }
+    try { api.auth.acceptTerms?.().catch(() => {}); await api.saveMyContact({ name: f.name.trim(), phone: f.phone.trim(), birthDate: f.birthDate, area: f.area }); notify('נשמר. ברוכים הבאים!'); } catch (err) { notify(err.message, true); }
     setBusy(false);
   };
   return (
@@ -1034,6 +1055,7 @@ export function ProfileSetup() {
           <input id="su-area" className="input" list="su-cities" autoComplete="off" placeholder="עיר או שכונה" value={f.area} onChange={(e) => setF({ ...f, area: e.target.value })} />
           <datalist id="su-cities">{CITIES.map((c) => <option key={c.name} value={c.name} />)}</datalist>
           <p className="fine">המייל שלכם: <bdi>{user.email}</bdi></p>
+          <TermsCheck id="su-terms" checked={agree} onChange={(v) => { setAgree(v); if (v) setAgreeErr(''); }} error={agreeErr} />
           <div className="form-actions"><button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'שומרים…' : 'שמירה והמשך'}</button>{canSkip ? <button type="button" className="btn btn-ghost" onClick={skip}>אחר כך</button> : null}</div>
         </form>
       ) : null}
@@ -1112,6 +1134,7 @@ export function UserMenu() {
             <section className="pop-sec pop-admin" aria-label="ניהול האתר">
               <span className="pop-title">{POP_ICONS.admin}ניהול האתר</span>
               <a href={to('panel-admin')} onClick={() => setOpen(false)}>אישור וניהול מורים</a>
+              <a href={to('panel-stats')} onClick={() => setOpen(false)}>סטטיסטיקות</a>
             </section>
           ) : null}
           <button type="button" className="pop-out" onClick={() => { setOpen(false); api.auth.signOut(); }}>התנתקות</button>
@@ -1180,7 +1203,7 @@ export function Footer() {
     <footer>
       <div className="wrap">
         <nav aria-label="קישורים">
-          <a href={to('search')}>חיפוש מורים</a><a href={to('groups')}>קבוצות למידה</a><a href={to('groups-marathons')}>מרתונים</a><a href={to('panel')}>למורים</a><a href={to('about')}>אודות ותנאי שימוש</a><a href={to('privacy')}>מדיניות פרטיות</a><a href={to('accessibility')}>הצהרת נגישות</a><a href={to('contact')}>צור קשר</a>
+          <a href={to('search')}>חיפוש מורים</a><a href={to('groups')}>קבוצות למידה</a><a href={to('groups-marathons')}>מרתונים</a><a href={to('panel')}>למורים</a><a href={to('about')}>אודות</a><a href={to('terms')}>תנאי שימוש</a><a href={to('privacy')}>מדיניות פרטיות</a><a href={to('cookies')}>עוגיות</a><a href={to('accessibility')}>הצהרת נגישות</a><a href={to('contact')}>צור קשר</a>
         </nav>
         <p>© 2026 נפל האסימון · מורים פרטיים למתמטיקה ועוד
           {api.mode === 'demo' ? <> · <button type="button" className="linkish" onClick={() => { api.resetDemo(); reload(); notify('נתוני ההדגמה אופסו'); }}>איפוס נתוני ההדגמה</button></> : null}

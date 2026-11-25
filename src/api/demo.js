@@ -318,3 +318,37 @@ export async function setReportStatus(id, status) {
   const r = (db().reports || []).find((x) => x.id === id); if (r) { r.status = status; save(); }
   return wait(true);
 }
+
+// Search statistics: in the demo the log lives in this browser only.
+export async function logSearch(row) {
+  const d = db(); d.searches ||= [];
+  d.searches.push({ ...row, signed_in: !!user, created_at: new Date().toISOString() });
+  if (d.searches.length > 500) d.searches = d.searches.slice(-500);
+  save();
+}
+export async function adminStats(days) {
+  if (!user?.isAdmin) throw new Error('רק לניהול האתר');
+  const d = db();
+  const since = days ? Date.now() - days * 864e5 : 0;
+  const s = (d.searches || []).filter((x) => Date.parse(x.created_at) >= since);
+  const top = (key) => Object.entries(s.reduce((m, x) => { const k = x[key]; if (k) { m[k] ||= { label: k, count: 0, zero: 0 }; m[k].count++; if (!x.real_results) m[k].zero++; } return m; }, {}))
+    .map(([, v]) => v).sort((a, b) => b.count - a.count).slice(0, 15);
+  const zero = {};
+  s.filter((x) => !x.real_results).forEach((x) => {
+    const k = [x.kind, x.subject, x.topic, x.q, x.place, x.mode, x.max_price].join('|');
+    zero[k] ||= { kind: x.kind, subject: x.subject, topic: x.topic, q: x.q, place: x.place, mode: x.mode, maxPrice: x.max_price, count: 0, last: x.created_at, examplesOnly: false };
+    zero[k].count++; if (x.created_at > zero[k].last) zero[k].last = x.created_at; if (x.results) zero[k].examplesOnly = true;
+  });
+  const real = d.tutors.filter((t) => !t.isExample);
+  const month = (iso) => (iso || '').slice(0, 7);
+  const months = Array.from({ length: 12 }, (_, i) => { const x = new Date(); x.setDate(1); x.setMonth(x.getMonth() - i); return x.toISOString().slice(0, 7); });
+  return wait({
+    days: days || 0,
+    totals: { users: (d.users || []).length, students: (d.users || []).length, tutors: real.length, tutorsPending: 0, exampleTutors: d.tutors.length - real.length, newUsers: 0, searches: s.length, zeroSearches: s.filter((x) => !x.real_results).length, inquiries: (d.inquiries || []).length, inquiriesToExamples: 0, groupSignups: (d.seats || []).length },
+    ages: [], areas: [],
+    subjects: top('subject'), topics: top('topic'), places: top('place'), words: top('q'),
+    modes: s.reduce((m, x) => { m[x.mode || 'any'] = (m[x.mode || 'any'] || 0) + 1; return m; }, {}),
+    zero: Object.values(zero).sort((a, b) => b.count - a.count),
+    monthly: months.map((m) => ({ month: m, signups: 0, tutors: 0, searches: (d.searches || []).filter((x) => month(x.created_at) === m).length, zeroSearches: (d.searches || []).filter((x) => month(x.created_at) === m && !x.real_results).length, inquiries: (d.inquiries || []).filter((x) => month(x.createdAt) === m).length, groupSignups: 0 })),
+  });
+}

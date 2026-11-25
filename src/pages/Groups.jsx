@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useApp, useLoad, to } from '../state.jsx';
 import { optionLabel, norm } from '../data/topics.js';
 import { money, dateLong, relDays, dateShort, isPhone, groupEnded, sessionsLeft } from '../lib/format.js';
+import { useSearchLog } from '../lib/searchlog.js';
 import { GroupCard, GuestRequest, Seg, TopicPicker, SeatDots, Avatar, Verified, Stars, Loading, Empty, ChatOverlay } from '../components/ui.jsx';
 
 export const isMarathon = (g) => Number(g.sessions) <= 1 || /מרתון/.test(g.title || '');
@@ -49,6 +50,7 @@ export function Groups({ initialKind = 'any' }) {
     const hit = (g) => norm([g.title, g.description, g.level].filter(Boolean).join(' ')).includes(norm(topic).replace(/^שאלון /, ''));
     return [...out.filter(hit), ...out.filter((g) => !hit(g))];
   }, [groups, subject, topic, mode, onlyOpen, kind, q]);
+  useSearchLog('groups', { subject, topic, q, mode }, groups ? list.length : null, groups ? list.filter((g) => !g.tutor?.isExample).length : null);
   // How many groups the "רק עם מקום פנוי" box hides from the current results.
   const hiddenFull = useMemo(() => (onlyOpen ? (groups || []).filter((g) => !groupEnded(g) && g.seatsTaken >= g.maxSeats
     && (!subject || g.subject === subject) && (mode === 'any' || g.mode === mode) && (kind === 'any' || (kind === 'marathon') === isMarathon(g))).length : 0), [groups, onlyOpen, subject, mode, kind]);

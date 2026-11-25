@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, useLoad, useMyTutor, go, to } from '../state.jsx';
 import { SUBJECTS, CITIES, GOALS, LESSON_COUNTS, labelOf, WEEK_DAYS, WEEK_DAY_NAMES } from '../data/constants.js';
 import { money, dateShort, dateLong, isPhone, weekdayMismatch } from '../lib/format.js';
-import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, SpamNote, StatusTag, InquiryChat, ChatOverlay, WaButton, VIA, viaOf, WeekGrid, ReportTutor, REPORT_REASONS, BirthDateInput, declinedSeen, markDeclinedSeen, isDeclineSeen } from '../components/ui.jsx';
+import { Avatar, Chips, Seg, ConfirmButton, Verified, Stars, Loading, Empty, Coin, SpamNote, StatusTag, InquiryChat, ChatOverlay, WaButton, VIA, viaOf, WeekGrid, ReportTutor, REPORT_REASONS, BirthDateInput, TermsCheck, TERMS_ERROR, declinedSeen, markDeclinedSeen, isDeclineSeen } from '../components/ui.jsx';
 import { checkText, MESSAGES } from '../lib/moderation.js';
+import AdminStats from './Stats.jsx';
 import { subtopicsOf, schoolCoursesOf, TOPICS } from '../data/topics.js';
 
 // Two separate areas: "תלמיד" (my conversations and sign-ups) and "מורה" (my profile, inquiries, groups).
@@ -18,12 +19,13 @@ const TABS = [
   ['panel-me', 'הפרטים האישיים שלי'],
   ['panel-admin', 'אישור וניהול מורים'],
   ['panel-reports', 'דיווחים'],
+  ['panel-stats', 'סטטיסטיקות'],
 ];
-const ADMIN_TABS = ['panel-admin', 'panel-reports'];
+const ADMIN_TABS = ['panel-admin', 'panel-reports', 'panel-stats'];
 const AREAS = {
   student: { label: 'פאנל תלמיד', home: 'panel-seats', tabs: ['panel-seats', 'panel-me'] },
   tutor: { label: 'פאנל מורה', home: 'panel', tabs: ['panel', 'panel-inbox', 'panel-groups', 'panel-me'] },
-  admin: { label: 'ניהול האתר', home: 'panel-admin', tabs: ['panel-admin', 'panel-reports'] },
+  admin: { label: 'ניהול האתר', home: 'panel-admin', tabs: ['panel-admin', 'panel-reports', 'panel-stats'] },
 };
 
 export default function Panel() {
@@ -93,6 +95,7 @@ function PanelTabs() {
       {tab === 'panel-me' && <MyDetails />}
       {tab === 'panel-admin' && <AdminTutors />}
       {tab === 'panel-reports' && <AdminReports />}
+      {tab === 'panel-stats' && <AdminStats />}
     </main>
   );
 }
@@ -381,6 +384,8 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const set = (patch) => setT((x) => ({ ...x, ...patch }));
+  const askTerms = !!forSelf && !initial; // a new tutor sign-up agrees to the terms
+  const [agree, setAgree] = useState(false);
   const locked = !!forSelf && initial?.approval === 'approved' && !user.isAdmin; // name, phone and birth date are fixed once a tutor is approved
 
   const validate = () => {
@@ -408,6 +413,7 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
       const why = checkText(t[k], opts);
       if (why) e[k] = MESSAGES[why];
     }
+    if (askTerms && !agree) e.agree = TERMS_ERROR;
     if (strict || t.phone) { if (!/^0\d{1,2}-?\d{7}$/.test((t.phone || '').replace(/\s/g, ''))) e.phone = 'מספר טלפון ישראלי, למשל \u2066050-1234567\u2069'; }
     setErrors(e);
     return !Object.keys(e).length;
@@ -537,6 +543,7 @@ export function TutorForm({ initial, onSaved, onCancel, forSelf }) {
         <WeekGrid mode="edit" value={t.availability || []} onChange={(availability) => set({ availability })} label="שעות פנויות במהלך השבוע" />
       </fieldset>
 
+      {askTerms ? <TermsCheck id="tf-terms" checked={agree} onChange={(v) => { setAgree(v); if (v) setErrors((x) => ({ ...x, agree: '' })); }} error={errors.agree} /> : null}
       <div className="form-actions sticky-actions">
         <button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'שומרים…' : initial ? 'שמירת השינויים' : forSelf ? 'שליחה לאישור' : 'פרסום הפרופיל'}</button>
         {onCancel ? <button type="button" className="btn btn-ghost" onClick={onCancel}>ביטול</button> : null}

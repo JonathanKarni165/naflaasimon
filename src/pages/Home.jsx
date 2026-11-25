@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, go, to } from '../state.jsx';
 import { filterTutors, sortTutors, globalMean } from '../lib/ranking.js';
 import { GroupCard, Avatar, WherePicker, resolveWhere, TopicPicker } from '../components/ui.jsx';
@@ -32,7 +32,6 @@ export default function Home() {
     return filterTutors(tutors, { subject, topic, mode: learn !== 'any' ? learn : w.mode, place: w.place }).length;
   }, [tutors, groups, subject, topic, where, kind, learn]);
 
-  const featured = useMemo(() => (tutors ? sortTutors(tutors, 'best').filter((t) => t.ratingCount >= 10 && t.photo).slice(0, 3) : []), [tutors]);
   const upcoming = useMemo(() => (groups ? [...groups].filter((g) => g.seatsTaken < g.maxSeats && !groupEnded(g)).sort((a, b) => a.startDate.localeCompare(b.startDate)).slice(0, 3) : []), [groups]);
   const proof = useMemo(() => {
     if (!tutors) return null;
@@ -51,24 +50,24 @@ export default function Home() {
 
   return (
     <main id="top">
-      <div className="hero">
-        <div className="wrap hero-grid">
+      <div className="hero hero-video">
+        <HeroPhoto />
+        <div className="hero-shade" aria-hidden="true" />
+        <div className="wrap hero-v-inner">
           <h1>השיעור שבו <span className="hl">נופל האסימון</span></h1>
+          <p className="lead">מורים פרטיים למתמטיקה ולשאר המקצועות. מחפשים לפי מקצוע ומיקום, משווים מחיר וביקורות, ופונים ישירות.</p>
+          <ul className="hero-points">
+            <li>פנייה חינם, בלי עמלות</li>
+            <li>ביקורות של תלמידים אמיתיים</li>
+            <li>פרונטלי או אונליין</li>
+            <li>גם קבוצות למידה</li>
+          </ul>
           {proof && proof.n >= 20 ? (
             <div className="proof-row">
               <span className="faces" aria-hidden="true">{proof.faces.map((t) => <Avatar key={t.id} tutor={t} className="face" size={48} />)}</span>
               <span><b>{proof.avg.toFixed(1)}</b> ממוצע מתוך <bdi>{proof.n.toLocaleString('he-IL')}</bdi> ביקורות</span>
             </div>
           ) : null}
-          <p className="lead">מורים פרטיים למתמטיקה ולשאר המקצועות. מחפשים לפי מקצוע ומיקום, משווים מחיר וביקורות, ופונים ישירות.</p>
-          <figure className="hero-photo">
-            <HeroSlides />
-            {featured[0] ? (
-              <div className="h-chip h-chip-tutor"><span className="dot" aria-hidden="true">★</span><span><b>{featured[0].name}{featured[0].subjects[0] ? `, מורה ל${featured[0].subjects[0]}` : ''}</b>{featured[0].ratingAvg.toFixed(1)} מתוך <bdi>{featured[0].ratingCount}</bdi> ביקורות</span></div>
-            ) : null}
-            <div className="h-chip h-chip-aha"><b>פנייה חינם, בלי עמלות</b><span>ישירות למורה</span></div>
-            <svg className="h-coin" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46" fill="#F2CC4B" stroke="#3A3130" strokeWidth="4" /><circle cx="50" cy="50" r="33" fill="none" stroke="#3A3130" strokeOpacity=".3" strokeWidth="3" /><rect x="22" y="45" width="56" height="10" rx="5" fill="#3A3130" /></svg>
-          </figure>
         </div>
       </div>
 
@@ -184,22 +183,17 @@ export default function Home() {
   );
 }
 
-// Warm, upbeat learning moments: one photo per day, a different one each day.
-// index.html preloads the same day's photo (same list and day math), so keep the two in step.
-const SLIDES = [
-  ['hero-1', 'שתי סטודנטיות יושבות על הדשא בפארק עם ספרים, צוחקות ולומדות יחד'],
-  ['hero-2', 'מורה פרטי מחייך עוזר לילד בשיעורי בית ליד מחשב נייד'],
-  // hero-3 is the groups-section photo, so it is not repeated here.
-  ['hero-4', 'קבוצת סטודנטים לומדת יחד בבית קפה בחיוך'],
-];
-const HERO_SIZES = '(max-width: 900px) 100vw, 560px';
-function HeroSlides() {
-  const now = new Date();
-  const day = Math.floor((now.getTime() - now.getTimezoneOffset() * 60000) / 86400000);
-  const [src, alt] = SLIDES[day % SLIDES.length];
-  return (
-    <div className="hero-slides">
-      <img className="on" src={`img/${src}-1200.webp`} srcSet={`img/${src}-600.webp 600w, img/${src}-1200.webp 1200w`} sizes={HERO_SIZES} alt={alt} width="1200" height="960" decoding="async" fetchpriority="high" />
-    </div>
-  );
+// Real study moments (Unsplash free licence): students on the grass, at a cafe, on the beach, a study group,
+// lecturers. A different photo every 3 hours, the same for everyone at that time (index.html preloads it
+// with the same math). 2400px source so it stays sharp on wide and retina screens.
+// [file stem, focus on wide screens, focus on phones], so the crop keeps the people in view on both.
+const HERO_PHOTOS = [['01', '42% 55%', '34% 50%'], ['02', '50% 55%', '72% 55%'], ['03', '40% 45%', '22% 45%'], ['04', '50% 40%', '30% 40%'],
+  ['05', '45% 35%', '42% 35%'], ['06', '50% 60%', '32% 60%'], ['07', '35% 35%', '40% 35%'], ['08', '60% 35%', '72% 35%'], ['09', '30% 60%', '44% 60%']];
+const HERO_EVERY = 3 * 3600e3;
+function HeroPhoto() {
+  const [n, pos, mpos] = HERO_PHOTOS[Math.floor(Date.now() / HERO_EVERY) % HERO_PHOTOS.length];
+  const stem = 'img/hero-' + n;
+  return <img className="hero-media on" src={stem + '-1280.webp'} srcSet={`${stem}-1280.webp 1280w, ${stem}-2400.webp 2400w`} sizes="100vw"
+    alt="" width="2400" height="1600" fetchpriority="high" style={{ '--pos': pos, '--mpos': mpos }} />;
 }
+
