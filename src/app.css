@@ -1084,3 +1084,14 @@ img.photo-bg { background: #F4E29C url("data:image/svg+xml,%3Csvg xmlns='http://
 .tb-work { background: #EEF4F3; border-color: var(--purple); color: var(--purple-ink); }
 .p-badges-row { margin: 6px 0 4px; }
 .p-badges-row .tb { font-size: 14px; padding: 4px 12px 4px 10px; }
+/* Tutor's inquiry: the student's phone and email, clear at the top of the conversation. */
+.inq-contact { display: grid; gap: 8px; background: var(--brass-soft); border: 1.5px solid var(--brass); border-radius: 14px; padding: 12px 14px; }
+.inq-contact-h { font-size: 15px; }
+.inq-contact-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.ic-item { display: inline-flex; align-items: baseline; gap: 8px; background: var(--surface); border: 1.5px solid var(--edge); border-radius: 10px; padding: 7px 12px; text-decoration: none; color: var(--ink); font-weight: 800; }
+.ic-item span { font-weight: 600; color: var(--muted); font-size: 13.5px; }
+.ic-item:hover { border-color: var(--purple); }
+.share-note { margin: 8px 0 0; }
+
+/* Chat wallpaper (user, 2026-11-25): a light doodle tile like WhatsApp, coins, pencils, books, π and x² in the ink colour at 9%. */
+.chat, .chat-win .comments > :first-child { background-color: var(--bg); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180' fill='none' stroke='%233A3130' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' opacity='.09'%3E%3Ccircle cx='24' cy='26' r='11'/%3E%3Cpath d='M18 26h12'/%3E%3Cpath d='M70 14l22 22-6 6-22-22z'/%3E%3Cpath d='M64 20l-3 9 9-3'/%3E%3Cpath d='M128 18h16a4 4 0 0 1 4 4v18h-16a4 4 0 0 0-4 4z'/%3E%3Cpath d='M128 18v26'/%3E%3Cpath d='M164 18h-16'/%3E%3Cpath d='M30 78l3 7 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z'/%3E%3Ctext x='78' y='92' font-family='Georgia,serif' font-size='22' fill='%233A3130' stroke='none'%3E%CF%80%3C/text%3E%3Ctext x='128' y='94' font-family='Arial,sans-serif' font-size='17' fill='%233A3130' stroke='none'%3Ex%C2%B2%3C/text%3E%3Cpath d='M18 140h14M25 133v14'/%3E%3Ccircle cx='80' cy='140' r='11'/%3E%3Cpath d='M74 140h12'/%3E%3Cpath d='M126 128l26 0M126 136h20M126 144h24'/%3E%3Cpath d='M60 166c8-6 16 6 24 0s16 6 24 0'/%3E%3Cpath d='M156 160a8 8 0 1 0 0.1 0'/%3E%3C/svg%3E"); background-size: 180px 180px; }

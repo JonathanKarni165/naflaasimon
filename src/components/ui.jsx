@@ -421,7 +421,8 @@ export function SpamNote({ who = 'student' }) {
 
 export function GuestRequest({ tutor, group }) {
   const { user, api, openGuest } = useApp();
-  if (user || api.mode === 'demo' || !api.sendGuestRequest || !tutor) return null;
+  // User decision 2026-11-25: contacting a tutor needs an account (no phone-only requests). Kept for old links.
+  if (true || user || api.mode === 'demo' || !api.sendGuestRequest || !tutor) return null;
   return <button type="button" className="linkish small guest-link" onClick={() => openGuest({ tutor, group })}>או להשאיר מספר טלפון בלבד (בלי צ׳אט)</button>;
 }
 
@@ -590,14 +591,15 @@ export function InquiryBox({ tutor }) {
     if (!f.via.length) { notify('בחרו לפחות דרך אחת שבה המורה יחזור אליכם', true); return; }
     if (f.via.includes('phone') && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל \u2066050-1234567\u2069', true); setEditDetails(true); return; }
     if (f.via.includes('email') && !isEmail(f.email)) { notify('בדקו את כתובת המייל', true); setEditDetails(true); return; }
-    if (f.phone.trim() && !isPhone(f.phone)) { notify('בדקו את מספר הטלפון, למשל \u2066050-1234567\u2069', true); setEditDetails(true); return; }
+    if (!isPhone(f.phone)) { notify('כתבו מספר טלפון כדי שהמורה יוכל לחזור אליכם, למשל \u2066050-1234567\u2069', true); setEditDetails(true); return; }
+    if (f.email.trim() && !isEmail(f.email)) { notify('בדקו את כתובת המייל', true); setEditDetails(true); return; }
     if (!f.lessons || !f.goal) { setStep(0); notify('בחרו כמה שיעורים ומה המטרה', true); return; }
     setBusy(true);
     try {
       const q = await api.sendInquiry({
         tutorId: tutor.id, name: f.name.trim(), subject: f.subjects.join(', '), level: levelTexts(f).join(', '), mode: f.mode, contactVia: f.via,
         lessons: f.lessons, goal: f.goal, slots: f.slots,
-        phone: f.via.includes('phone') ? f.phone.trim() : '', email: f.via.includes('email') ? f.email.trim() : '',
+        phone: f.phone.trim(), email: f.email.trim() || user?.email || '', // the tutor always gets both
         message: buildInquiryText(tutor, f),
       });
       if (f.save && (f.name.trim() !== user.name || f.phone.trim() !== (user.phone || ''))) {
@@ -698,28 +700,21 @@ export function InquiryBox({ tutor }) {
                   </div>
                   {!editDetails ? (
                     <div className="my-details">
-                      <div><b>{f.name}</b><span className="muted-text"><bdi>{[f.via.includes('phone') && f.phone, f.via.includes('email') && f.email].filter(Boolean).join(' · ') || 'בלי טלפון ומייל, רק צ׳אט באתר'}</bdi></span></div>
+                      <div><b>{f.name}</b><span className="muted-text"><bdi>{[f.phone, f.email].filter(Boolean).join(' · ') || 'חסר מספר טלפון'}</bdi></span></div>
                       <button type="button" className="linkish small" onClick={() => setEditDetails(true)}>שינוי</button>
                     </div>
                   ) : (
                     <>
                       <label className="field-label" htmlFor="iq-name">שם</label>
                       <input id="iq-name" className="input" required autoComplete="name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
-                      {f.via.includes('phone') ? (
-                        <>
-                          <label className="field-label" htmlFor="iq-phone">טלפון</label>
-                          <input id="iq-phone" className="input" type="tel" autoComplete="tel" inputMode="tel" dir="ltr" placeholder="050-1234567" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
-                        </>
-                      ) : null}
-                      {f.via.includes('email') ? (
-                        <>
-                          <label className="field-label" htmlFor="iq-email">מייל</label>
-                          <input id="iq-email" className="input" type="email" autoComplete="email" dir="ltr" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
-                        </>
-                      ) : null}
+                      <label className="field-label" htmlFor="iq-phone">טלפון</label>
+                      <input id="iq-phone" className="input" type="tel" required autoComplete="tel" inputMode="tel" dir="ltr" placeholder="050-1234567" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+                      <label className="field-label" htmlFor="iq-email">מייל</label>
+                      <input id="iq-email" className="input" type="email" autoComplete="email" dir="ltr" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
                       <label className="check-line"><input type="checkbox" checked={f.save} onChange={(e) => setF({ ...f, save: e.target.checked })} /> לשמור את הפרטים לפעם הבאה</label>
                     </>
                   )}
+                  <p className="hint share-note">הטלפון והמייל יופיעו למורה בפנייה, כדי שיוכל לחזור אליכם.</p>
                   <span className="field-label">כך המורה יקבל את הפנייה</span>
                   <pre className="inq-preview">{buildInquiryText(tutor, f)}</pre>
                 </>
@@ -750,7 +745,7 @@ export function InquiryBox({ tutor }) {
       ) : null}
       {last && chat ? <ChatWindow q={{ ...last, tutor }} onClose={() => setChat(false)} /> : null}
       <button type="button" className={'btn go ' + (last && last.status !== 'declined' ? 'btn-ghost btn-sm' : 'btn-brand')} onClick={start}>{last ? 'פנייה חדשה' : 'שליחת פנייה למורה'}</button>
-      {!user ? <p className="hint">כניסה מהירה עם Google או עם מייל. אפשר לדבר עם המורה בצ׳אט באתר, בלי למסור טלפון.</p> : null}
+      {!user ? <p className="hint">כדי לפנות למורה צריך חשבון. הכניסה מהירה, עם Google או עם מייל, ואחריה אפשר לדבר עם המורה בצ׳אט באתר.</p> : null}
       <GuestRequest tutor={tutor} />
       {wizard}
     </div>
@@ -984,7 +979,7 @@ function AuthFlow({ api, guest, onBack }) {
       <button type="button" className="btn btn-google" onClick={google}>{GOOGLE_ICON} המשך עם Google</button>
       <button type="button" className="btn btn-brand" onClick={() => page('login')}>כניסה עם מייל וסיסמה</button>
       <button type="button" className="btn btn-line" onClick={() => page('signup')}>פתיחת חשבון חדש</button>
-      {guest ? (
+      {false && guest ? (
         <>
           <div className="login-or"><span>או</span></div>
           <button type="button" className="btn btn-ghost" onClick={() => { setLoginOpen(false); openGuest(guest); }}>להשאיר מספר טלפון בלבד (בלי צ׳אט)</button>
