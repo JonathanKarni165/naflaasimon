@@ -422,7 +422,7 @@ export function useBackToClose(open, close) {
 
 export function GuestDialog() {
   const { api, user, notify, guestTarget, closeGuest } = useApp();
-  const [f, setF] = useState({ name: '', phone: '', email: '', message: '', hp: '' });
+  const [f, setF] = useState({ name: '', phone: '', email: '', message: '', hp: '', agree: false });
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [signin, setSignin] = useState(false);
@@ -445,8 +445,9 @@ export function GuestDialog() {
     else if (!isPhone(f.phone)) e2.phone = 'המספר לא נראה תקין. כתבו מספר ישראלי, למשל \u2066050-1234567\u2069';
     if (f.email.trim() && !isEmail(f.email)) e2.email = 'כתובת המייל לא נראית תקינה';
     if (!f.message.trim()) e2.message = 'כתבו הודעה קצרה למורה';
+    if (!f.agree) e2.agree = TERMS_ERROR;
     setErrs(e2);
-    if (Object.keys(e2).length) { document.getElementById({ name: 'gr-name', phone: 'gr-phone', email: 'gr-email', message: 'gr-msg' }[Object.keys(e2)[0]])?.focus(); return; }
+    if (Object.keys(e2).length) { document.getElementById({ name: 'gr-name', phone: 'gr-phone', email: 'gr-email', message: 'gr-msg', agree: 'gr-terms' }[Object.keys(e2)[0]])?.focus(); return; }
     setBusy(true);
     try { await api.sendGuestRequest({ tutorId: tutor.id, groupId: group?.id, ...f, name: f.name.trim(), message: f.message.trim() }); setSent(true); setF((x) => ({ ...x, message: '', hp: '' })); } catch (err) { setErrs({ form: err.message }); notify(err.message, true); }
     setBusy(false);
@@ -486,7 +487,8 @@ export function GuestDialog() {
             {errs.message ? <p className="err">{errs.message}</p> : null}
             {errs.form ? <p className="err" role="alert">{errs.form}</p> : null}
             <input className="sr-only" tabIndex={-1} autoComplete="off" aria-hidden="true" name="website" value={f.hp} onChange={(e) => setF({ ...f, hp: e.target.value })} />
-            <p className="fine">הפרטים יישלחו רק למורה. בשליחה אתם מסכימים ל<a href={to('terms')} onClick={closeGuest}>תנאי השימוש</a> ול<a href={to('privacy')} onClick={closeGuest}>מדיניות הפרטיות</a>.</p>
+            <p className="fine">הפרטים יישלחו רק למורה.</p>
+            <TermsCheck id="gr-terms" checked={f.agree} onChange={(v) => { setF((x) => ({ ...x, agree: v })); if (v) setErrs((x) => ({ ...x, agree: '' })); }} error={errs.agree} />
             <div className="form-actions"><button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'שולחים…' : 'שליחה'}</button><button type="button" className="btn btn-ghost" onClick={closeGuest}>ביטול</button></div>
           </form>
         ) : null}
