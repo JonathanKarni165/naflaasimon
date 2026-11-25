@@ -1069,3 +1069,18 @@ img.photo-bg { background: #F4E29C url("data:image/svg+xml,%3Csvg xmlns='http://
 .sp-art { position: absolute; top: 10px; inset-inline-end: 10px; width: 46px; height: 38px; color: var(--ink); }
 /* Price boxes back to the soft teal (user, 2026-11-25); the teal tags and drawings stay. */
 .side-prices > div, .side-prices > div + div { background: var(--purple-soft); border-color: #B7DAD4; }
+
+/* Tutor tags (card + profile): where lessons happen, online, place of study (graduation cap), company (worker). */
+.f-full { grid-column: 1 / -1; margin-bottom: 10px; }
+.tbadges { flex-basis: 100%; list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.tb { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 700; line-height: 1.3; padding: 3px 10px 3px 9px;
+  border-radius: 999px; border: 1.5px solid transparent; max-width: 100%; }
+.tb span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-ic { width: 16px; height: 16px; flex: none; }
+.tb-place { background: var(--sun-soft); border-color: var(--brass); color: var(--sun-ink); }
+.tb-online { background: var(--purple-soft); border-color: #B7DAD4; color: var(--purple-ink); }
+.tb-edu { background: #FFFDF5; border-color: var(--brass); color: var(--ink); }
+.tb-edu .tb-ic { color: #A88A2C; }
+.tb-work { background: #EEF4F3; border-color: var(--purple); color: var(--purple-ink); }
+.p-badges-row { margin: 6px 0 4px; }
+.p-badges-row .tb { font-size: 14px; padding: 4px 12px 4px 10px; }
