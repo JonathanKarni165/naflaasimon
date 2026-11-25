@@ -1009,5 +1009,5 @@ img.photo-bg { background: #F4E29C url("data:image/svg+xml,%3Csvg xmlns='http://
 }
 /* The hero's dark brown carries on behind the search form and ends a little below it (user, 2026-11-25). */
 #top { overflow-x: clip; }
-.search::before { content: ""; position: absolute; z-index: -1; top: 72px; bottom: -44px; inset-inline: calc(50% - 50vw); background: var(--ink); }
+.search::before { content: ""; position: absolute; z-index: -1; top: 66px; /* overlaps the hero a little: no hairline seam on iPhone */ bottom: -44px; inset-inline: calc(50% - 50vw); background: var(--ink); }
 .search + .block { padding-top: 88px; }
