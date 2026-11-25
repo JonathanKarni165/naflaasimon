@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, useLoad, to } from '../state.jsx';
 import { bayesScore, globalMean } from '../lib/ranking.js';
 import { money, dateShort, rating1, reviewsLabel } from '../lib/format.js';
-import { Avatar, EduIcon, Stars, StarRow, Verified, InquiryBox, GroupCard, WeekGrid, ConfirmButton, Loading, Empty, placeLabel, ReportTutor } from '../components/ui.jsx';
+import { Avatar, EduIcon, Stars, StarRow, Verified, InquiryBox, GroupCard, WeekGrid, ConfirmButton, Loading, Empty, placeLabel, ReportTutor, MyTutorBadge, useMyTutorEntry, studentsLabel } from '../components/ui.jsx';
 import { topicsBySubject } from '../data/topics.js';
 
 export default function Tutor({ id }) {
@@ -31,12 +31,14 @@ export default function Tutor({ id }) {
           <header className="p-head">
             <Avatar tutor={tutor} className="p-photo" eager />
             <div className="p-id">
+              <MyTutorBadge tutor={tutor} />
               <h1>{tutor.name}</h1>
               <p className="p-headline">{tutor.headline}</p>
               {tutor.education ? <p className="p-edu"><EduIcon /> {tutor.education}</p> : null}
               <div className="p-badges">
                 <Verified tutor={tutor} />
                 <Stars avg={tutor.ratingAvg} count={tutor.ratingCount} />
+                {tutor.studentCount ? <span className="muted-text p-students" title="תלמידים שכתבו ביקורת, שהמורה סימן איתם שיעור, או שנרשמו לקבוצה שלו"><bdi>{studentsLabel(tutor.studentCount)}</bdi> דרך נפל האסימון</span> : null}
                 {tutor.experienceYears ? <span className="muted-text"><bdi>{tutor.experienceYears}</bdi> שנות ניסיון</span> : null}
               </div>
               {isOwner ? <a className="btn btn-line btn-sm" href={to(user.id === tutor.ownerId ? 'panel' : 'panel-admin')}>עריכת הפרופיל</a> : null}
@@ -69,7 +71,7 @@ export default function Tutor({ id }) {
           <section className="p-sec" aria-labelledby="rev-h">
             <h2 id="rev-h">ביקורות</h2>
             <RatingSummary tutor={tutor} reviews={reviews || []} weighted={weighted} />
-            <ReviewForm tutor={tutor} reviews={reviews || []} onDone={after} />
+            <ReviewForm tutor={tutor} reviews={reviews || []} loaded={!!reviews} onDone={after} />
             <ReviewList tutor={tutor} reviews={reviews || []} after={after} loaded={!!reviews} />
           </section>
 
@@ -129,23 +131,40 @@ function RatingSummary({ tutor, reviews, weighted }) {
   );
 }
 
-function ReviewForm({ tutor, reviews, onDone }) {
+function ReviewForm({ tutor, reviews, loaded, onDone }) {
   const { api, user, requireLogin, notify } = useApp();
   const mine = user ? reviews.find((r) => r.userId === user.id) : null;
+  const myTutor = useMyTutorEntry(tutor.id);
   const [open, setOpen] = useState(false);
   const [rating, setRating] = useState(0);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [blocked, setBlocked] = useState(false);
-  // Reviews come only from people who really contacted the tutor (the database checks this too).
+  const formRef = useRef(null);
+  // Reviews come only from people who really had contact with the tutor through the site (the database checks this too).
   const [allowed] = useLoad(() => (user && api.canReview ? api.canReview(tutor.id) : true), [tutor.id, user?.id || '']);
+  const first = tutor.name.split(' ')[0];
+  const isSelf = user && user.id === tutor.ownerId;
 
-  if (user && user.id === tutor.ownerId) return null;
   const start = () => {
     if (!requireLogin('כדי לכתוב ביקורת צריך להתחבר. ככה כל אדם כותב ביקורת אחת בלבד לכל מורה.')) return;
-    if (!mine && allowed === false) { setBlocked(true); return; }
+    if (!mine && allowed === false && !myTutor) { setBlocked(true); return; }
     setRating(mine?.rating || 0); setText(mine?.text || ''); setOpen(true);
+    setTimeout(() => formRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 60);
   };
+  // The review email links here with ?review=1: open the form once the reviews have loaded.
+  const asked = useRef(false);
+  useEffect(() => {
+    if (asked.current || !loaded || isSelf) return;
+    if (new URLSearchParams(window.location.search).get('review') !== '1') return;
+    asked.current = true;
+    history.replaceState(history.state, '', window.location.pathname);
+    if (user) start();
+    else requireLogin(`כדי לכתוב ביקורת על ${first} צריך להתחבר`);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, user?.id]);
+
+  if (isSelf) return null;
   const submit = async (e) => {
     e.preventDefault();
     if (!rating) { notify('בחרו מספר כוכבים', true); return; }
@@ -154,16 +173,25 @@ function ReviewForm({ tutor, reviews, onDone }) {
     setBusy(false);
   };
   if (!open) {
+    // "מורה שלי" without a review yet: ask in words, right above the reviews.
+    if (myTutor && !mine) {
+      return (
+        <div className="review-ask">
+          <p><b>מה דעתך על {first}?</b> הייתם בקשר דרך האתר, אז הביקורת שלכם תסומן כמאומתת. אפשר לערוך אותה אחר כך.</p>
+          <button type="button" className="btn btn-brand" onClick={start}>כתיבת ביקורת</button>
+        </div>
+      );
+    }
     return (
       <>
         <button type="button" className="btn btn-brand" onClick={start}>{mine ? 'עריכת הביקורת שלי' : 'כתיבת ביקורת'}</button>
-        {blocked ? <p className="hint" role="status">אפשר לכתוב ביקורת רק על מורה שפניתם אליו דרך האתר או שלמדתם אצלו בקבוצה. כך כל הביקורות כאן אמיתיות.</p> : null}
+        {blocked ? <p className="hint" role="status">אפשר לכתוב ביקורת רק על מורה שהייתם איתו בקשר דרך האתר: התכתבתם בצ׳אט, המורה פתח את פרטי הקשר ששיתפתם, סומן שנקבע שיעור, או שלמדתם אצלו בקבוצה. כך כל הביקורות כאן אמיתיות.</p> : null}
       </>
     );
   }
   return (
-    <form className="review-form" onSubmit={submit}>
-      <span className="field-label" id="rate-l">כמה כוכבים?</span>
+    <form ref={formRef} className="review-form" onSubmit={submit}>
+      <span className="field-label" id="rate-l">{mine ? 'עריכת הביקורת שלכם' : `מה דעתך על ${first}?`} כמה כוכבים?</span>
       <div className="star-pick" role="radiogroup" aria-labelledby="rate-l">
         {[1, 2, 3, 4, 5].map((i) => (
           <button key={i} type="button" role="radio" aria-checked={rating === i} aria-label={`${i} כוכבים`} className={i <= rating ? 'on' : ''} onClick={() => setRating(i)}>★</button>
@@ -172,12 +200,18 @@ function ReviewForm({ tutor, reviews, onDone }) {
       <label className="field-label" htmlFor="rv-text">מה כדאי שתלמידים אחרים יידעו?</label>
       <textarea id="rv-text" className="input" rows={4} maxLength={2000} value={text} onChange={(e) => setText(e.target.value)} placeholder="איך היו ההסברים, הסבלנות, ההתקדמות…" />
       <div className="form-actions">
-        <button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'שולחים…' : 'פרסום הביקורת'}</button>
+        <button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'שולחים…' : mine ? 'שמירת השינויים' : 'פרסום הביקורת'}</button>
         <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>ביטול</button>
       </div>
-      <p className="hint">הביקורת תופיע בשם {user?.name}.</p>
+      <p className="hint">ביקורת אחת לכל מורה, ואפשר לערוך אותה בכל זמן. היא תופיע בשם הפרטי ובאות הראשונה של שם המשפחה (למשל {shortName(user?.name)}). מתחת לגיל 18 יופיע רק "תלמיד/ה".</p>
     </form>
   );
+}
+// Same rule as the database (reviewer_name in supabase/verified-reviews.sql), only for the hint.
+function shortName(n) {
+  const parts = String(n || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length || n.includes('@')) return 'דנה ל.';
+  return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}.` : parts[0];
 }
 
 const SHOWN_REVIEWS = 3;
@@ -185,7 +219,7 @@ function ReviewItem({ r, after }) {
   const { api, user } = useApp();
   return (
     <article className="review">
-      <div className="rv-top"><b>{r.userName}</b><StarRow value={r.rating} size={15} /><span className="muted-text">{dateShort(r.createdAt)}</span></div>
+      <div className="rv-top"><b>{r.userName}</b><StarRow value={r.rating} size={15} /><span className="muted-text">{dateShort(r.createdAt)}</span>{r.updatedAt ? <span className="muted-text rv-edited">(נערכה)</span> : null}{user && user.id === r.userId ? <span className="rv-verified">הביקורת שלך</span> : null}</div>
       {r.text ? <p>{r.text}</p> : null}
       {user && (user.id === r.userId || user.isAdmin) ? (
         <ConfirmButton className="linkish small" confirmText="למחוק את הביקורת?" onConfirm={async () => { await api.deleteReview(r.id); after(); }}>מחיקה</ConfirmButton>

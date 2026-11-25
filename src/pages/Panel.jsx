@@ -198,8 +198,11 @@ function GuestInbox() {
 function Inbox() {
   const { api, user, version, reload, notify } = useApp();
   const [list, loading, error] = useLoad(() => api.tutorInquiries(), [user.id, version]);
-  const [filter, setFilter] = useState('open');
-  const [openId, setOpenId] = useState(null);
+  // The "התקיים שיעור?" email links here with ?lesson=<inquiry id>: open that conversation.
+  const [lessonId] = useState(() => { try { return new URLSearchParams(window.location.search).get('lesson') || null; } catch { return null; } });
+  const [filter, setFilter] = useState(lessonId ? 'all' : 'open');
+  const [openId, setOpenId] = useState(lessonId);
+  useEffect(() => { if (lessonId) history.replaceState(history.state, '', window.location.pathname); }, [lessonId]);
   if (loading && !list) return <Loading />;
   if (error) return <p className="err">{error.message}</p>;
   const all = list || [];
@@ -220,7 +223,7 @@ function Inbox() {
         <Empty title="עוד אין פניות"><p>כשתלמיד ישלח פנייה מהפרופיל שלכם, היא תופיע כאן.</p></Empty>
       ) : !shown.length ? <p className="muted-text">אין פניות בסינון הזה.</p> : (
         <div className="inq-list">
-          {shown.map((q) => <InquiryItem key={q.id} q={q} showTutor={user.isAdmin} open={openId === q.id} onToggle={() => setOpenId(openId === q.id ? null : q.id)} onChange={async (patch, msg) => {
+          {shown.map((q) => <InquiryItem key={q.id} q={q} showTutor={user.isAdmin} askLesson={lessonId === q.id} open={openId === q.id} onToggle={() => setOpenId(openId === q.id ? null : q.id)} onChange={async (patch, msg) => {
             try { await api.answerInquiry(q.id, patch); notify(msg); reload(); } catch (e) { notify(e.message, true); }
           }} />)}
         </div>
@@ -231,8 +234,13 @@ function Inbox() {
 
 /** One inquiry in the inbox: a short row; tapping it opens the conversation (one at a time, so the page stays short). */
 const DECLINE_REASONS = ['אין לי זמנים פנויים כרגע', 'הנושא או הרמה לא בתחום שלי', 'המיקום רחוק ממני'];
-function InquiryItem({ q, onChange, showTutor, open, onToggle }) {
-  const { api, notify } = useApp();
+function InquiryItem({ q, onChange, showTutor, open, onToggle, askLesson }) {
+  const { api, notify, user } = useApp();
+  // Opening the conversation shows the student's details; when they shared a phone or email,
+  // that counts as contact and lets the student review the tutor (supabase/verified-reviews.sql).
+  useEffect(() => { if (open && q.tutor?.ownerId === user.id) api.markInquiryOpened?.(q.id); }, [open, q.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const days = q.openedAt ? (Date.now() - new Date(q.openedAt).getTime()) / 864e5 : 0;
+  const showLessonAsk = q.status !== 'booked' && q.status !== 'declined' && (askLesson || days >= 2);
   const ref = useRef(null);
   // "לא מתאים" closes the student's chat, so it asks first and lets the tutor add a short, optional explanation.
   const [declining, setDeclining] = useState(false);
@@ -273,6 +281,12 @@ function InquiryItem({ q, onChange, showTutor, open, onToggle }) {
       </button>
       {open ? (<ChatOverlay who={q.name} avatar={{ name: q.name }} status={q.status} onClose={onToggle}>
       <p className="via-line chat-win-info">דרכי קשר מועדפות: {VIA.filter(([v]) => via.includes(v)).map(([, l]) => l).join(' · ')}</p>
+      {showLessonAsk ? (
+        <p className="lesson-ask chat-win-info" role="status">
+          <span><b>קבעתם שיעור עם {first}?</b> סמנו, ו{first} ייספר בפרופיל שלכם כתלמיד ויוזמן לכתוב ביקורת. רק שיעור שבאמת נקבע: אנחנו שואלים גם את התלמיד.</span>
+          <button type="button" className="btn btn-brand btn-sm" onClick={() => onChange({ status: 'booked' }, 'סומן: נקבע שיעור')}>כן, נקבע שיעור</button>
+        </p>
+      ) : null}
       {/* While confirming "לא מתאים" the confirm panel takes the chat's place, so the two never overlap on a phone. */}
       {declining && q.status !== 'declined' ? null : <InquiryChat q={q} asTutor />}
       <div className="inq-actions chat-win-foot">
@@ -758,6 +772,7 @@ function MySeats({ openId }) {
   const list = (seats || []).map((s) => ({ s, g: (groups || []).find((g) => g.id === s.groupId) })).filter((x) => x.g);
   return (
     <div className="my-requests">
+      <MyTutors />
       <section>
         <h2 className="sub-h">פניות ששלחתי למורים</h2>
         {!(inqs || []).length ? <p className="muted-text">עוד לא שלחתם פנייה. <a href={to('search')}>חיפוש מורה</a></p> : (
@@ -793,6 +808,31 @@ function MySeats({ openId }) {
         )}
       </section>
     </div>
+  );
+}
+
+/** "המורים שלי": tutors the student had real contact with. Each gets one review, editable any time. */
+function MyTutors() {
+  const { myTutors, tutors } = useApp();
+  const list = (myTutors || []).map((m) => ({ ...m, t: (tutors || []).find((t) => t.id === m.tutorId) })).filter((x) => x.t)
+    .sort((a, b) => Number(a.reviewed) - Number(b.reviewed) || String(b.since || '').localeCompare(String(a.since || '')));
+  if (!list.length) return null;
+  return (
+    <section>
+      <h2 className="sub-h">המורים שלי</h2>
+      <p className="muted-text">מורים שהייתם איתם בקשר דרך האתר. ביקורת אחת לכל מורה, ואפשר לערוך אותה בכל זמן.</p>
+      <ul className="my-tutors-list">
+        {list.map(({ t, reviewed }) => (
+          <li key={t.id}>
+            <Avatar tutor={t} className="inq-av" size={48} />
+            <a className="mt-name" href={to(`tutor-${t.id}`)}>{t.name}</a>
+            {reviewed
+              ? <a className="btn btn-line btn-sm" href={to(`tutor-${t.id}`) + '?review=1'}>עריכת הביקורת שלי</a>
+              : <a className="btn btn-brand btn-sm" href={to(`tutor-${t.id}`) + '?review=1'}>מה דעתך על {t.name.split(' ')[0]}?</a>}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

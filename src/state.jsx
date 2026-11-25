@@ -39,9 +39,9 @@ export function currentName() {
   return nameOfPath(window.location.pathname) ?? '';
 }
 
-export function go(name) {
+export function go(name, search = '') {
   const path = to(name);
-  if (path !== window.location.pathname || window.location.hash) history.pushState(null, '', path);
+  if (path !== window.location.pathname || window.location.hash || search) history.pushState(null, '', path + search);
   window.dispatchEvent(new Event('naflaasimon:route'));
 }
 
@@ -61,6 +61,8 @@ export function AppProvider({ children }) {
   const [toast, setToast] = useState(null);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [version, setVersion] = useState(0);
+  // The signed-in student's tutors ("מורה שלי"): they may write one review on each (supabase/verified-reviews.sql).
+  const [myTutors, setMyTutors] = useState([]);
 
   useEffect(() => {
     // Coming back from a tutor or group page to a list (search, groups, home) returns to where you were scrolled.
@@ -94,7 +96,7 @@ export function AppProvider({ children }) {
       const name = hash !== null ? (ROUTE_RE.test(hash) || hash === '' ? hash : null) : nameOfPath(url.pathname);
       if (name === null) return;
       e.preventDefault();
-      go(name);
+      go(name, hash === null ? url.search : '');
     };
     window.addEventListener('popstate', on);
     window.addEventListener('naflaasimon:route', on);
@@ -150,6 +152,13 @@ export function AppProvider({ children }) {
     return () => { clearTimeout(t); off(); };
   }, [reload]);
 
+  useEffect(() => {
+    let live = true;
+    if (!user || !api.myTutors) { setMyTutors([]); return undefined; }
+    api.myTutors().then((list) => { if (live) setMyTutors(list || []); }).catch(() => {});
+    return () => { live = false; };
+  }, [user, version]);
+
   const notify = useCallback((text, bad = false) => {
     setToast({ text, bad, at: Date.now() });
   }, []);
@@ -167,10 +176,10 @@ export function AppProvider({ children }) {
   const closeGuest = useCallback(() => setGuestTarget(null), []);
 
   const value = useMemo(() => ({
-    api, route, user, tutors, groups, reload, version, notify, toast, online,
+    api, route, user, tutors, groups, reload, version, notify, toast, online, myTutors,
     loginOpen, setLoginOpen, loginReason, loginGuest, requireLogin, guestTarget, openGuest, closeGuest,
     filters, setFilters, resetFilters: () => setFilters(DEFAULT_FILTERS),
-  }), [route, user, tutors, groups, reload, version, notify, toast, online, loginOpen, loginReason, loginGuest, requireLogin, guestTarget, openGuest, closeGuest, filters]);
+  }), [route, user, tutors, groups, reload, version, notify, toast, online, myTutors, loginOpen, loginReason, loginGuest, requireLogin, guestTarget, openGuest, closeGuest, filters]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
