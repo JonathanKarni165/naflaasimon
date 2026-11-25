@@ -113,6 +113,7 @@ function check({ data, error }) {
     if (m.includes('tutor details required')) throw new Error('חסרים פרטי חובה למורה: ' + (m.split('required:')[1] || 'שם, טלפון, כתובת, תאריך לידה ותמונה').trim());
     if (m.includes('cannot contact yourself')) throw new Error('אי אפשר לשלוח פנייה לעצמכם');
     if (m.includes('not allowed')) throw new Error('אין הרשאה');
+    if (m.includes('active group seats')) throw new Error('יש תלמידים שרשומים לקבוצה שלכם שעוד לא הסתיימה. כדי למחוק את החשבון, קודם בטלו את הקבוצה או הוציאו את הנרשמים ב"הקבוצות שלי", כדי שהם יקבלו הודעה.');
     if (m.includes('profiles_name_len')) throw new Error('השם צריך להיות בין 2 ל־60 תווים');
     if (m.includes('profiles_phone_chars')) throw new Error('מספר הטלפון יכול להכיל רק ספרות, רווחים ומקפים');
     if (m.includes('profile: birth_date')) throw new Error('תאריך הלידה לא נראה נכון');

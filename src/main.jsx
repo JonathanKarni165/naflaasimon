@@ -17,7 +17,7 @@ import './app.css';
 const SITE = 'נפל האסימון';
 const TITLES = {
   search: 'חיפוש מורים פרטיים', terms: 'תנאי שימוש', privacy: 'מדיניות פרטיות', cookies: 'מדיניות עוגיות', accessibility: 'הצהרת נגישות', contact: 'צור קשר', groups: 'קבוצות למידה ומרתונים', 'groups-marathons': 'מרתונים לבגרות', about: 'אודות',
-  login: 'כניסה', signup: 'פתיחת חשבון', panel: 'פאנל מורה', 'panel-inbox': 'פניות מתלמידים', 'panel-groups': 'הקבוצות שלי',
+  login: 'כניסה', signup: 'פתיחת חשבון', panel: 'פאנל מורה', 'panel-new': 'פתיחת פרופיל מורה', 'panel-inbox': 'פניות מתלמידים', 'panel-groups': 'הקבוצות שלי',
   'panel-seats': 'השיחות וההרשמות שלי', 'panel-me': 'הפרטים האישיים שלי', 'panel-admin': 'ניהול מורים', 'panel-reports': 'דיווחים', 'panel-stats': 'סטטיסטיקות', chat: 'שיחה',
 };
 

@@ -20,7 +20,7 @@ export default function Home() {
   // The home search box always starts empty (grey "מקצוע לימוד"), not with the last search.
   const [subject, setSubject] = useState('');
   const [topic, setTopic] = useState('');
-  const [where, setWhere] = useState(filters.mode === 'online' ? 'online' : filters.city || filters.place || '');
+  const [where, setWhere] = useState(filters.mode === 'online' ? '' : filters.city || filters.place || '');
   const [kind, setKind] = useState('private');
   // Online / frontal / "לא משנה", carried to the search and groups pages.
   const [learn, setLearn] = useState(filters.mode === 'online' || filters.mode === 'frontal' ? filters.mode : 'any');
@@ -78,19 +78,22 @@ export default function Home() {
             <TopicPicker id="home-topic" value={optionLabel({ subject, topic })}
               onPick={(o) => { setSubject(o?.subject || ''); setTopic(o?.topic || ''); }} />
           </div>
+          {/* "איפה?" only matters for lessons in person, so it hides when "אונליין" is chosen. */}
+          {learn !== 'online' ? (
           <div className="row1">
             <div>
               <label className="field-label" htmlFor="home-where">איפה?</label>
               <WherePicker id="home-where" value={where} onChange={setWhere} />
             </div>
           </div>
+          ) : null}
           <div className="card-segs">
           <div>
             <span className="field-label" id="learn-label">איך לומדים?</span>
             <div className="seg seg-3" role="group" aria-labelledby="learn-label">
               <button type="button" aria-pressed={learn === 'any'} onClick={() => setLearn('any')}>לא משנה</button>
               <button type="button" aria-pressed={learn === 'frontal'} onClick={() => setLearn('frontal')}>פרונטלי</button>
-              <button type="button" aria-pressed={learn === 'online'} onClick={() => setLearn('online')}>אונליין</button>
+              <button type="button" aria-pressed={learn === 'online'} onClick={() => { setLearn('online'); setWhere(''); }}>אונליין</button>
             </div>
           </div>
           <div>
@@ -175,7 +178,7 @@ export default function Home() {
               <li>תיבת פניות אישית, בלי לפרסם את הטלפון שלכם</li>
               <li>קבוצות ומרתונים עם הרשמה ושמירת מקום</li>
             </ul>
-            <a className="btn btn-brand" href={to('panel')}>פתיחת פרופיל מורה</a>
+            <a className="btn btn-brand" href={to('panel-new')}>פתיחת פרופיל מורה</a>
           </div>
         </div>
       </section>

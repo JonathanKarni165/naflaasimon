@@ -24,11 +24,11 @@ export default function Search() {
       : queryFirst(topicFirst(sortTutors(filterTutors(tutors, f), f.sort, { origin: f.origin, mode: f.mode }), f.topic), f.q);
   }, [tutors, f]);
 
-  const [whereText, setWhereText] = useState(f.mode === 'online' ? 'online' : f.city === 'המיקום שלי' ? '' : f.city || f.place || '');
+  const [whereText, setWhereText] = useState(f.mode === 'online' ? '' : f.city === 'המיקום שלי' ? '' : f.city || f.place || '');
   const pickWhere = (text) => {
     setWhereText(text);
     const w = resolveWhere(text);
-    set({ ...w, mode: w.mode === 'online' ? 'online' : f.mode === 'online' ? 'any' : f.mode, sort: w.origin && f.sort === 'best' ? 'near' : f.sort });
+    set({ ...w, mode: f.mode, sort: w.origin && f.sort === 'best' ? 'near' : f.sort });
   };
   const useMyLocation = () => {
     setLocMsg('מאתרים…');
@@ -95,7 +95,7 @@ export default function Search() {
         {/* Online / frontal / "לא משנה" stays visible, without opening the filter panel. */}
         <div className="learn-mode">
           <span className="field-label" id="s-mode">איך לומדים?</span>
-          <Seg label="s-mode" value={f.mode} onChange={(mode) => { set({ mode, ...(mode === 'online' && f.sort === 'near' ? { sort: 'best' } : {}) }); if (mode !== 'online' && whereText === 'online') setWhereText(''); }} options={[['any', 'לא משנה'], ['frontal', 'פרונטלי'], ['online', 'אונליין']]} />
+          <Seg label="s-mode" value={f.mode} onChange={(mode) => { set({ mode, ...(mode === 'online' ? { city: '', origin: null, place: '', maxKm: 0, ...(f.sort === 'near' ? { sort: 'best' } : {}) } : {}) }); if (mode === 'online') setWhereText(''); }} options={[['any', 'לא משנה'], ['frontal', 'פרונטלי'], ['online', 'אונליין']]} />
         </div>
         <p className="muted-text head-meta">{results ? `${results.length} מורים` : ''}{f.city && f.origin ? ` · מרחקים מ${f.city === 'המיקום שלי' ? 'המיקום שלכם' : f.city}` : ''} · <span className="marathon-link">מחפשים מרתון או קבוצה? <a href={to('groups-marathons')}>לחיפוש מרתונים</a></span></p>
       </div>
@@ -109,7 +109,7 @@ export default function Search() {
               סינון{activeCount ? ` (${activeCount})` : ''}
             </button>
             <div className="chips" role="group" aria-label="מיון">
-              {SORTS.map(([v, label]) => <button key={v} type="button" className="chip" aria-pressed={f.sort === v} onClick={() => set({ sort: v })}>{label}</button>)}
+              {SORTS.filter(([v]) => v !== 'near' || f.mode !== 'online').map(([v, label]) => <button key={v} type="button" className="chip" aria-pressed={f.sort === v} onClick={() => set({ sort: v })}>{label}</button>)}
             </div>
           </div>
           <aside className={'filters' + (showFilters ? ' open' : '')} aria-label="סינון">
@@ -122,6 +122,8 @@ export default function Search() {
               </div>
 
 
+              {/* Location only matters for lessons in person: hidden when "אונליין" is chosen. */}
+              {f.mode !== 'online' ? (
               <div className="f-field">
               <label className="field-label" htmlFor="f-city">המיקום שלי</label>
               <WherePicker id="f-city" value={whereText} onChange={pickWhere} placeholder={f.city === 'המיקום שלי' ? 'המיקום הנוכחי שלי' : 'עיר או שכונה'} />
@@ -131,6 +133,7 @@ export default function Search() {
               </button>
               {locMsg ? <p className="hint">{locMsg}</p> : null}
               </div>
+              ) : null}
 
               {f.origin && f.mode !== 'online' ? (
                 <div className="f-field">
@@ -152,7 +155,7 @@ export default function Search() {
             {f.sort === 'near' && (f.origin ? 'המורים הקרובים אליכם קודם. מורים שמלמדים רק אונליין מופיעים בסוף.' : 'בחרו עיר או השתמשו במיקום הנוכחי כדי למיין לפי מרחק.')}
             {f.sort === 'popular' && 'המורים שהכי הרבה תלמידים פנו אליהם וכתבו עליהם ביקורת.'}
           </p>
-          {f.sort === 'near' && !showFilters ? (
+          {f.sort === 'near' && f.mode !== 'online' && !showFilters ? (
             <div className="inline-pick">
               <label className="sr-only" htmlFor="near-where">איפה אתם?</label>
               {/* Type a city or neighbourhood (same field as "המיקום שלי"; hidden while the filter panel shows it), not only pick from a long list. */}
