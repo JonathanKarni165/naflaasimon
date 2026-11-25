@@ -60,6 +60,7 @@ export default function Home() {
             <li>פנייה חינם, בלי עמלות</li>
             <li>ביקורות של תלמידים אמיתיים</li>
             <li>פרונטלי או אונליין</li>
+            <li>גם קבוצות למידה</li>
           </ul>
           {proof && proof.n >= 20 ? (
             <div className="proof-row">
@@ -185,14 +186,14 @@ export default function Home() {
 // Real study moments (Unsplash free licence): students on the grass, at a cafe, on the beach, a study group,
 // lecturers. A different photo every 3 hours, the same for everyone at that time (index.html preloads it
 // with the same math). 2400px source so it stays sharp on wide and retina screens.
-// [file stem, where the people are in the frame], so the crop keeps them in view on wide and narrow screens.
-const HERO_PHOTOS = [['01', '42% 55%'], ['02', '50% 55%'], ['03', '40% 45%'], ['04', '50% 40%'], ['05', '45% 35%'],
-  ['06', '50% 60%'], ['07', '35% 35%'], ['08', '60% 35%'], ['09', '30% 60%']];
+// [file stem, focus on wide screens, focus on phones], so the crop keeps the people in view on both.
+const HERO_PHOTOS = [['01', '42% 55%', '34% 50%'], ['02', '50% 55%', '72% 55%'], ['03', '40% 45%', '22% 45%'], ['04', '50% 40%', '30% 40%'],
+  ['05', '45% 35%', '42% 35%'], ['06', '50% 60%', '32% 60%'], ['07', '35% 35%', '40% 35%'], ['08', '60% 35%', '72% 35%'], ['09', '30% 60%', '44% 60%']];
 const HERO_EVERY = 3 * 3600e3;
 function HeroPhoto() {
-  const [n, pos] = HERO_PHOTOS[Math.floor(Date.now() / HERO_EVERY) % HERO_PHOTOS.length];
+  const [n, pos, mpos] = HERO_PHOTOS[Math.floor(Date.now() / HERO_EVERY) % HERO_PHOTOS.length];
   const stem = 'img/hero-' + n;
   return <img className="hero-media on" src={stem + '-1280.webp'} srcSet={`${stem}-1280.webp 1280w, ${stem}-2400.webp 2400w`} sizes="100vw"
-    alt="" width="2400" height="1600" fetchpriority="high" style={{ objectPosition: pos }} />;
+    alt="" width="2400" height="1600" fetchpriority="high" style={{ '--pos': pos, '--mpos': mpos }} />;
 }
 
