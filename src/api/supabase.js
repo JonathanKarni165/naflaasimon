@@ -117,7 +117,7 @@ function check({ data, error }) {
     if (m.includes('profiles_name_len')) throw new Error('השם צריך להיות בין 2 ל־60 תווים');
     if (m.includes('profiles_phone_chars')) throw new Error('מספר הטלפון יכול להכיל רק ספרות, רווחים ומקפים');
     if (m.includes('profile: birth_date')) throw new Error('תאריך הלידה לא נראה נכון');
-    if (m.includes('row-level security') && m.includes('reviews')) throw new Error('כבר נכתבה ביקורת מהחשבון הזה (או מכתובת מייל זהה) על המורה הזה. אפשר לערוך אותה');
+    if (m.includes('row-level security') && m.includes('reviews')) throw new Error('אפשר לכתוב ביקורת רק על מורה שהייתם איתו בקשר דרך האתר: התכתבתם בצ׳אט, המורה פתח את הפרטים שלכם, נקבע שיעור, או שלמדתם אצלו בקבוצה');
     if (m.includes('tutors_experience_range')) throw new Error('שנות ניסיון: מספר בין 0 ל־60');
     if (m.includes('mime type')) throw new Error('אפשר להעלות רק תמונה (JPG, PNG או WebP)');
     throw new Error(m || 'משהו השתבש, נסו שוב');
@@ -132,8 +132,6 @@ const tutorFromRow = (r, stats = {}) => ({
   teachesOnline: r.teaches_online, teachesFrontal: r.teaches_frontal, priceOnline: r.price_online, priceFrontal: r.price_frontal,
   experienceYears: r.experience_years, verified: r.verified, contactCount: r.contact_count, createdAt: r.created_at,
   ratingCount: stats.rating_count || 0, ratingAvg: stats.rating_avg || 0, studentCount: stats.students || 0,
-  // Verified reviews ("תלמיד מאומת") weigh 3x: ratingWeight = regular + 3 x verified (supabase/verified-reviews.sql).
-  verifiedCount: stats.verified_count || 0, ratingWeight: stats.rating_weight ?? stats.rating_count ?? 0,
   approval: r.approval || 'approved', rejectReason: r.reject_reason || '', isExample: !!r.is_example,
   // Photo/headline/about an approved tutor changed, waiting for the admin (supabase/round6.sql).
   pending: r.pending && Object.keys(r.pending).length ? r.pending : null,
@@ -330,7 +328,7 @@ export async function uploadPhoto(file) {
   return sb.storage.from('tutor-photos').getPublicUrl(path).data.publicUrl;
 }
 
-const reviewFromRow = (r) => ({ id: r.id, tutorId: r.tutor_id, userId: r.user_id, userName: r.user_name, rating: r.rating, text: r.text, createdAt: r.created_at, updatedAt: r.updated_at || null, verified: !!r.verified });
+const reviewFromRow = (r) => ({ id: r.id, tutorId: r.tutor_id, userId: r.user_id, userName: r.user_name, rating: r.rating, text: r.text, createdAt: r.created_at, updatedAt: r.updated_at || null });
 /** The signed-in student's tutors ("מורה שלי"): real contact happened, so they may review them (supabase/verified-reviews.sql). */
 export async function myTutors() {
   if (!user) return [];
@@ -343,7 +341,7 @@ export async function markInquiryOpened(id) {
   if (!user) return;
   try { await sb.rpc('mark_inquiry_opened', { q: id }); } catch { /* never blocks opening the chat */ }
 }
-/** Any signed-in user may review a tutor once (not themselves). Reviews after real contact are marked verified by the database. */
+/** Only someone with real contact with the tutor (two-way chat, details opened, lesson booked, or a group seat) can review them. */
 export async function canReview(tutorId) {
   if (!user) return false;
   const { data, error } = await sb.rpc('can_review', { t: tutorId });
