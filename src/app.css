@@ -488,7 +488,6 @@ footer .linkish { color: inherit; font-weight: 600; }
 .topic-combo .combo-list { max-height: 360px; }
 .combo-list mark { background: var(--brass-soft); color: inherit; font-weight: 800; border-radius: 3px; padding: 0 1px; box-shadow: inset 0 -2px 0 var(--brass); }
 .combo-list li.on mark, .combo-list li:hover mark { background: transparent; }
-.t-topic { margin: 0; font-size: 14px; font-weight: 800; color: var(--purple-ink); }
 .topic-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .topic-tag { border: 0; cursor: pointer; font: inherit; font-size: 14px; }
 .subtopic-group { margin: 6px 0 12px; padding: 10px 12px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); }
@@ -734,7 +733,6 @@ footer .linkish { color: inherit; font-weight: 600; }
 .tc-head { grid-area: head; align-self: center; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
 .tc-name { margin: 0; font-family: var(--display); font-weight: 400; font-size: 22px; line-height: 1.15; }
 .tc-headline { flex-basis: 100%; margin: 0; font-size: 15px; font-weight: 600; color: var(--muted); line-height: 1.35; }
-.tc-head .t-topic { flex-basis: 100%; }
 .tc-quote {
   grid-area: quote; margin: 0; position: relative; padding: 4px 0 0; padding-inline-start: 34px;
   font-family: "Frank Ruhl Libre", var(--body); font-weight: 500; font-size: 18px; line-height: 1.45; color: var(--ink);

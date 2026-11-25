@@ -3,7 +3,6 @@ import { useApp, useMyTutor, useLoad, go, to, currentName } from '../state.jsx';
 import { money, rating1, reviewsLabel, initials, avatarColor, km, relDays, dateLong, dateTime, isPhone, isEmail, waLink, isInAppBrowser } from '../lib/format.js';
 import { CITIES, NEIGHBORHOODS, WEEK_DAYS, WEEK_DAY_NAMES, DAY_SLOTS, LESSON_COUNTS, GOALS, slotLabel, labelOf } from '../data/constants.js';
 import { searchOptions, optionLabel, schoolCoursesOf, subtopicsOf } from '../data/topics.js';
-import { topicMatch } from '../lib/ranking.js';
 
 export function Coin({ size = 30 }) {
   return (
@@ -186,7 +185,6 @@ export function TutorRow({ tutor, sort, topic }) {
         <Verified tutor={tutor} />
         {tutor.headline ? <p className="tc-headline">{tutor.headline}</p> : null}
         <TutorBadges tutor={tutor} />
-        {topic && topicMatch(tutor, topic) ? <p className="t-topic">✓ מלמדים כאן {topic}</p> : null}
       </div>
       {quote ? <blockquote className="tc-quote"><p>{quote.replace(/\S+$/, '')}<span className="q-end">{quote.match(/\S+$/)?.[0]}</span></p></blockquote> : null}
       <ul className="tc-tags">
