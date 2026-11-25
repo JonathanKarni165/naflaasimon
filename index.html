@@ -133,8 +133,8 @@
 }
 </style>
 <script>document.documentElement.classList.add('js');
-// Home page: start loading today's hero photo before the app's JavaScript arrives (same list and day math as Home.jsx).
-(function(){if(location.pathname.replace(/\/+$/,'/')!=='/naflaasimon/')return;var l=document.createElement('link');l.rel='preload';l.as='image';l.setAttribute('fetchpriority','high');l.href='img/hero-park-1.webp';document.head.appendChild(l)})()</script>
+// Home page: start loading the current hero photo (changes every 3 hours) before the app's JavaScript arrives (same list and math as Home.jsx).
+(function(){if(location.pathname.replace(/\/+$/,'/')!=='/naflaasimon/')return;var l=document.createElement('link');l.rel='preload';l.as='image';l.setAttribute('fetchpriority','high');var n='0'+(Math.floor(Date.now()/108e5)%9+1);l.setAttribute('imagesrcset','img/hero-'+n+'-1280.webp 1280w, img/hero-'+n+'-2400.webp 2400w');l.setAttribute('imagesizes','100vw');document.head.appendChild(l)})()</script>
 <style>.js .prerender{display:none}.prerender{max-width:960px;margin:0 auto;padding:16px;font-family:Assistant,Arial,sans-serif;color:#3A3130;line-height:1.6}</style>
 </head>
 <body>

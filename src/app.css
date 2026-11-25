@@ -934,7 +934,7 @@ img.photo-bg { background: #F4E29C url("data:image/svg+xml,%3Csvg xmlns='http://
 .hero-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 45%; z-index: -2; opacity: 0; transition: opacity 2.4s ease; }
 .hero-media.on { opacity: 1; }
 .hero-shade { position: absolute; inset: 0; z-index: -1;
-  background: linear-gradient(to left, rgb(42 34 33 / .72) 0%, rgb(42 34 33 / .5) 34%, rgb(42 34 33 / .12) 70%, rgb(42 34 33 / 0) 100%); }
+  background: linear-gradient(to left, rgb(42 34 33 / .78) 0%, rgb(42 34 33 / .58) 34%, rgb(42 34 33 / .12) 70%, rgb(42 34 33 / 0) 100%); }
 .hero-video .hero-v-inner { width: 100%; display: grid; gap: 14px; justify-items: start; padding-block: 40px 0; }
 .hero-video h1 { color: #fff; font-size: clamp(38px, 9vw, 72px); line-height: 1.08; max-width: 12ch; text-shadow: 0 2px 18px rgb(0 0 0 / .25); }
 .hero-video h1 .hl { color: var(--ink); }
@@ -952,3 +952,41 @@ img.photo-bg { background: #F4E29C url("data:image/svg+xml,%3Csvg xmlns='http://
   .hero-video .hero-v-inner { gap: 12px; padding-block: 28px 0; }
   .hero-shade { background: linear-gradient(to top, rgb(42 34 33 / .85) 0%, rgb(42 34 33 / .6) 45%, rgb(42 34 33 / .05) 85%); }
 }
+
+/* More colour (2026-11-25): a second, warmer yellow (sunflower) next to the pale butter and the gold, and the
+   teal used with clear outlines so it is noticeable. Sunflower is for fills behind dark text only. */
+:root { --sun: #F2B33D; --sun-soft: #FCE7B2; --sun-ink: #6B4A08; }
+/* Hero photo: one still image, sharp, no fade. */
+.hero-video .hero-media { transition: none; }
+.hero-video h1 .hl { background: var(--sun); }
+.hero-points li::before { color: var(--sun); }
+
+/* Search card: a sunflower strip on top so the box stands out from the cream page. */
+.search .card { border-top: 8px solid var(--sun); }
+
+/* "איך לומדים?" / "סוג לימוד": every option is outlined, the chosen one is solid teal. */
+.search .seg { background: var(--surface); border: 2px solid var(--purple); padding: 4px; gap: 4px; border-radius: 12px; }
+.search .seg button { color: var(--purple-ink); border: 1.5px solid var(--purple-soft); background: #F4FAF8; }
+.search .seg button:hover { border-color: var(--purple); }
+.search .seg button[aria-pressed="true"] { background: var(--purple); color: #fff; border-color: var(--purple); }
+
+/* The main search button: sunflower, ink outline and a solid offset shadow, with a magnifier. Presses in on click. */
+.search .go { display: inline-flex; align-items: center; justify-content: center; gap: 10px; background: var(--sun); color: var(--ink);
+  border: 2px solid var(--ink); border-radius: 14px; box-shadow: 4px 4px 0 var(--ink); font-family: var(--display); font-size: 20px;
+  transition: transform .12s ease, box-shadow .12s ease, background-color .12s ease; }
+.search .go::before { content: ""; width: 20px; height: 20px; flex: none; background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='m20 20-4.6-4.6'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='m20 20-4.6-4.6'/%3E%3C/svg%3E") center / contain no-repeat; }
+.search .go small { font-family: var(--body); font-weight: 700; opacity: 1; background: var(--surface); border: 1.5px solid var(--ink); border-radius: 999px; padding: 1px 9px; font-size: 13.5px; }
+.search .go:hover { background: #F5BE55; transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--ink); }
+.search .go:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+@media (min-width: 760px) { .search .card .go { height: 54px; } }
+@media (prefers-reduced-motion: reduce) { .search .go { transition: none; } .search .go:hover { transform: none; } }
+
+/* Colour further down the home page. */
+.track { border: 2px solid var(--ink); }
+.track .units { background: var(--sun-soft); color: var(--sun-ink); border: 1.5px solid var(--sun); }
+.track:hover { background: #FFF6DC; }
+.tracks > :nth-child(3n+2) .units { background: var(--purple-soft); color: var(--purple-ink); border-color: var(--purple); }
+.step .n { background: var(--sun); border-color: var(--ink); }
+.sec-head h2 { box-shadow: inset 0 -0.38em 0 var(--sun-soft); justify-self: start; padding-inline: 2px; }
