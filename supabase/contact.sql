@@ -10,7 +10,7 @@ alter table public.profiles add constraint profiles_phone_len check (phone is nu
 -- could save their own profile. is_admin() is security definer and reads the row without recursing.
 drop policy if exists "update own profile" on public.profiles;
 create policy "update own profile" on public.profiles for update using (id = (select auth.uid()))
-  with check (id = (select auth.uid()) and is_admin = (select public.is_admin()));
+  with check (id = (select auth.uid()));  -- is_admin is locked by the protect_profile_fields trigger
 
 -- 2. Inquiries: the student picks how the tutor may reach them (site chat / phone / email).
 --    A phone number is no longer required: someone who wants only the site chat gives none.
