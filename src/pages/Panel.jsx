@@ -280,7 +280,15 @@ function InquiryItem({ q, onChange, showTutor, open, onToggle, askLesson }) {
         <span className="inq-toggle">{open ? 'פתיחת השיחה' : 'פתיחת השיחה'}</span>
       </button>
       {open ? (<ChatOverlay who={q.name} avatar={{ name: q.name }} status={q.status} onClose={onToggle}>
-      <p className="via-line chat-win-info">דרכי קשר מועדפות: {VIA.filter(([v]) => via.includes(v)).map(([, l]) => l).join(' · ')}</p>
+      <div className="inq-contact chat-win-info">
+        <b className="inq-contact-h">פרטי הקשר של {first}</b>
+        <div className="inq-contact-row">
+          {q.phone ? <a className="ic-item" href={`tel:${q.phone.replace(/[^\d+]/g, '')}`}><span>טלפון</span><bdi dir="ltr">{q.phone}</bdi></a> : null}
+          {q.email ? <a className="ic-item" href={mail}><span>מייל</span><bdi dir="ltr">{q.email}</bdi></a> : null}
+          {!q.phone && !q.email ? <span className="muted-text">אין פרטים בפנייה הזו. אפשר לענות בצ׳אט.</span> : null}
+        </div>
+        <span className="muted-text small">מעדיפים: {VIA.filter(([v]) => via.includes(v)).map(([, l]) => l).join(' · ')}</span>
+      </div>
       {showLessonAsk ? (
         <p className="lesson-ask chat-win-info" role="status">
           <span><b>קבעתם שיעור עם {first}?</b> סמנו, ו{first} ייספר בפרופיל שלכם כתלמיד ויוכל לכתוב ביקורת (רק תלמידים שסימנתם יכולים). רק שיעור שבאמת נקבע: אנחנו שואלים גם את התלמיד.</span>
