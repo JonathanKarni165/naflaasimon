@@ -88,8 +88,8 @@ export default function Tutor({ id }) {
           <div className="side-card">
             <h2 className="side-h">מחיר לשעה</h2>
             <div className="side-prices">
-              {tutor.teachesFrontal && tutor.priceFrontal ? <div><span>פרונטלי</span><b><bdi>{money(tutor.priceFrontal)}</bdi></b><small>{tutor.city}</small></div> : null}
-              {tutor.teachesOnline && tutor.priceOnline ? <div><span>אונליין</span><b><bdi>{money(tutor.priceOnline)}</bdi></b><small>זום או לוח משותף</small></div> : null}
+              {tutor.teachesFrontal && tutor.priceFrontal ? <div className="sp-frontal"><PriceArt kind="frontal" /><span>פרונטלי</span><b><bdi>{money(tutor.priceFrontal)}</bdi></b><small>{tutor.city}</small></div> : null}
+              {tutor.teachesOnline && tutor.priceOnline ? <div className="sp-online"><PriceArt kind="online" /><span>אונליין</span><b><bdi>{money(tutor.priceOnline)}</bdi></b><small>זום או לוח משותף</small></div> : null}
             </div>
             <h2 className="side-h">פנייה למורה</h2>
             <InquiryBox tutor={tutor} />
@@ -214,5 +214,26 @@ function ReviewList({ tutor, reviews, after, loaded }) {
         <button type="button" className="btn btn-line more-reviews" onClick={() => setShown(SHOWN_REVIEWS)}>הסתרת ביקורות</button>
       ) : null}
     </>
+  );
+}
+
+// Small line drawings in the price boxes: a laptop for online lessons, two people at a table for frontal ones.
+function PriceArt({ kind }) {
+  return (
+    <svg className="sp-art" viewBox="0 0 48 40" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      {kind === 'online' ? (
+        <>
+          <rect x="9" y="6" width="30" height="20" rx="2.5" fill="#fff" />
+          <path d="M4 31h40l-3 4H7z" fill="#DFC166" />
+          <path d="M16 15l4 4 8-8" stroke="#0F5C5B" />
+        </>
+      ) : (
+        <>
+          <circle cx="14" cy="11" r="5" fill="#fff" /><circle cx="34" cy="11" r="5" fill="#DFC166" />
+          <path d="M6 28c0-5 3.6-9 8-9s8 4 8 9M26 28c0-5 3.6-9 8-9s8 4 8 9" />
+          <path d="M3 31h42" stroke="#0F5C5B" />
+        </>
+      )}
+    </svg>
   );
 }
