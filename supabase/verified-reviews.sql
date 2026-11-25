@@ -8,6 +8,7 @@
 -- Students per tutor = students the tutor marked "נקבע שיעור" + approved group seats (+ reviewers, who are always one of those).
 -- Emails (edge function review-reminders, called hourly by pg_cron, only 09:00-21:00 Israel time):
 --   - to the student ~2 days and ~10 days after the tutor marked the lesson: "מה דעתך על ...?" (stops once they reviewed);
+--   - once to every approved tutor (and to each newly approved one): mark your active students, it lifts you in search;
 --   - to the tutor ~3 days after opening a student's details (or a two-way chat) without marking a lesson: "התקיים שיעור?".
 
 -- 1. When contact happened --------------------------------------------------------------------------
@@ -146,6 +147,9 @@ language sql stable security definer set search_path = public as $$
 $$;
 grant execute on function public.tutor_student_counts() to anon, authenticated;
 
+-- When the one-time "mark your active students" email went to the tutor.
+alter table public.tutors add column if not exists students_tip_at timestamptz;
+
 -- 5. Which emails are due (the edge function calls this with the service key, then sends) -----------
 -- Each email is claimed once: the row is stamped in the same statement, so two runs can't both send it.
 create or replace function public.claim_review_reminders() returns table (kind text, inquiry_id uuid, user_id uuid, tutor_id uuid, booked boolean)
@@ -206,6 +210,19 @@ begin
     update public.inquiries q set lesson_ask_at = now() from due where q.id = due.id returning q.id
   )
   select 'lesson'::text, due.id, due.user_id, due.tutor_id, false from due;
+
+  -- Once per tutor with an account and an approved profile: "mark your active students". 40 per hour, so it spreads out.
+  return query
+  with due as (
+    select t.id from public.tutors t
+     where t.owner_id is not null and coalesce(t.approval, 'approved') = 'approved'
+       and not coalesce(t.is_example, false) and t.students_tip_at is null
+     order by t.created_at
+     limit 40
+  ), stamp as (
+    update public.tutors t set students_tip_at = now() from due where t.id = due.id returning t.id
+  )
+  select 'tip'::text, null::uuid, null::uuid, due.id, false from due;
 end $$;
 revoke all on function public.claim_review_reminders() from public, anon, authenticated;
 grant execute on function public.claim_review_reminders() to service_role;

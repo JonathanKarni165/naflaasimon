@@ -2,6 +2,7 @@
 // pg_cron calls this every hour. Which emails are due is decided in the database (claim_review_reminders):
 // each one is stamped as sent in the same statement, so calling this URL again never sends anything twice.
 //  - review1 / review2: to the student, ~2 and ~10 days after the tutor marked "נקבע שיעור" ("מה דעתך על ...?").
+//  - tip: once to every approved tutor: mark your active students ("נקבע שיעור"), it lifts you in search.
 //  - lesson: to the tutor, ~3 days after opening a student's details (or a two-way chat) without marking "נקבע שיעור".
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import { SITE, esc, layout, button, send } from '../_shared/mail.ts';
@@ -22,7 +23,8 @@ Deno.serve(async (req) => {
   const userIds = [...new Set(due.map((d: any) => d.user_id).filter(Boolean))];
   const { data: people } = await db.from('profiles').select('id, name').in('id', userIds);
   const pmap = Object.fromEntries((people || []).map((p: any) => [p.id, p]));
-  const { data: inqs } = await db.from('inquiries').select('id, name').in('id', due.map((d: any) => d.inquiry_id));
+  const inqIds = due.map((d: any) => d.inquiry_id).filter(Boolean);
+  const { data: inqs } = inqIds.length ? await db.from('inquiries').select('id, name').in('id', inqIds) : { data: [] };
   const qmap = Object.fromEntries((inqs || []).map((q: any) => [q.id, q]));
   const emailOf = async (uid: string) => (uid ? (await db.auth.admin.getUserById(uid)).data?.user?.email || '' : '');
 
@@ -32,6 +34,37 @@ Deno.serve(async (req) => {
       const t = tmap[d.tutor_id];
       if (!t) continue;
       const tFirst = firstOf(t.name);
+      if (d.kind === 'tip') {
+        const to = await emailOf(t.owner_id);
+        if (!to) continue;
+        const link = `${SITE}#panel-inbox`;
+        const subject = 'טיפ: ככה עולים בחיפוש בנפל האסימון';
+        const text = `היי ${tFirst},
+
+יש לך תלמידים פעילים מהאתר? סמנו "נקבע שיעור" בפנייה של כל אחד מהם בפאנל המורה: ${link}
+
+מה זה נותן לך:
+- מורים עם יותר תלמידים פעילים עולים גבוה יותר בחיפוש.
+- מספר התלמידים מוצג בפרופיל שלך ("תלמידים דרך נפל האסימון").
+- רק תלמידים שסימנת יכולים לכתוב עליך ביקורת, וביקורות טובות מקדמות אותך עוד.
+
+תלמידים בקבוצות נספרים כשמאשרים אותם לקבוצה.
+חשוב לסמן רק שיעור שבאמת התקיים: אנחנו שואלים גם את התלמיד.`;
+        const html = layout(subject, `<p>היי ${esc(tFirst)},</p>
+          <p>יש לך תלמידים פעילים מהאתר? סמנו <b>"נקבע שיעור"</b> בפנייה של כל אחד מהם בפאנל המורה.</p>
+          <p style="margin:14px 0 6px"><b>מה זה נותן לך:</b></p>
+          <ul style="margin:0;padding-right:20px">
+            <li><b>עולים בחיפוש:</b> מורים עם יותר תלמידים פעילים מופיעים גבוה יותר.</li>
+            <li><b>מספר התלמידים מוצג בפרופיל שלך</b> ("תלמידים דרך נפל האסימון").</li>
+            <li><b>ביקורות:</b> רק תלמידים שסימנת יכולים לכתוב עליך ביקורת, וביקורות טובות מקדמות אותך עוד.</li>
+          </ul>
+          ${button(link, 'לפניות שלי')}
+          <p style="margin-top:18px;font-size:14px;color:#4F4644">תלמידים בקבוצות נספרים כשמאשרים אותם לקבוצה. חשוב לסמן רק שיעור שבאמת התקיים: אנחנו שואלים גם את התלמיד, וכך המספרים באתר נשארים אמינים.</p>`,
+          'קיבלת את המייל כי יש לך פרופיל מורה מאושר בנפל האסימון.');
+        await send({ to, subject, html, text });
+        sent++;
+        continue;
+      }
       if (d.kind === 'lesson') {
         const to = await emailOf(t.owner_id);
         if (!to) continue;
@@ -41,7 +74,7 @@ Deno.serve(async (req) => {
         const text = `היי ${tFirst},\n\nלפני כמה ימים יצרת קשר עם ${student} דרך נפל האסימון.\nאם קבעתם שיעור, סמנו "נקבע שיעור" בפנייה: ${link}\n\nכל תלמיד שמסומן נספר בפרופיל שלך ("תלמידים דרך נפל האסימון") ויוכל לכתוב עליך ביקורת. רק תלמיד שסימנת יכול לכתוב ביקורת.\nחשוב לסמן רק שיעור שבאמת נקבע: אנחנו שואלים גם את התלמיד.`;
         const html = layout(subject, `<p>היי ${esc(tFirst)},</p>
           <p>לפני כמה ימים יצרת קשר עם <b>${esc(student)}</b> דרך האתר. קבעתם שיעור?</p>
-          <p>אם כן, סמנו <b>"נקבע שיעור"</b> בפנייה. כל תלמיד שמסומן נספר בפרופיל שלך (<b>"תלמידים דרך נפל האסימון"</b>) ויוכל לכתוב עליך ביקורת. רק תלמידים שסימנת יכולים לכתוב ביקורות, אז זו הדרך לצבור ביקורות.</p>
+          <p>אם כן, סמנו <b>"נקבע שיעור"</b> בפנייה. כל תלמיד שמסומן נספר בפרופיל שלך (<b>"תלמידים דרך נפל האסימון"</b>) ויוכל לכתוב עליך ביקורת. תלמידים מסומנים גם מקדמים אותך בחיפוש.</p>
           ${button(link, 'לפנייה של ' + student)}
           <p style="margin-top:18px;font-size:14px;color:#4F4644">חשוב לסמן רק שיעור שבאמת נקבע: אנחנו מאמתים מול התלמיד, וכך המספר בפרופיל שלך נשאר אמין.</p>`,
           'קיבלת את המייל כי יצרת קשר עם תלמיד דרך פאנל המורה בנפל האסימון.');
