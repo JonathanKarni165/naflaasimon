@@ -191,7 +191,7 @@ export default function Home() {
 // with the same math). 2400px source so it stays sharp on wide and retina screens.
 // [file stem, focus on wide screens, focus on phones], so the crop keeps the people in view on both.
 const HERO_PHOTOS = [['01', '42% 55%', '34% 50%'], ['02', '50% 55%', '72% 55%'], ['03', '40% 45%', '22% 45%'], ['04', '50% 40%', '30% 40%'],
-  ['05', '45% 35%', '42% 35%'], ['06', '50% 60%', '32% 60%'], ['07', '35% 35%', '40% 35%'], ['08', '60% 35%', '72% 35%'], ['09', '30% 60%', '44% 60%']];
+  ['05', '45% 35%', '42% 35%'], ['06', '50% 60%', '32% 60%'], ['08', '60% 35%', '72% 35%'], ['09', '30% 60%', '44% 60%']];
 const HERO_EVERY = 3 * 3600e3;
 function HeroPhoto() {
   const [n, pos, mpos] = HERO_PHOTOS[Math.floor(Date.now() / HERO_EVERY) % HERO_PHOTOS.length];
