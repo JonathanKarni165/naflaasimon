@@ -519,7 +519,9 @@ export function InquiryBox({ tutor }) {
   // A tutor who ticked no course in this subject still gets the subject's school tracks, so the student can say which one.
   // Everything the tutor ticked under this subject: tracks (5 יח״ל), courses (חדו״א 1) and topics (מכניקה).
   // Courses for each chosen subject (several subjects and several courses can be picked).
-  const coursesOf = (subj) => { const st = subtopicsOf(subj); const mine = (tutor.topics || []).filter((x) => st.includes(x)); return mine.length ? mine : schoolCoursesOf(subj); };
+  // The school chapter "חדו״א" next to the university courses "חדו״א 1/2" looked like the same course twice: show one.
+  const dedupe = (list) => (list.some((x) => /^חדו״א \d/.test(x)) ? list.filter((x) => x !== 'חדו״א') : list);
+  const coursesOf = (subj) => { const st = subtopicsOf(subj); const mine = (tutor.topics || []).filter((x) => st.includes(x)); return dedupe(mine.length ? mine : schoolCoursesOf(subj)); };
   const inqGroups = f.subjects.map((subj) => [subj, coursesOf(subj)]).filter(([, list]) => list.length);
   const toggleSubject = (x) => setF((v) => {
     const subjects = v.subjects.includes(x) ? v.subjects.filter((y) => y !== x) : [...v.subjects, x];
@@ -689,9 +691,10 @@ export function InquiryBox({ tutor }) {
             </div>
             <div className="wiz-actions">
               {step < 2
-                ? <button type="submit" className="btn btn-brand" disabled={!canNext}>{step === 1 && !f.slots.length ? 'דילוג והמשך' : 'המשך'}</button>
+                ? <button type="submit" className="btn btn-brand" disabled={!canNext} aria-describedby={!canNext ? 'iq-missing' : undefined}>{step === 1 && !f.slots.length ? 'דילוג והמשך' : 'המשך'}</button>
                 : <button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'שולחים…' : 'שליחת הפנייה'}</button>}
               {step > 0 ? <button type="button" className="btn btn-ghost" onClick={() => setStep(step - 1)}>חזרה</button> : null}
+              {!canNext ? <p className="hint wiz-missing" id="iq-missing">כדי להמשיך, בחרו {[!f.lessons && 'כמה שיעורים', !f.goal && 'מה המטרה'].filter(Boolean).join(' ו')}.</p> : null}
             </div>
           </>
         )}
@@ -865,14 +868,15 @@ export function WherePicker({ id, value, onChange, placeholder = 'עיר או ש
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const ref = useRef(null);
-  const shown = value === 'online' ? 'אונליין' : value;
+  const shown = value === 'online' ? '' : value;
   const typed = (shown || '').trim();
   // A value that was picked from the list (e.g. "חיפה") must not hide the other cities: show them all.
   const nbLabel = (n) => `${n.name}, ${n.city}`;
   const picked = WHERE_FIXED.some(([, l]) => l === typed) || CITIES.some((c) => c.name === typed) || NEIGHBORHOODS.some((n) => nbLabel(n) === typed);
   const q = picked ? '' : typed;
   const opts = [
-    ...WHERE_FIXED.filter(([, l]) => !q || l.includes(q)),
+    // "אונליין" is chosen in "איך לומדים?", so the place list offers places only.
+    ...WHERE_FIXED.filter(([v, l]) => v !== 'online' && (!q || l.includes(q))),
     ...CITIES.filter((c) => !q || c.name.includes(q)).map((c) => [c.name, c.name]),
     // Neighbourhoods only show once something is typed, so the empty list stays short.
     ...(q ? NEIGHBORHOODS.filter((n) => nbLabel(n).includes(q.replace(/^שכונת\s+|^שכונה\s+/, ''))).map((n) => [nbLabel(n), 'שכונת ' + nbLabel(n)]) : []),
@@ -1170,7 +1174,7 @@ export function Header() {
           </nav>
           <div className="top-actions">
             {user ? <UserMenu /> : route.name === 'login' || route.name === 'signup' ? null : <button type="button" className="btn btn-line" onClick={() => setLoginOpen(true)}>כניסה / הרשמה</button>}
-            {isTutor ? null : <a className="btn btn-brass hide-sm" href={to('panel')}>פתיחת פרופיל מורה</a>}
+            {isTutor ? null : <a className="btn btn-brass hide-sm" href={to('panel-new')}>פתיחת פרופיל מורה</a>}
           </div>
         </div>
       </header>
@@ -1203,7 +1207,7 @@ export function Footer() {
     <footer>
       <div className="wrap">
         <nav aria-label="קישורים">
-          <a href={to('search')}>חיפוש מורים</a><a href={to('groups')}>קבוצות למידה</a><a href={to('groups-marathons')}>מרתונים</a><a href={to('panel')}>למורים</a><a href={to('about')}>אודות</a><a href={to('terms')}>תנאי שימוש</a><a href={to('privacy')}>מדיניות פרטיות</a><a href={to('cookies')}>עוגיות</a><a href={to('accessibility')}>הצהרת נגישות</a><a href={to('contact')}>צור קשר</a>
+          <a href={to('search')}>חיפוש מורים</a><a href={to('groups')}>קבוצות למידה</a><a href={to('groups-marathons')}>מרתונים</a><a href={to('panel-new')}>למורים</a><a href={to('about')}>אודות</a><a href={to('terms')}>תנאי שימוש</a><a href={to('privacy')}>מדיניות פרטיות</a><a href={to('cookies')}>עוגיות</a><a href={to('accessibility')}>הצהרת נגישות</a><a href={to('contact')}>צור קשר</a>
         </nav>
         <p>© 2026 נפל האסימון · מורים פרטיים למתמטיקה ועוד
           {api.mode === 'demo' ? <> · <button type="button" className="linkish" onClick={() => { api.resetDemo(); reload(); notify('נתוני ההדגמה אופסו'); }}>איפוס נתוני ההדגמה</button></> : null}

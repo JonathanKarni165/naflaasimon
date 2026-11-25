@@ -62,7 +62,8 @@ function PanelTabs() {
   const [mine, loading, , , loaded] = useMyTutor();
   const isTutor = !!mine;
   // A student who opened "פתיחת פרופיל מורה" (#panel) gets the sign-up form, without the tutor tabs.
-  const becoming = !isTutor && route.name === 'panel';
+  // Only /panel-new/ ("פתיחת פרופיל מורה") opens the tutor sign-up form; plain /panel/ sends a non-tutor to their own conversations.
+  const becoming = !isTutor && route.name === 'panel-new';
   // #chat-<inquiry id> opens that one conversation inside "השיחות וההרשמות שלי".
   const allowed = (k) => (!ADMIN_TABS.includes(k) || user.isAdmin) && (isTutor || !TUTOR_TABS.includes(k) || (becoming && k === 'panel'));
   const wanted = route.name === 'chat' ? 'panel-seats' : TABS.some(([k]) => k === route.name) && allowed(route.name) ? route.name : becoming ? 'panel' : isTutor ? 'panel' : 'panel-seats';
@@ -82,11 +83,11 @@ function PanelTabs() {
       <div className="page-head"><h1>האזור האישי</h1><p className="muted-text">שלום {user.name}{user.isAdmin ? ' · ניהול האתר' : ''}</p></div>
       {areaKeys.length > 1 ? (
         <nav className="area-switch" aria-label="אזורים">
-          {areaKeys.map((k) => <a key={k} href={to(AREAS[k].home)} aria-current={area === k ? 'page' : undefined}>{AREAS[k].label}</a>)}
+          {areaKeys.map((k) => <a key={k} href={to(k === 'tutor' && becoming ? 'panel-new' : AREAS[k].home)} aria-current={area === k ? 'page' : undefined}>{AREAS[k].label}</a>)}
         </nav>
       ) : null}
       <nav className="tabs" aria-label={AREAS[area].label}>
-        {tabs.map(([k, label]) => <a key={k} href={to(k)} aria-current={tab === k ? 'page' : undefined}>{label}{k === 'panel-inbox' ? <FreshBadge /> : null}</a>)}
+        {tabs.map(([k, label]) => <a key={k} href={to(k === 'panel' && becoming ? 'panel-new' : k)} aria-current={tab === k ? 'page' : undefined}>{label}{k === 'panel-inbox' ? <FreshBadge /> : null}</a>)}
       </nav>
       {tab === 'panel' && <MyProfile />}
       {tab === 'panel-inbox' && <Inbox />}
@@ -138,8 +139,9 @@ function MyProfile() {
           <div className="form-actions">
             <button type="button" className="btn btn-brand" onClick={() => setEditing(true)}>עריכה</button>
             <a className="btn btn-line" href={to(`tutor-${mine.id}`)}>איך תלמידים רואים אותי</a>
-            <a className="btn btn-line" href={to('panel-groups')}>פתיחת קבוצה</a>
+            {mine.approval === 'approved' ? <a className="btn btn-line" href={to('panel-groups')}>פתיחת קבוצה</a> : null}
           </div>
+          {mine.approval !== 'approved' ? <p className="hint">פתיחת קבוצות למידה תהיה אפשרית אחרי שהפרופיל יאושר.</p> : null}
         </div>
       </div>
       <Stats tutorId={mine.id} contactCount={mine.contactCount} />
@@ -356,7 +358,7 @@ function DeleteAccount() {
       ) : (
         <div className="decline-box">
           <b>המחיקה סופית ואי אפשר לבטל אותה.</b>
-          <p className="hint">יימחקו הפרטים שלכם, הפניות והשיחות עם מורים, ההרשמות לקבוצות והביקורות שכתבתם. אם יש לכם פרופיל מורה, גם הוא והקבוצות שלו יימחקו.</p>
+          <p className="hint">יימחקו הפרטים שלכם, הפניות והשיחות עם מורים, ההרשמות לקבוצות והביקורות שכתבתם. אם יש לכם פרופיל מורה, גם הוא והקבוצות שלו יימחקו. כל עוד יש תלמידים רשומים לקבוצה פעילה שלכם, אי אפשר למחוק את החשבון.</p>
           <label className="field-label" htmlFor="del-confirm">כדי לאשר, כתבו: מחיקה</label>
           <input id="del-confirm" className="input" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" />
           <div className="decline-actions">
@@ -569,7 +571,7 @@ function MyGroups() {
       <div className="panel-empty">
         <h2>קודם פותחים פרופיל מורה</h2>
         <p className="muted-text">קבוצה תמיד מופיעה עם המורה שמעביר אותה, כדי שתלמידים יוכלו לראות ביקורות ולפנות.</p>
-        <a className="btn btn-brand" href={to('panel')}>פתיחת פרופיל מורה</a>
+        <a className="btn btn-brand" href={to('panel-new')}>פתיחת פרופיל מורה</a>
       </div>
     );
   }
