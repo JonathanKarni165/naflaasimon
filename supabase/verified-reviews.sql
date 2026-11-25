@@ -1,11 +1,12 @@
 -- נפל האסימון: verified reviews (approved by the user 2026-11-25). Run AFTER round8.sql. Safe to run again.
 --
--- A student may review a tutor ("מורה שלי") once real contact happened through the site, any of:
+-- Any signed-in user may leave ONE review + rating per tutor (not on themselves). A review is "תלמיד מאומת"
+-- (verified, weighs 3x in the average and the ranking) when real contact happened through the site, any of:
 --   1. two-way chat: at least one chat message from the student AND one from the tutor on the same inquiry;
 --   2. the student shared a phone or email in the inquiry and the tutor opened the inquiry window that shows them;
 --   3. the tutor marked "נקבע שיעור";
 --   (and, as before, an approved seat in one of the tutor's groups).
--- One review per student and tutor, editable. Public name: first name + last initial ("דנה ל."), minors "תלמיד/ה".
+-- Those tutors are the student's "מורה שלי". One review per person and tutor, editable. Public name: first name + last initial ("דנה ל."), minors "תלמיד/ה".
 -- Students per tutor = people who reviewed them + students the tutor marked "נקבע שיעור" + approved group seats.
 -- Emails (edge function review-reminders, called hourly by pg_cron, only 09:00-21:00 Israel time):
 --   - to the student ~2 days and ~10 days after contact: "מה דעתך על ...?" (stops once they reviewed);
@@ -95,9 +96,11 @@ $$;
 revoke all on function public.my_tutors() from public, anon;
 grant execute on function public.my_tutors() to authenticated;
 
+-- Any signed-in user, not the tutor themselves, one review per person (Gmail aliases count as the same address).
 create or replace function public.can_review(t uuid) returns boolean
 language sql stable security definer set search_path = public as $$
-  select exists (select 1 from public.my_tutors() m where m.tutor_id = t)
+  select auth.uid() is not null
+     and not exists (select 1 from public.tutors x where x.id = t and x.owner_id = auth.uid())
      and not exists (select 1 from public.reviews r join public.profiles p on p.id = r.user_id
                      where r.tutor_id = t and r.user_id <> auth.uid()
                        and public.norm_email(p.email) = public.norm_email((select email from public.profiles where id = auth.uid())));
@@ -105,6 +108,37 @@ $$;
 revoke all on function public.can_review(uuid) from public, anon;
 grant execute on function public.can_review(uuid) to authenticated;
 -- The "reviews insert" policy (round6.sql) already calls can_review(); editing your own review stays allowed.
+
+-- Verified ("תלמיד מאומת"): set by the database, never by the browser. Kept up to date when contact happens later.
+alter table public.reviews add column if not exists verified boolean not null default false;
+create or replace function public.is_my_tutor(u uuid, t uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.inquiries q where q.user_id = u and q.tutor_id = t
+                   and (q.booked_at is not null or (q.contact_at is not null and q.status <> 'declined')))
+      or exists (select 1 from public.group_seats s join public.groups g on g.id = s.group_id
+                  where s.user_id = u and g.tutor_id = t and s.status = 'approved');
+$$;
+revoke all on function public.is_my_tutor(uuid, uuid) from public, anon, authenticated;
+
+create or replace function public.on_contact_verify() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare u uuid; t uuid;
+begin
+  if tg_table_name = 'group_seats' then
+    u := new.user_id; select g.tutor_id into t from public.groups g where g.id = new.group_id;
+  else u := new.user_id; t := new.tutor_id; end if;
+  if u is not null and t is not null then
+    update public.reviews set verified = public.is_my_tutor(u, t) where user_id = u and tutor_id = t;
+  end if;
+  return null;
+end $$;
+revoke execute on function public.on_contact_verify() from anon, authenticated, public;
+drop trigger if exists contact_verify on public.inquiries;
+create trigger contact_verify after update of contact_at, booked_at, status on public.inquiries
+  for each row execute function public.on_contact_verify();
+drop trigger if exists contact_verify on public.group_seats;
+create trigger contact_verify after insert or update of status on public.group_seats
+  for each row execute function public.on_contact_verify();
 
 -- 3. The name shown on a review ---------------------------------------------------------------------
 -- Set by the database from the profile, so nobody can post under another name. Under 18: "תלמיד/ה".
@@ -124,6 +158,7 @@ create or replace function public.review_fill() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
   new.user_name := coalesce(public.reviewer_name(new.user_id), 'תלמיד/ה');
+  new.verified := public.is_my_tutor(new.user_id, new.tutor_id);
   if tg_op = 'UPDATE' then new.created_at := old.created_at; new.updated_at := now(); else new.created_at := now(); end if;
   return new;
 end $$;
@@ -135,6 +170,20 @@ create trigger review_fill before insert or update on public.reviews
 -- Real (non-example) reviews written before this file get the short name too.
 update public.reviews r set user_name = coalesce(public.reviewer_name(r.user_id), 'תלמיד/ה')
   from public.tutors t where t.id = r.tutor_id and not coalesce(t.is_example, false);
+
+-- Rating with weights: a verified review counts 3 times (one number, change it here to retune).
+-- rating_weight (= regular + 3 x verified) is the "how much evidence" number the site's Bayesian ranking uses.
+create or replace function public.verified_review_weight() returns numeric language sql immutable as $$ select 3::numeric $$;
+drop view if exists public.tutor_stats;
+create view public.tutor_stats with (security_invoker = true) as
+  select tutor_id,
+         count(*)::int as rating_count,
+         count(*) filter (where verified)::int as verified_count,
+         sum(case when verified then public.verified_review_weight() else 1 end)::float as rating_weight,
+         (sum(rating * case when verified then public.verified_review_weight() else 1 end)
+           / sum(case when verified then public.verified_review_weight() else 1 end))::float as rating_avg
+    from public.reviews group by tutor_id;
+grant select on public.tutor_stats to anon, authenticated;
 
 -- 4. Students per tutor (public numbers only, no names) ---------------------------------------------
 create or replace function public.tutor_student_counts() returns table (tutor_id uuid, students int)

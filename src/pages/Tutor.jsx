@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, useLoad, to } from '../state.jsx';
-import { bayesScore, globalMean } from '../lib/ranking.js';
+import { bayesScore, globalMean, reviewWeight } from '../lib/ranking.js';
 import { money, dateShort, rating1, reviewsLabel } from '../lib/format.js';
 import { Avatar, EduIcon, Stars, StarRow, Verified, InquiryBox, GroupCard, WeekGrid, ConfirmButton, Loading, Empty, placeLabel, ReportTutor, MyTutorBadge, useMyTutorEntry, studentsLabel } from '../components/ui.jsx';
 import { topicsBySubject } from '../data/topics.js';
@@ -12,7 +12,7 @@ export default function Tutor({ id }) {
   const tutor = fresh || (loading ? (tutors || []).find((t) => t.id === id) : null) || null;
   const [reviews, , , refreshReviews] = useLoad(() => api.listReviews(id), [id]);
   const myGroups = useMemo(() => (groups || []).filter((g) => g.tutorId === id), [groups, id]);
-  const weighted = useMemo(() => (tutor && tutors ? bayesScore(tutor.ratingAvg, tutor.ratingCount, globalMean(tutors)) : null), [tutor, tutors]);
+  const weighted = useMemo(() => (tutor && tutors ? bayesScore(tutor.ratingAvg, reviewWeight(tutor), globalMean(tutors)) : null), [tutor, tutors]);
 
   // A full screen of room while the first load runs, so the footer does not jump up and down on a direct visit (CLS).
   if (loading && !tutor) return <main className="wrap page-pad" style={{ minHeight: '100vh' }}><Loading /></main>;
@@ -113,7 +113,7 @@ function RatingSummary({ tutor, reviews, weighted }) {
       <div className="rs-big">
         <b>{rating1(tutor.ratingAvg)}</b>
         <StarRow value={Math.round(tutor.ratingAvg)} />
-        <span className="muted-text">{reviewsLabel(tutor.ratingCount)}</span>
+        <span className="muted-text">{reviewsLabel(tutor.ratingCount)}{tutor.verifiedCount ? ` · ${tutor.verifiedCount} מתלמידים מאומתים` : ''}</span>
       </div>
       <div className="rs-bars">
         {counts.map(([s, n]) => (
@@ -122,7 +122,7 @@ function RatingSummary({ tutor, reviews, weighted }) {
       </div>
       {weighted != null ? (
         <p className="rs-weighted">
-          <b>ציון משוקלל {weighted.toFixed(2)}</b> · {tutor.ratingCount < 5
+          <b>ציון משוקלל {weighted.toFixed(2)}</b> · ביקורת של תלמיד מאומת שווה פי 3 מביקורת רגילה. {tutor.ratingCount < 5
             ? 'יש עדיין מעט ביקורות, אז הציון מתקרב לממוצע באתר עד שיצטברו עוד.'
             : 'זה הציון שלפיו מדרגים בחיפוש. הוא מתחשב גם במספר הביקורות.'}
         </p>
@@ -139,16 +139,12 @@ function ReviewForm({ tutor, reviews, loaded, onDone }) {
   const [rating, setRating] = useState(0);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
-  const [blocked, setBlocked] = useState(false);
   const formRef = useRef(null);
-  // Reviews come only from people who really had contact with the tutor through the site (the database checks this too).
-  const [allowed] = useLoad(() => (user && api.canReview ? api.canReview(tutor.id) : true), [tutor.id, user?.id || '']);
   const first = tutor.name.split(' ')[0];
   const isSelf = user && user.id === tutor.ownerId;
 
   const start = () => {
     if (!requireLogin('כדי לכתוב ביקורת צריך להתחבר. ככה כל אדם כותב ביקורת אחת בלבד לכל מורה.')) return;
-    if (!mine && allowed === false && !myTutor) { setBlocked(true); return; }
     setRating(mine?.rating || 0); setText(mine?.text || ''); setOpen(true);
     setTimeout(() => formRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 60);
   };
@@ -177,7 +173,7 @@ function ReviewForm({ tutor, reviews, loaded, onDone }) {
     if (myTutor && !mine) {
       return (
         <div className="review-ask">
-          <p><b>מה דעתך על {first}?</b> הייתם בקשר דרך האתר, אז הביקורת שלכם תסומן כמאומתת. אפשר לערוך אותה אחר כך.</p>
+          <p><b>מה דעתך על {first}?</b> הייתם בקשר דרך האתר, אז הביקורת שלכם תסומן "תלמיד מאומת" ותשפיע על הדירוג פי 3. אפשר לערוך אותה אחר כך.</p>
           <button type="button" className="btn btn-brand" onClick={start}>כתיבת ביקורת</button>
         </div>
       );
@@ -185,7 +181,6 @@ function ReviewForm({ tutor, reviews, loaded, onDone }) {
     return (
       <>
         <button type="button" className="btn btn-brand" onClick={start}>{mine ? 'עריכת הביקורת שלי' : 'כתיבת ביקורת'}</button>
-        {blocked ? <p className="hint" role="status">אפשר לכתוב ביקורת רק על מורה שהייתם איתו בקשר דרך האתר: התכתבתם בצ׳אט, המורה פתח את פרטי הקשר ששיתפתם, סומן שנקבע שיעור, או שלמדתם אצלו בקבוצה. כך כל הביקורות כאן אמיתיות.</p> : null}
       </>
     );
   }
@@ -203,7 +198,7 @@ function ReviewForm({ tutor, reviews, loaded, onDone }) {
         <button type="submit" className="btn btn-brand" disabled={busy}>{busy ? 'שולחים…' : mine ? 'שמירת השינויים' : 'פרסום הביקורת'}</button>
         <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>ביטול</button>
       </div>
-      <p className="hint">ביקורת אחת לכל מורה, ואפשר לערוך אותה בכל זמן. היא תופיע בשם הפרטי ובאות הראשונה של שם המשפחה (למשל {shortName(user?.name)}). מתחת לגיל 18 יופיע רק "תלמיד/ה".</p>
+      <p className="hint">{myTutor ? 'הייתם בקשר עם המורה דרך האתר, אז הביקורת תסומן "תלמיד מאומת" ותשפיע על הדירוג פי 3. ' : 'זו תהיה ביקורת רגילה. ביקורת מסומנת "תלמיד מאומת" (ושווה פי 3 בדירוג) כשיש קשר דרך האתר: צ׳אט, פנייה שהמורה פתח, שיעור שנקבע או קבוצה. '}ביקורת אחת לכל מורה, ואפשר לערוך אותה בכל זמן. היא תופיע בשם הפרטי ובאות הראשונה של שם המשפחה (למשל {shortName(user?.name)}). מתחת לגיל 18 יופיע רק "תלמיד/ה".</p>
     </form>
   );
 }
@@ -219,7 +214,7 @@ function ReviewItem({ r, after }) {
   const { api, user } = useApp();
   return (
     <article className="review">
-      <div className="rv-top"><b>{r.userName}</b><StarRow value={r.rating} size={15} /><span className="muted-text">{dateShort(r.createdAt)}</span>{r.updatedAt ? <span className="muted-text rv-edited">(נערכה)</span> : null}{user && user.id === r.userId ? <span className="rv-verified">הביקורת שלך</span> : null}</div>
+      <div className="rv-top"><b>{r.userName}</b><StarRow value={r.rating} size={15} /><span className="muted-text">{dateShort(r.createdAt)}</span>{r.updatedAt ? <span className="muted-text rv-edited">(נערכה)</span> : null}{r.verified ? <span className="rv-verified" title="היה קשר אמיתי עם המורה דרך האתר. ביקורת כזאת שווה פי 3 בדירוג">✓ תלמיד מאומת</span> : null}{user && user.id === r.userId ? <span className="muted-text rv-edited">הביקורת שלך</span> : null}</div>
       {r.text ? <p>{r.text}</p> : null}
       {user && (user.id === r.userId || user.isAdmin) ? (
         <ConfirmButton className="linkish small" confirmText="למחוק את הביקורת?" onConfirm={async () => { await api.deleteReview(r.id); after(); }}>מחיקה</ConfirmButton>

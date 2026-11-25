@@ -39,9 +39,10 @@ function canEditTutor(t) { return user && (user.isAdmin || t.ownerId === user.id
 
 function stats(tutorId) {
   const rs = db().reviews.filter((r) => r.tutorId === tutorId);
-  const sum = rs.reduce((a, r) => a + r.rating, 0);
   const students = new Set([...rs.map((r) => r.userId), ...db().inquiries.filter((q) => q.tutorId === tutorId && q.status === 'booked').map((q) => q.userId)]);
-  return { ratingCount: rs.length, ratingAvg: rs.length ? sum / rs.length : 0, studentCount: students.size };
+  const w = (r) => (r.verified ? 3 : 1);
+  const wsum = rs.reduce((a, r) => a + w(r), 0);
+  return { ratingCount: rs.length, ratingAvg: wsum ? rs.reduce((a, r) => a + w(r) * r.rating, 0) / wsum : 0, ratingWeight: wsum, verifiedCount: rs.filter((r) => r.verified).length, studentCount: students.size };
 }
 function publicTutor(t) {
   const { phone, ...rest } = t; // the phone number never leaves the "server" without login
@@ -86,12 +87,12 @@ export async function saveMyContact({ name, phone }) {
 export async function listTutors() { return wait(db().tutors.map(publicTutor)); }
 export async function getTutor(id) { const t = db().tutors.find((x) => x.id === id); return wait(t ? publicTutor(t) : null); }
 export async function deleteMyAccount() { return wait(true); }
-export async function canReview(tutorId) {
-  if (!user) return false;
+function isMyTutor(tutorId) {
   const d = db();
-  return wait(d.inquiries.some((q) => q.tutorId === tutorId && q.userId === user.id && q.status !== 'declined')
+  return !!user && (d.inquiries.some((q) => q.tutorId === tutorId && q.userId === user.id && q.status !== 'declined')
     || d.seats.some((s) => s.userId === user.id && d.groups.find((g) => g.id === s.groupId)?.tutorId === tutorId));
 }
+export async function canReview(tutorId) { return wait(!!user && db().tutors.find((t) => t.id === tutorId)?.ownerId !== user.id); }
 export async function myTutors() {
   if (!user) return [];
   const d = db(); const ids = new Set();
@@ -220,8 +221,9 @@ export async function addReview({ tutorId, rating, text }) {
   const t = d.tutors.find((x) => x.id === tutorId);
   if (t?.ownerId === u.id) throw new Error('אי אפשר לכתוב ביקורת על עצמכם');
   const existing = d.reviews.find((r) => r.tutorId === tutorId && r.userId === u.id);
-  if (existing) Object.assign(existing, { rating, text, createdAt: new Date().toISOString() });
-  else d.reviews.push({ id: uid('r'), tutorId, userId: u.id, userName: u.name, rating, text, createdAt: new Date().toISOString() });
+  const verified = isMyTutor(tutorId);
+  if (existing) Object.assign(existing, { rating, text, verified, updatedAt: new Date().toISOString() });
+  else d.reviews.push({ id: uid('r'), tutorId, userId: u.id, userName: u.name, rating, text, verified, createdAt: new Date().toISOString() });
   save(); return wait(true);
 }
 export async function deleteReview(id) {

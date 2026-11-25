@@ -11,9 +11,12 @@ export function bayesScore(avg, count, globalMean, C = PRIOR_WEIGHT) {
   return (C * globalMean + count * avg) / (C + count);
 }
 
+/** How much rating evidence a tutor has: a verified review ("תלמיד מאומת") counts 3, a regular one 1 (set in the database). */
+export const reviewWeight = (t) => t.ratingWeight ?? t.ratingCount ?? 0;
+
 export function globalMean(tutors) {
   let sum = 0, n = 0;
-  for (const t of tutors) { sum += (t.ratingAvg || 0) * (t.ratingCount || 0); n += t.ratingCount || 0; }
+  for (const t of tutors) { sum += (t.ratingAvg || 0) * reviewWeight(t); n += reviewWeight(t); }
   return n ? sum / n : 4;
 }
 
@@ -116,7 +119,7 @@ export function sortTutors(tutors, sort, { origin, mode } = {}) {
   const m = globalMean(tutors);
   const withScore = tutors.map((t) => ({
     ...t,
-    score: bayesScore(t.ratingAvg || 0, t.ratingCount || 0, m),
+    score: bayesScore(t.ratingAvg || 0, reviewWeight(t), m),
     distance: origin ? distanceKm(origin, tutorPoint(t)) : null,
     price: priceFor(t, mode),
   }));
@@ -141,7 +144,7 @@ export function blendedRank(list, { q, topic, origin, mode } = {}) {
   const hasQ = !!(q && normText(q));
   const W = SEARCH_WEIGHTS;
   return list.map((t) => {
-    const parts = [[W.rating, Math.max(0, Math.min(1, bayesScore(t.ratingAvg || 0, t.ratingCount || 0, m) / 5))],
+    const parts = [[W.rating, Math.max(0, Math.min(1, bayesScore(t.ratingAvg || 0, reviewWeight(t), m) / 5))],
       [W.volume, Math.min(1, Math.log1p(popularity(t)) / Math.log1p(60))]];
     if (hasQ) parts.push([W.text, nameRelevance(t, q) === 2 ? 1 : 0.4]);
     if (topic) parts.push([W.topic, topicMatch(t, topic) ? 1 : 0]);
@@ -153,5 +156,5 @@ export function blendedRank(list, { q, topic, origin, mode } = {}) {
 
 /** Demand: inquiries sent through the site plus reviewers (each review is a lesson that happened). */
 export function popularity(t) {
-  return (t.contactCount || 0) + 3 * (t.ratingCount || 0);
+  return (t.contactCount || 0) + 3 * reviewWeight(t);
 }
