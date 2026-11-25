@@ -1047,3 +1047,25 @@ img.photo-bg { background: #F4E29C url("data:image/svg+xml,%3Csvg xmlns='http://
 .my-tutors-list .mt-name:hover { text-decoration: underline; }
 .lesson-ask { margin: 0; padding: 10px 14px; background: var(--brass-soft); border-bottom: 1px solid var(--line); font-size: 14.5px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
 .lesson-ask span { flex: 1 1 220px; }
+/* Tutor page side card: the site's yellows (user, 2026-11-25). Butter and pale-gold price boxes with gold
+   edges, the contact button in the coin's gold like the home search button, and the no-commission note as a
+   pale-yellow strip with the gold check. */
+.side-prices > div { background: var(--brass-soft); border: 1.5px solid var(--brass); }
+.side-prices > div + div { background: var(--sun-soft); }
+.side-prices span { color: var(--sun-ink); }
+.side-card .btn-brand { background: var(--brass); color: var(--ink); border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink);
+  font-family: var(--display); font-size: 19px; transition: transform .12s ease, box-shadow .12s ease, background-color .12s ease; }
+.side-card .btn-brand:hover:not(:disabled) { background: #E7CD7E; transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--ink); }
+.side-card .btn-brand:active:not(:disabled) { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+.side-card > .hint { display: flex; align-items: center; gap: 8px; margin: 2px 0 0; padding: 9px 12px; border-radius: 12px; background: #FBF5DF; color: var(--ink); font-weight: 600; }
+.side-card > .hint::before { content: ""; width: 20px; height: 20px; flex: none; border-radius: 50%; background: var(--brass) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233A3130' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5.5 12.5 4 4 9-9'/%3E%3C/svg%3E") center / 14px no-repeat; }
+.side-h { color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .side-card .btn-brand { transition: none; } .side-card .btn-brand:hover { transform: none; } }
+/* Teal in the prices too: the lesson type as a small teal tag, the amount in deep teal. */
+.side-prices > div { gap: 4px; justify-items: start; }
+.side-prices span { background: var(--purple); color: #fff; padding: 1px 10px; border-radius: 999px; font-size: 13.5px; }
+.side-prices b { color: var(--purple-ink); }
+.side-prices > div { position: relative; }
+.sp-art { position: absolute; top: 10px; inset-inline-end: 10px; width: 46px; height: 38px; color: var(--ink); }
+/* Price boxes back to the soft teal (user, 2026-11-25); the teal tags and drawings stay. */
+.side-prices > div, .side-prices > div + div { background: var(--purple-soft); border-color: #B7DAD4; }
