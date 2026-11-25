@@ -51,7 +51,7 @@ export default function Home() {
   return (
     <main id="top">
       <div className="hero hero-video">
-        <HeroVideo />
+        <HeroPhoto />
         <div className="hero-shade" aria-hidden="true" />
         <div className="wrap hero-v-inner">
           <h1>השיעור שבו <span className="hl">נופל האסימון</span></h1>
@@ -182,35 +182,17 @@ export default function Home() {
   );
 }
 
-// Calm, still-camera study moments on the grass (Mixkit free licence, no sound), played slowly and crossfading
-// one into the next. Only the playing clip and the next one are loaded. People who prefer reduced motion
-// or save data get the first still frame.
-// [file, where the people are in the frame], so the crop keeps them in view on wide and narrow screens.
-const HERO_CLIPS = [['img/hero-park-1.mp4', '38% 60%'], ['img/hero-park-2.mp4', '62% 85%'], ['img/hero-park-3.mp4', '35% 70%'], ['img/hero-park-4.mp4', '30% 55%']];
-const HERO_POSTER = 'img/hero-park-1.webp';
-const HERO_RATE = 0.6; // slower than real time, calm to watch
-function HeroVideo() {
-  const calm = typeof window !== 'undefined' && (
-    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || navigator.connection?.saveData);
-  const [on, setOn] = useState(0);
-  const refs = useRef([]);
-  useEffect(() => {
-    if (calm) return;
-    const v = refs.current[on];
-    if (!v) return;
-    v.playbackRate = HERO_RATE;
-    v.currentTime = 0;
-    v.play().catch(() => {});
-    const next = refs.current[(on + 1) % HERO_CLIPS.length];
-    if (next) next.preload = 'auto';
-  }, [on, calm]);
-  if (calm) return <img className="hero-media on" src={HERO_POSTER} alt="" width="1280" height="720" fetchpriority="high" style={{ objectPosition: HERO_CLIPS[0][1] }} />;
-  return HERO_CLIPS.map(([src, pos], i) => (
-    <video key={src} ref={(el) => { refs.current[i] = el; }} className={'hero-media' + (i === on ? ' on' : '')} style={{ objectPosition: pos }}
-      muted playsInline preload={i === 0 ? 'auto' : 'none'} poster={i === 0 ? HERO_POSTER : undefined} aria-hidden="true"
-      onLoadedMetadata={(e) => { e.currentTarget.playbackRate = HERO_RATE; }}
-      onEnded={() => setOn((n) => (n + 1) % HERO_CLIPS.length)}>
-      <source src={src} type="video/mp4" />
-    </video>
-  ));
+// Real study moments (Unsplash free licence): students on the grass, at a cafe, on the beach, a study group,
+// lecturers. A different photo every 3 hours, the same for everyone at that time (index.html preloads it
+// with the same math). 2400px source so it stays sharp on wide and retina screens.
+// [file stem, where the people are in the frame], so the crop keeps them in view on wide and narrow screens.
+const HERO_PHOTOS = [['01', '42% 55%'], ['02', '50% 55%'], ['03', '40% 45%'], ['04', '50% 40%'], ['05', '45% 35%'],
+  ['06', '50% 60%'], ['07', '35% 35%'], ['08', '60% 35%'], ['09', '30% 60%']];
+const HERO_EVERY = 3 * 3600e3;
+function HeroPhoto() {
+  const [n, pos] = HERO_PHOTOS[Math.floor(Date.now() / HERO_EVERY) % HERO_PHOTOS.length];
+  const stem = 'img/hero-' + n;
+  return <img className="hero-media on" src={stem + '-1280.webp'} srcSet={`${stem}-1280.webp 1280w, ${stem}-2400.webp 2400w`} sizes="100vw"
+    alt="" width="2400" height="1600" fetchpriority="high" style={{ objectPosition: pos }} />;
 }
+
