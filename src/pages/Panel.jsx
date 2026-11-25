@@ -236,8 +236,8 @@ function Inbox() {
 const DECLINE_REASONS = ['אין לי זמנים פנויים כרגע', 'הנושא או הרמה לא בתחום שלי', 'המיקום רחוק ממני'];
 function InquiryItem({ q, onChange, showTutor, open, onToggle, askLesson }) {
   const { api, notify, user } = useApp();
-  // Opening the conversation shows the student's details; when they shared a phone or email,
-  // that counts as contact and lets the student review the tutor (supabase/verified-reviews.sql).
+  // Opening the conversation shows the student's details; a few days later the site asks the tutor by email
+  // whether a lesson happened (supabase/verified-reviews.sql). Only "נקבע שיעור" lets the student review.
   useEffect(() => { if (open && q.tutor?.ownerId === user.id) api.markInquiryOpened?.(q.id); }, [open, q.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const days = q.openedAt ? (Date.now() - new Date(q.openedAt).getTime()) / 864e5 : 0;
   const showLessonAsk = q.status !== 'booked' && q.status !== 'declined' && (askLesson || days >= 2);
@@ -283,7 +283,7 @@ function InquiryItem({ q, onChange, showTutor, open, onToggle, askLesson }) {
       <p className="via-line chat-win-info">דרכי קשר מועדפות: {VIA.filter(([v]) => via.includes(v)).map(([, l]) => l).join(' · ')}</p>
       {showLessonAsk ? (
         <p className="lesson-ask chat-win-info" role="status">
-          <span><b>קבעתם שיעור עם {first}?</b> סמנו, ו{first} ייספר בפרופיל שלכם כתלמיד ויוזמן לכתוב ביקורת. רק שיעור שבאמת נקבע: אנחנו שואלים גם את התלמיד.</span>
+          <span><b>קבעתם שיעור עם {first}?</b> סמנו, ו{first} ייספר בפרופיל שלכם כתלמיד ויוכל לכתוב ביקורת (רק תלמידים שסימנתם יכולים). רק שיעור שבאמת נקבע: אנחנו שואלים גם את התלמיד.</span>
           <button type="button" className="btn btn-brand btn-sm" onClick={() => onChange({ status: 'booked' }, 'סומן: נקבע שיעור')}>כן, נקבע שיעור</button>
         </p>
       ) : null}
@@ -820,7 +820,7 @@ function MyTutors() {
   return (
     <section>
       <h2 className="sub-h">המורים שלי</h2>
-      <p className="muted-text">מורים שהייתם איתם בקשר דרך האתר. ביקורת אחת לכל מורה, ואפשר לערוך אותה בכל זמן.</p>
+      <p className="muted-text">מורים שסימנו שנקבע איתכם שיעור, או אישרו אתכם לקבוצה. ביקורת אחת לכל מורה, ואפשר לערוך אותה בכל זמן.</p>
       <ul className="my-tutors-list">
         {list.map(({ t, reviewed }) => (
           <li key={t.id}>

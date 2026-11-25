@@ -1,8 +1,8 @@
 // נפל האסימון: review requests and "did a lesson happen?" questions (supabase/verified-reviews.sql).
 // pg_cron calls this every hour. Which emails are due is decided in the database (claim_review_reminders):
 // each one is stamped as sent in the same statement, so calling this URL again never sends anything twice.
-//  - review1 / review2: to the student, ~2 and ~10 days after real contact with a tutor ("מה דעתך על ...?").
-//  - lesson: to the tutor, ~3 days after opening a student's details without marking "נקבע שיעור".
+//  - review1 / review2: to the student, ~2 and ~10 days after the tutor marked "נקבע שיעור" ("מה דעתך על ...?").
+//  - lesson: to the tutor, ~3 days after opening a student's details (or a two-way chat) without marking "נקבע שיעור".
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import { SITE, esc, layout, button, send } from '../_shared/mail.ts';
 
@@ -38,13 +38,13 @@ Deno.serve(async (req) => {
         const student = qmap[d.inquiry_id]?.name || pmap[d.user_id]?.name || 'התלמיד';
         const link = `${SITE}?lesson=${d.inquiry_id}#panel-inbox`;
         const subject = `התקיים שיעור עם ${student}?`;
-        const text = `היי ${tFirst},\n\nלפני כמה ימים פתחת את הפרטים של ${student} בנפל האסימון.\nאם קבעתם שיעור, סמנו "נקבע שיעור" בפנייה: ${link}\n\nכל תלמיד שמסומן נספר בפרופיל שלך ("תלמידים דרך נפל האסימון") ומוזמן לכתוב ביקורת.\nחשוב לסמן רק שיעור שבאמת נקבע: אנחנו שואלים גם את התלמיד.`;
+        const text = `היי ${tFirst},\n\nלפני כמה ימים יצרת קשר עם ${student} דרך נפל האסימון.\nאם קבעתם שיעור, סמנו "נקבע שיעור" בפנייה: ${link}\n\nכל תלמיד שמסומן נספר בפרופיל שלך ("תלמידים דרך נפל האסימון") ויוכל לכתוב עליך ביקורת. רק תלמיד שסימנת יכול לכתוב ביקורת.\nחשוב לסמן רק שיעור שבאמת נקבע: אנחנו שואלים גם את התלמיד.`;
         const html = layout(subject, `<p>היי ${esc(tFirst)},</p>
-          <p>לפני כמה ימים פתחת את הפרטים של <b>${esc(student)}</b>. קבעתם שיעור?</p>
-          <p>אם כן, סמנו <b>"נקבע שיעור"</b> בפנייה. כל תלמיד שמסומן נספר בפרופיל שלך (<b>"תלמידים דרך נפל האסימון"</b>) ומוזמן לכתוב עליך ביקורת.</p>
+          <p>לפני כמה ימים יצרת קשר עם <b>${esc(student)}</b> דרך האתר. קבעתם שיעור?</p>
+          <p>אם כן, סמנו <b>"נקבע שיעור"</b> בפנייה. כל תלמיד שמסומן נספר בפרופיל שלך (<b>"תלמידים דרך נפל האסימון"</b>) ויוכל לכתוב עליך ביקורת. רק תלמידים שסימנת יכולים לכתוב ביקורות, אז זו הדרך לצבור ביקורות.</p>
           ${button(link, 'לפנייה של ' + student)}
           <p style="margin-top:18px;font-size:14px;color:#4F4644">חשוב לסמן רק שיעור שבאמת נקבע: אנחנו מאמתים מול התלמיד, וכך המספר בפרופיל שלך נשאר אמין.</p>`,
-          'קיבלת את המייל כי פתחת פנייה של תלמיד בפאנל המורה בנפל האסימון.');
+          'קיבלת את המייל כי יצרת קשר עם תלמיד דרך פאנל המורה בנפל האסימון.');
         await send({ to, subject, html, text });
         sent++;
         continue;
@@ -57,14 +57,14 @@ Deno.serve(async (req) => {
       const link = `${SITE}?review=1#tutor-${d.tutor_id}`;
       const last = d.kind === 'review2';
       const subject = last ? `עדיין אפשר לספר: איך היה עם ${tFirst}?` : `מה דעתך על ${tFirst}?`;
-      const opener = d.booked ? `${tFirst} סימן/ה שנקבע ביניכם שיעור דרך נפל האסימון.` : `לפני ${last ? 'כמה זמן' : 'כמה ימים'} יצרת קשר עם ${t.name} דרך נפל האסימון.`;
+      const opener = `${tFirst} סימן/ה שנקבע ביניכם שיעור דרך נפל האסימון.`;
       const text = `היי ${sFirst},\n\n${opener} איך היה?\nביקורת קצרה עוזרת לתלמידים אחרים לבחור מורה: ${link}\n\nהביקורת תופיע בשם "${shown || 'תלמיד/ה'}", ואפשר לערוך אותה אחר כך.\nלא היה שיעור בסוף? השיבו למייל הזה וספרו לנו.${last ? '\n\nזו התזכורת האחרונה בנושא.' : ''}`;
       const html = layout(subject, `<p>היי ${esc(sFirst)},</p>
         <p>${esc(opener)} <b>איך היה?</b></p>
         <p>כמה כוכבים ומשפט או שניים עוזרים לתלמידים אחרים לבחור מורה, ול${esc(tFirst)} לדעת מה עבד.</p>
         ${button(link, `מה דעתך על ${tFirst}?`)}
         <p style="margin-top:18px;font-size:14px;color:#4F4644">הביקורת תופיע בשם <b>${esc(shown || 'תלמיד/ה')}</b>, ואפשר לערוך אותה אחר כך. לא היה שיעור בסוף? השיבו למייל הזה וספרו לנו.${last ? '<br>זו התזכורת האחרונה בנושא.' : ''}</p>`,
-        `קיבלת את המייל כי יצרת קשר עם ${esc(t.name)} דרך נפל האסימון.`);
+        `קיבלת את המייל כי ${esc(t.name)} סימן/ה שנקבע ביניכם שיעור בנפל האסימון.`);
       await send({ to, subject, html, text });
       sent++;
     } catch (e) { console.error(d.kind, d.inquiry_id, e); }

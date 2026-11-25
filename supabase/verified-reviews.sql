@@ -1,20 +1,19 @@
 -- נפל האסימון: verified reviews (approved by the user 2026-11-25). Run AFTER round8.sql. Safe to run again.
 --
--- A student may review a tutor ("מורה שלי") once real contact happened through the site, any of:
---   1. two-way chat: at least one chat message from the student AND one from the tutor on the same inquiry;
---   2. the student shared a phone or email in the inquiry and the tutor opened the inquiry window that shows them;
---   3. the tutor marked "נקבע שיעור";
---   (and, as before, an approved seat in one of the tutor's groups).
--- One review per student and tutor, editable. Public name: first name + last initial ("דנה ל."), minors "תלמיד/ה".
--- Students per tutor = people who reviewed them + students the tutor marked "נקבע שיעור" + approved group seats.
+-- Only a student may review a tutor, and a student is someone the TUTOR confirmed (user decision 2026-11-25):
+--   the tutor marked "נקבע שיעור" on their inquiry, or approved them into one of the tutor's groups.
+-- Those tutors are the student's "מורה שלי". One review per student and tutor, editable.
+-- Contact without confirmation (two-way chat, or the tutor opened an inquiry where the student shared a phone/email)
+-- does not allow a review; it makes the site ask the tutor by email whether a lesson happened. Public name: first name + last initial ("דנה ל."), minors "תלמיד/ה".
+-- Students per tutor = students the tutor marked "נקבע שיעור" + approved group seats (+ reviewers, who are always one of those).
 -- Emails (edge function review-reminders, called hourly by pg_cron, only 09:00-21:00 Israel time):
---   - to the student ~2 days and ~10 days after contact: "מה דעתך על ...?" (stops once they reviewed);
---   - to the tutor ~3 days after opening a student's details without marking a lesson: "התקיים שיעור?".
+--   - to the student ~2 days and ~10 days after the tutor marked the lesson: "מה דעתך על ...?" (stops once they reviewed);
+--   - to the tutor ~3 days after opening a student's details (or a two-way chat) without marking a lesson: "התקיים שיעור?".
 
 -- 1. When contact happened --------------------------------------------------------------------------
 alter table public.inquiries add column if not exists tutor_opened_at timestamptz;  -- the tutor opened the inquiry window
 alter table public.inquiries add column if not exists booked_at timestamptz;        -- first time marked "נקבע שיעור"
-alter table public.inquiries add column if not exists contact_at timestamptz;       -- first time any contact rule was met
+alter table public.inquiries add column if not exists contact_at timestamptz;       -- first contact: two-way chat, opened details, or booked
 alter table public.inquiries add column if not exists review_ask1_at timestamptz;   -- first review email to the student
 alter table public.inquiries add column if not exists review_ask2_at timestamptz;   -- second (last) review email
 alter table public.inquiries add column if not exists lesson_ask_at timestamptz;    -- "did a lesson happen?" email to the tutor
@@ -39,7 +38,7 @@ drop trigger if exists inquiry_contact_guard on public.inquiries;
 create trigger inquiry_contact_guard before insert or update of status on public.inquiries
   for each row execute function public.inquiry_contact_guard();
 
--- Rule 1: the second side's first chat message marks contact.
+-- Contact (for the tutor's "did a lesson happen?" email): the second side's first chat message.
 create or replace function public.on_chat_contact() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
@@ -53,7 +52,7 @@ drop trigger if exists chat_contact on public.inquiry_messages;
 create trigger chat_contact after insert on public.inquiry_messages
   for each row execute function public.on_chat_contact();
 
--- Rule 2: the tutor (the profile's owner, not an admin looking around) opened the inquiry.
+-- Contact: the tutor (the profile's owner, not an admin looking around) opened an inquiry with a shared phone/email.
 create or replace function public.mark_inquiry_opened(q uuid) returns void
 language sql security definer set search_path = public as $$
   update public.inquiries i
@@ -80,8 +79,8 @@ update public.inquiries set contact_at = booked_at where contact_at is null and 
 create or replace function public.my_tutors() returns table (tutor_id uuid, since timestamptz, reviewed boolean)
 language sql stable security definer set search_path = public as $$
   with c as (
-    select q.tutor_id, coalesce(q.contact_at, q.booked_at) as since from public.inquiries q
-     where q.user_id = auth.uid() and (q.booked_at is not null or (q.contact_at is not null and q.status <> 'declined'))
+    select q.tutor_id, q.booked_at as since from public.inquiries q
+     where q.user_id = auth.uid() and q.booked_at is not null
     union all
     select g.tutor_id, s.created_at from public.group_seats s join public.groups g on g.id = s.group_id
      where s.user_id = auth.uid() and s.status = 'approved'
@@ -155,17 +154,17 @@ declare h int := extract(hour from now() at time zone 'Asia/Jerusalem');
 begin
   if h < 9 or h >= 21 then return; end if;  -- no emails at night
 
-  -- First review request, ~2 days after contact (one per student and tutor, never after a review).
+  -- First review request, ~2 days after the tutor marked the lesson (one per student and tutor, never after a review).
   return query
   with due as (
-    select distinct on (q.user_id, q.tutor_id) q.id, q.user_id, q.tutor_id, (q.booked_at is not null) as booked
+    select distinct on (q.user_id, q.tutor_id) q.id, q.user_id, q.tutor_id, true as booked
       from public.inquiries q join public.tutors t on t.id = q.tutor_id
-     where q.user_id is not null and q.contact_at is not null and (q.booked_at is not null or q.status <> 'declined')
-       and q.contact_at <= now() - interval '2 days' and q.contact_at > now() - interval '30 days'
+     where q.user_id is not null and q.booked_at is not null
+       and q.booked_at <= now() - interval '2 days' and q.booked_at > now() - interval '30 days'
        and t.owner_id is distinct from q.user_id
        and not exists (select 1 from public.inquiries o where o.user_id = q.user_id and o.tutor_id = q.tutor_id and o.review_ask1_at is not null)
        and not exists (select 1 from public.reviews r where r.user_id = q.user_id and r.tutor_id = q.tutor_id)
-     order by q.user_id, q.tutor_id, q.contact_at desc
+     order by q.user_id, q.tutor_id, q.booked_at desc
      limit 40
   ), stamp as (
     update public.inquiries q set review_ask1_at = now() from due
@@ -173,18 +172,18 @@ begin
   )
   select 'review1'::text, due.id, due.user_id, due.tutor_id, due.booked from due;
 
-  -- Second and last request, ~10 days after contact and at least 5 days after the first.
+  -- Second and last request, ~10 days after the lesson was marked and at least 5 days after the first.
   return query
   with due as (
-    select distinct on (q.user_id, q.tutor_id) q.id, q.user_id, q.tutor_id, (q.booked_at is not null) as booked
+    select distinct on (q.user_id, q.tutor_id) q.id, q.user_id, q.tutor_id, true as booked
       from public.inquiries q join public.tutors t on t.id = q.tutor_id
-     where q.user_id is not null and q.contact_at is not null and (q.booked_at is not null or q.status <> 'declined')
-       and q.contact_at <= now() - interval '10 days' and q.contact_at > now() - interval '40 days'
+     where q.user_id is not null and q.booked_at is not null
+       and q.booked_at <= now() - interval '10 days' and q.booked_at > now() - interval '40 days'
        and t.owner_id is distinct from q.user_id
        and exists (select 1 from public.inquiries o where o.user_id = q.user_id and o.tutor_id = q.tutor_id and o.review_ask1_at <= now() - interval '5 days')
        and not exists (select 1 from public.inquiries o where o.user_id = q.user_id and o.tutor_id = q.tutor_id and o.review_ask2_at is not null)
        and not exists (select 1 from public.reviews r where r.user_id = q.user_id and r.tutor_id = q.tutor_id)
-     order by q.user_id, q.tutor_id, q.contact_at desc
+     order by q.user_id, q.tutor_id, q.booked_at desc
      limit 40
   ), stamp as (
     update public.inquiries q set review_ask2_at = now() from due
@@ -192,15 +191,16 @@ begin
   )
   select 'review2'::text, due.id, due.user_id, due.tutor_id, due.booked from due;
 
-  -- To the tutor, ~3 days after opening a student's details, when no lesson was marked.
+  -- To the tutor, ~3 days after opening the student's details or a two-way chat, when no lesson was marked.
   return query
   with due as (
     select q.id, q.user_id, q.tutor_id
       from public.inquiries q join public.tutors t on t.id = q.tutor_id
-     where t.owner_id is not null and q.tutor_opened_at is not null and q.lesson_ask_at is null
+     where t.owner_id is not null and coalesce(q.contact_at, q.tutor_opened_at) is not null and q.lesson_ask_at is null
        and q.status in ('new', 'replied') and q.booked_at is null
-       and q.tutor_opened_at <= now() - interval '3 days' and q.tutor_opened_at > now() - interval '30 days'
-     order by q.tutor_opened_at
+       and least(q.contact_at, q.tutor_opened_at) <= now() - interval '3 days'
+       and least(q.contact_at, q.tutor_opened_at) > now() - interval '30 days'
+     order by least(q.contact_at, q.tutor_opened_at)
      limit 40
   ), stamp as (
     update public.inquiries q set lesson_ask_at = now() from due where q.id = due.id returning q.id

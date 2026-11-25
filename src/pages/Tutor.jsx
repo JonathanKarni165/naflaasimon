@@ -38,7 +38,7 @@ export default function Tutor({ id }) {
               <div className="p-badges">
                 <Verified tutor={tutor} />
                 <Stars avg={tutor.ratingAvg} count={tutor.ratingCount} />
-                {tutor.studentCount ? <span className="muted-text p-students" title="תלמידים שכתבו ביקורת, שהמורה סימן איתם שיעור, או שנרשמו לקבוצה שלו"><bdi>{studentsLabel(tutor.studentCount)}</bdi> דרך נפל האסימון</span> : null}
+                {tutor.studentCount ? <span className="muted-text p-students" title="תלמידים שהמורה סימן איתם שיעור או אישר לקבוצה שלו"><bdi>{studentsLabel(tutor.studentCount)}</bdi> דרך נפל האסימון</span> : null}
                 {tutor.experienceYears ? <span className="muted-text"><bdi>{tutor.experienceYears}</bdi> שנות ניסיון</span> : null}
               </div>
               {isOwner ? <a className="btn btn-line btn-sm" href={to(user.id === tutor.ownerId ? 'panel' : 'panel-admin')}>עריכת הפרופיל</a> : null}
@@ -141,7 +141,7 @@ function ReviewForm({ tutor, reviews, loaded, onDone }) {
   const [busy, setBusy] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const formRef = useRef(null);
-  // Reviews come only from people who really had contact with the tutor through the site (the database checks this too).
+  // Only the tutor's students can review: the tutor marked a lesson with them or approved them into a group (the database checks this too).
   const [allowed] = useLoad(() => (user && api.canReview ? api.canReview(tutor.id) : true), [tutor.id, user?.id || '']);
   const first = tutor.name.split(' ')[0];
   const isSelf = user && user.id === tutor.ownerId;
@@ -177,7 +177,7 @@ function ReviewForm({ tutor, reviews, loaded, onDone }) {
     if (myTutor && !mine) {
       return (
         <div className="review-ask">
-          <p><b>מה דעתך על {first}?</b> הייתם בקשר דרך האתר, אז הביקורת שלכם תסומן כמאומתת. אפשר לערוך אותה אחר כך.</p>
+          <p><b>מה דעתך על {first}?</b> {first} סימן/ה שלמדתם יחד, אז אפשר לכתוב ביקורת. אפשר לערוך אותה אחר כך.</p>
           <button type="button" className="btn btn-brand" onClick={start}>כתיבת ביקורת</button>
         </div>
       );
@@ -185,7 +185,7 @@ function ReviewForm({ tutor, reviews, loaded, onDone }) {
     return (
       <>
         <button type="button" className="btn btn-brand" onClick={start}>{mine ? 'עריכת הביקורת שלי' : 'כתיבת ביקורת'}</button>
-        {blocked ? <p className="hint" role="status">אפשר לכתוב ביקורת רק על מורה שהייתם איתו בקשר דרך האתר: התכתבתם בצ׳אט, המורה פתח את פרטי הקשר ששיתפתם, סומן שנקבע שיעור, או שלמדתם אצלו בקבוצה. כך כל הביקורות כאן אמיתיות.</p> : null}
+        {blocked ? <p className="hint" role="status">רק תלמידים של {first} יכולים לכתוב ביקורת: אחרי שהמורה סימן/ה שנקבע איתכם שיעור, או אישר/ה אתכם לקבוצה. כך כל הביקורות כאן אמיתיות.</p> : null}
       </>
     );
   }
@@ -231,7 +231,7 @@ function ReviewItem({ r, after }) {
 /** A few reviews in the page itself (no inner scroll box that traps the page scroll); more open in place on request. */
 function ReviewList({ tutor, reviews, after, loaded }) {
   const [shown, setShown] = useState(SHOWN_REVIEWS);
-  if (loaded && !reviews.length) return <p className="muted-text">עדיין אין ביקורות. למדתם עם {tutor.name.split(' ')[0]}? היו הראשונים לכתוב.</p>;
+  if (loaded && !reviews.length) return <p className="muted-text">עדיין אין ביקורות. ביקורות כותבים רק תלמידים ש{tutor.name.split(' ')[0]} סימן/ה שלמדו איתו/ה.</p>;
   // While reviews load, keep about the room they will take, so the page below does not jump.
   if (!loaded) return tutor.ratingCount ? <div className="reviews reviews-flat reviews-wait" style={{ '--n': Math.min(tutor.ratingCount, SHOWN_REVIEWS) }} aria-busy="true" /> : null;
   const left = reviews.length - shown;

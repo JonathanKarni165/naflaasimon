@@ -46,7 +46,7 @@ export function Verified({ tutor }) {
   return <span className="verified" title="המורה נבדק על ידי צוות האתר">✓ מאומת</span>;
 }
 
-/** "מורה שלי": the signed-in student had real contact with this tutor, so they may review them. */
+/** "מורה שלי": the tutor marked a lesson with the signed-in student (or approved a group seat), so they may review them. */
 export function useMyTutorEntry(tutorId) {
   const { myTutors } = useApp();
   return (myTutors || []).find((m) => m.tutorId === tutorId) || null;
@@ -54,10 +54,10 @@ export function useMyTutorEntry(tutorId) {
 export function MyTutorBadge({ tutor, line }) {
   const mine = useMyTutorEntry(tutor?.id);
   if (!mine) return null;
-  const badge = <span className="my-tutor" title="הייתם בקשר עם המורה הזה דרך האתר">✓ מורה שלי</span>;
+  const badge = <span className="my-tutor" title="המורה סימן/ה שלמדתם יחד">✓ מורה שלי</span>;
   return line ? <div className="my-tutor-line">{badge}</div> : badge;
 }
-/** "12 תלמידים דרך נפל האסימון": reviewers, lessons the tutor marked, and approved group seats. */
+/** "12 תלמידים דרך נפל האסימון": lessons the tutor marked and approved group seats. */
 export const studentsLabel = (n) => (n === 1 ? 'תלמיד/ה אחד/ת' : `${n} תלמידים`);
 
 export function PriceLines({ tutor }) {

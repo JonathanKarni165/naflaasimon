@@ -89,14 +89,14 @@ export async function deleteMyAccount() { return wait(true); }
 export async function canReview(tutorId) {
   if (!user) return false;
   const d = db();
-  return wait(d.inquiries.some((q) => q.tutorId === tutorId && q.userId === user.id && q.status !== 'declined')
-    || d.seats.some((s) => s.userId === user.id && d.groups.find((g) => g.id === s.groupId)?.tutorId === tutorId));
+  return wait(d.inquiries.some((q) => q.tutorId === tutorId && q.userId === user.id && q.status === 'booked')
+    || d.seats.some((s) => s.userId === user.id && (s.status || 'approved') === 'approved' && d.groups.find((g) => g.id === s.groupId)?.tutorId === tutorId));
 }
 export async function myTutors() {
   if (!user) return [];
   const d = db(); const ids = new Set();
-  d.inquiries.filter((q) => q.userId === user.id && q.status !== 'declined').forEach((q) => ids.add(q.tutorId));
-  d.seats.filter((s) => s.userId === user.id).forEach((s) => { const g = d.groups.find((x) => x.id === s.groupId); if (g) ids.add(g.tutorId); });
+  d.inquiries.filter((q) => q.userId === user.id && q.status === 'booked').forEach((q) => ids.add(q.tutorId));
+  d.seats.filter((s) => s.userId === user.id && (s.status || 'approved') === 'approved').forEach((s) => { const g = d.groups.find((x) => x.id === s.groupId); if (g) ids.add(g.tutorId); });
   return wait([...ids].map((tutorId) => ({ tutorId, since: null, reviewed: d.reviews.some((r) => r.tutorId === tutorId && r.userId === user.id) })));
 }
 export async function markInquiryOpened() { return true; }
