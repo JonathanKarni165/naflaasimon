@@ -57,10 +57,9 @@ export default function Home() {
           <h1>השיעור שבו <span className="hl">נופל האסימון</span></h1>
           <p className="lead">מורים פרטיים למתמטיקה ולשאר המקצועות. מחפשים לפי מקצוע ומיקום, משווים מחיר וביקורות, ופונים ישירות.</p>
           <ul className="hero-points">
-            <li>פנייה חינם, בלי עמלות</li>
-            <li>ביקורות של תלמידים אמיתיים</li>
-            <li>פרונטלי או אונליין</li>
-            <li>גם קבוצות למידה</li>
+            <li><HeroIcon kind="coin" />פנייה חינם, בלי עמלות</li>
+            <li><HeroIcon kind="group" />למידה בקבוצה במחיר מוזל</li>
+            <li><HeroIcon kind="laptop" />פרונטלי או אונליין</li>
           </ul>
           {proof && proof.n >= 20 ? (
             <div className="proof-row">
@@ -192,6 +191,18 @@ export default function Home() {
 // [file stem, focus on wide screens, focus on phones], so the crop keeps the people in view on both.
 const HERO_PHOTOS = [['01', '42% 55%', '34% 50%'], ['02', '50% 55%', '72% 55%'], ['03', '40% 45%', '22% 45%'], ['04', '50% 40%', '30% 40%'],
   ['05', '45% 35%', '42% 35%'], ['06', '50% 60%', '32% 60%'], ['08', '60% 35%', '72% 35%'], ['09', '30% 60%', '44% 60%']];
+// Small drawings for the hero points: a coin, a small group, a laptop.
+function HeroIcon({ kind }) {
+  return (
+    <span className="hp-ic" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        {kind === 'coin' ? <><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="5" /><path d="M9.5 12h5" /></>
+          : kind === 'group' ? <><circle cx="12" cy="8" r="2.6" /><circle cx="5.6" cy="10" r="2.1" /><circle cx="18.4" cy="10" r="2.1" /><path d="M7.4 19c0-2.8 2-4.8 4.6-4.8s4.6 2 4.6 4.8M2.5 18c0-2.1 1.3-3.6 3.2-3.6M21.5 18c0-2.1-1.3-3.6-3.2-3.6" /></>
+          : <><rect x="5" y="5.5" width="14" height="9.5" rx="1.2" /><path d="M2.5 18.5h19M10.5 18.5h3" /></>}
+      </svg>
+    </span>
+  );
+}
 const HERO_EVERY = 3 * 3600e3;
 function HeroPhoto() {
   const start = Math.floor(Date.now() / HERO_EVERY) % HERO_PHOTOS.length;
