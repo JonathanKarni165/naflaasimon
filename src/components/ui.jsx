@@ -1002,6 +1002,8 @@ export function LoginModal() {
     if (!loginOpen && d.open) d.close();
   }, [loginOpen]);
   const demo = api.mode === 'demo';
+  // Navigate first, then close: closing first lets the modal's history.back() undo the new page.
+  const leaveTo = (e, name) => { e.preventDefault(); go(name); setLoginOpen(false); };
   return (
     <dialog ref={ref} className="modal" onClose={() => setLoginOpen(false)} onClick={(e) => { if (e.target === ref.current) setLoginOpen(false); }}>
       <div className="modal-body">
@@ -1022,7 +1024,7 @@ export function LoginModal() {
             ))}
           </div>
         ) : <AuthFlow key={round} api={api} guest={loginGuest} />}
-        <p className="fine">בכניסה או בהרשמה אתם מסכימים ל<a href={to('terms')} onClick={() => setLoginOpen(false)}>תנאי השימוש</a> ול<a href={to('privacy')} onClick={() => setLoginOpen(false)}>מדיניות הפרטיות</a>. לא נפרסם דבר בשמכם.</p>
+        <p className="fine">בכניסה או בהרשמה אתם מסכימים ל<a href={to('terms')} onClick={(e) => leaveTo(e, 'terms')}>תנאי השימוש</a> ול<a href={to('privacy')} onClick={(e) => leaveTo(e, 'privacy')}>מדיניות הפרטיות</a>. לא נפרסם דבר בשמכם.</p>
       </div>
     </dialog>
   );
@@ -1044,17 +1046,19 @@ export const TERMS_ERROR = 'כדי להמשיך צריך לאשר את תנאי 
 
 /** Shown once after a new person signs up: name is needed, the rest is optional. */
 export function ProfileSetup() {
-  const { user, api, notify } = useApp();
+  const { user, api, notify, route } = useApp();
   const [skipped, setSkipped] = useState(() => { try { return sessionStorage.getItem('naflaasimon-setup-skipped') === '1'; } catch { return false; } });
   const [f, setF] = useState(null);
   const [busy, setBusy] = useState(false);
   const [agree, setAgree] = useState(false);
   const [agreeErr, setAgreeErr] = useState('');
   const ref = useRef(null);
-  const show = !!user && api.mode !== 'demo' && user.profileDone === false && !skipped;
+  // The window links to the legal pages, so it must not cover them: someone reading the terms can finish reading first.
+  const legalPage = ['terms', 'privacy', 'cookies', 'accessibility', 'contact'].includes(route.name);
+  const show = !!user && api.mode !== 'demo' && user.profileDone === false && !skipped && !legalPage;
   useEffect(() => {
     const d = ref.current; if (!d) return;
-    if (show && !d.open) { setF({ name: user.name || '', phone: user.phone || '', birthDate: '', area: user.area || '' }); d.showModal(); }
+    if (show && !d.open) { setF((x) => x || { name: user.name || '', phone: user.phone || '', birthDate: '', area: user.area || '' }); d.showModal(); } // keeps what was typed when it comes back after a legal page
     if (!show && d.open) d.close();
   }, [show, user]);
   // A name taken from the email ("dana+1") is what tutors would see, so the window can't be skipped until a real name is set.
