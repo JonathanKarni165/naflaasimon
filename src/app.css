@@ -1119,3 +1119,11 @@ img.photo-bg { background: #F4E29C url("data:image/svg+xml,%3Csvg xmlns='http://
 .hero-points li::before { content: none; }
 .hero-points .hp-ic { width: 24px; height: 24px; flex: none; border-radius: 50%; background: var(--sun); color: var(--ink); display: grid; place-items: center; }
 .hero-points .hp-ic svg { width: 16px; height: 16px; }
+
+/* Group cards: the whole card opens the group (the title link stretches over it), like tutor cards */
+.group { position: relative; cursor: pointer; transition: transform .15s, box-shadow .15s, border-color .15s; }
+.group .g-title::after { content: ''; position: absolute; inset: 0; z-index: 0; border-radius: inherit; }
+.group .t-cta { position: relative; z-index: 1; }
+.group:hover { border-color: var(--brass); transform: translate(-1px, -1px); box-shadow: 6px 6px 0 var(--brass); }
+.group:has(.g-title:focus-visible) { outline: 3px solid var(--brass); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .group, .group:hover { transition: none; transform: none; } }
