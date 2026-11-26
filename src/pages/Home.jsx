@@ -194,9 +194,13 @@ const HERO_PHOTOS = [['01', '42% 55%', '34% 50%'], ['02', '50% 55%', '72% 55%'],
   ['05', '45% 35%', '42% 35%'], ['06', '50% 60%', '32% 60%'], ['08', '60% 35%', '72% 35%'], ['09', '30% 60%', '44% 60%']];
 const HERO_EVERY = 3 * 3600e3;
 function HeroPhoto() {
-  const [n, pos, mpos] = HERO_PHOTOS[Math.floor(Date.now() / HERO_EVERY) % HERO_PHOTOS.length];
+  const start = Math.floor(Date.now() / HERO_EVERY) % HERO_PHOTOS.length;
+  // If a photo fails to load (removed file, flaky network), move on to the next one instead of leaving the hero empty.
+  const [miss, setMiss] = useState(0);
+  if (miss >= HERO_PHOTOS.length) return null;
+  const [n, pos, mpos] = HERO_PHOTOS[(start + miss) % HERO_PHOTOS.length];
   const stem = 'img/hero-' + n;
-  return <img className="hero-media on" src={stem + '-1280.webp'} srcSet={`${stem}-1280.webp 1280w, ${stem}-2400.webp 2400w`} sizes="100vw"
-    alt="" width="2400" height="1600" fetchpriority="high" style={{ '--pos': pos, '--mpos': mpos }} />;
+  return <img key={n} className="hero-media on" src={stem + '-1280.webp'} srcSet={`${stem}-1280.webp 1280w, ${stem}-2400.webp 2400w`} sizes="100vw"
+    alt="" width="2400" height="1600" fetchpriority="high" style={{ '--pos': pos, '--mpos': mpos }} onError={() => setMiss(m => m + 1)} />;
 }
 
