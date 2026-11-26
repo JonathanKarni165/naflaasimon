@@ -13,9 +13,11 @@ export const DEMO_USERS = [
   { id: 'u-student', name: 'עידו מזרחי', email: 'ido@example.com', isAdmin: false, note: 'תלמיד, לחיפוש ולכתיבת ביקורות' },
 ];
 
+const PLACES = ['both', 'student', 'tutor'];
 const T = (o) => {
   const c = cityByName(o.city);
   return {
+    lessonPlace: PLACES[parseInt(String(o.id).replace(/\D/g, ''), 10) % 3] || 'both',
     teachesOnline: true, teachesFrontal: true, verified: true, contactCount: 0, ownerId: null,
     createdAt: '2026-10-01T10:00:00Z', ...o, lat: c?.lat ?? null, lng: c?.lng ?? null,
   };

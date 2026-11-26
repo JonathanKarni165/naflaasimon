@@ -3,7 +3,6 @@ import { useApp, useMyTutor, useLoad, go, to, currentName } from '../state.jsx';
 import { money, rating1, reviewsLabel, initials, avatarColor, km, relDays, dateLong, dateTime, isPhone, isEmail, waLink, isInAppBrowser } from '../lib/format.js';
 import { CITIES, NEIGHBORHOODS, WEEK_DAYS, WEEK_DAY_NAMES, DAY_SLOTS, LESSON_COUNTS, GOALS, slotLabel, labelOf } from '../data/constants.js';
 import { searchOptions, optionLabel, schoolCoursesOf, subtopicsOf } from '../data/topics.js';
-import { topicMatch } from '../lib/ranking.js';
 
 export function Coin({ size = 30 }) {
   return (
@@ -87,6 +86,8 @@ export function tutorQuote(t) {
 }
 
 export const LESSON_PLACES = { tutor: 'בבית המורה', student: 'בבית התלמיד', both: 'בבית המורה או התלמיד' };
+/** 'פרונטלי בבית התלמיד' etc.; plain 'שיעור פרונטלי' until the tutor picks a place. */
+export const frontalLabel = (t) => LESSON_PLACES[t.lessonPlace] ? 'פרונטלי ' + LESSON_PLACES[t.lessonPlace] : 'שיעור פרונטלי';
 const BADGE_ICONS = {
   home: <><path d="M3 11l9-7 9 7" /><path d="M5 10v10h14V10" /><path d="M10 20v-6h4v6" /></>,
   laptop: <><rect x="4" y="5" width="16" height="11" rx="1.5" /><path d="M2 19h20" /></>,
@@ -99,7 +100,7 @@ function Badge({ icon, kind, children, title }) {
 /** Small tags on the tutor card and profile: where lessons happen, online, where they studied, where they worked. */
 export function TutorBadges({ tutor: t, className = '' }) {
   const items = [];
-  if (t.teachesFrontal) items.push(<Badge key="p" icon="home" kind="place">{LESSON_PLACES[t.lessonPlace] || 'שיעור פרונטלי'}</Badge>);
+  if (t.teachesFrontal) items.push(<Badge key="p" icon="home" kind="place">{frontalLabel(t)}</Badge>);
   if (t.teachesOnline) items.push(<Badge key="o" icon="laptop" kind="online">אונליין</Badge>);
   if (t.education) items.push(<Badge key="e" icon="cap" kind="edu" title="מוסד לימודים">{t.education}</Badge>);
   if (t.workplace) items.push(<Badge key="w" icon="work" kind="work" title="עבד/ה ב">{t.workplace}</Badge>);
@@ -184,7 +185,6 @@ export function TutorRow({ tutor, sort, topic }) {
         <Verified tutor={tutor} />
         {tutor.headline ? <p className="tc-headline">{tutor.headline}</p> : null}
         <TutorBadges tutor={tutor} />
-        {topic && topicMatch(tutor, topic) ? <p className="t-topic">✓ מלמדים כאן {topic}</p> : null}
       </div>
       {quote ? <blockquote className="tc-quote"><p>{quote.replace(/\S+$/, '')}<span className="q-end">{quote.match(/\S+$/)?.[0]}</span></p></blockquote> : null}
       <ul className="tc-tags">
