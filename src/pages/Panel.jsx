@@ -281,13 +281,10 @@ function InquiryItem({ q, onChange, showTutor, open, onToggle, askLesson }) {
       </button>
       {open ? (<ChatOverlay who={q.name} avatar={{ name: q.name }} status={q.status} onClose={onToggle}>
       <div className="inq-contact chat-win-info">
-        <b className="inq-contact-h">פרטי הקשר של {first}</b>
-        <div className="inq-contact-row">
-          {q.phone ? <a className="ic-item" href={`tel:${q.phone.replace(/[^\d+]/g, '')}`}><span>טלפון</span><bdi dir="ltr">{q.phone}</bdi></a> : null}
-          {q.email ? <a className="ic-item" href={mail}><span>מייל</span><bdi dir="ltr">{q.email}</bdi></a> : null}
-          {!q.phone && !q.email ? <span className="muted-text">אין פרטים בפנייה הזו. אפשר לענות בצ׳אט.</span> : null}
-        </div>
-        <span className="muted-text small">מעדיפים: {VIA.filter(([v]) => via.includes(v)).map(([, l]) => l).join(' · ')}</span>
+        {q.phone ? <a className="ic-item" href={`tel:${q.phone.replace(/[^\d+]/g, '')}`} aria-label={`התקשרות ל${first}`}><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2" /></svg><bdi dir="ltr">{q.phone}</bdi></a> : null}
+        {q.email ? <a className="ic-item" href={mail} aria-label={`מייל ל${first}`}><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></svg><bdi dir="ltr">{q.email}</bdi></a> : null}
+        <WaButton phone={q.phone} text={waText} label="וואטסאפ" className="ic-item ic-wa" />
+        {!q.phone && !q.email ? <span className="muted-text small">אין פרטי קשר בפנייה הזו, אפשר לענות בצ׳אט.</span> : null}
       </div>
       {showLessonAsk ? (
         <p className="lesson-ask chat-win-info" role="status">
@@ -298,9 +295,7 @@ function InquiryItem({ q, onChange, showTutor, open, onToggle, askLesson }) {
       {/* While confirming "לא מתאים" the confirm panel takes the chat's place, so the two never overlap on a phone. */}
       {declining && q.status !== 'declined' ? null : <InquiryChat q={q} asTutor />}
       <div className="inq-actions chat-win-foot">
-        <WaButton phone={q.phone} text={waText} />
-        {q.phone ? <a className="btn btn-line btn-sm" href={`tel:${q.phone.replace(/[^\d+]/g, '')}`}><bdi>{q.phone}</bdi></a> : null}
-        {mail ? <a className="btn btn-line btn-sm" href={mail}><bdi>{q.email}</bdi></a> : null}
+        <span className="muted-text small foot-pref">מעדיפים: {VIA.filter(([v]) => via.includes(v)).map(([, l]) => l).join(' · ')}</span>
         {q.status !== 'booked' ? <button type="button" className="btn btn-line btn-sm" onClick={() => onChange({ status: 'booked' }, 'סומן: נקבע שיעור')}>נקבע שיעור ✓</button> : null}
         {q.status !== 'declined' ? <button type="button" className="linkish small" aria-expanded={declining} onClick={() => { setDeclining(!declining); setTimeout(() => document.querySelector('.decline-box')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 50); }}>לא מתאים</button>
           : <button type="button" className="linkish small" onClick={() => onChange({ status: q.messageCount || q.reply ? 'replied' : 'new' }, 'הפנייה הוחזרה לפתוחות')}>החזרה לפתוחות</button>}
