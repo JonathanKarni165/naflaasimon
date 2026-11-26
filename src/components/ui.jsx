@@ -1002,6 +1002,8 @@ export function LoginModal() {
     if (!loginOpen && d.open) d.close();
   }, [loginOpen]);
   const demo = api.mode === 'demo';
+  // Navigate first, then close: closing first lets the modal's history.back() undo the new page.
+  const leaveTo = (e, name) => { e.preventDefault(); go(name); setLoginOpen(false); };
   return (
     <dialog ref={ref} className="modal" onClose={() => setLoginOpen(false)} onClick={(e) => { if (e.target === ref.current) setLoginOpen(false); }}>
       <div className="modal-body">
@@ -1022,7 +1024,7 @@ export function LoginModal() {
             ))}
           </div>
         ) : <AuthFlow key={round} api={api} guest={loginGuest} />}
-        <p className="fine">בכניסה או בהרשמה אתם מסכימים ל<a href={to('terms')} onClick={() => setLoginOpen(false)}>תנאי השימוש</a> ול<a href={to('privacy')} onClick={() => setLoginOpen(false)}>מדיניות הפרטיות</a>. לא נפרסם דבר בשמכם.</p>
+        <p className="fine">בכניסה או בהרשמה אתם מסכימים ל<a href={to('terms')} onClick={(e) => leaveTo(e, 'terms')}>תנאי השימוש</a> ול<a href={to('privacy')} onClick={(e) => leaveTo(e, 'privacy')}>מדיניות הפרטיות</a>. לא נפרסם דבר בשמכם.</p>
       </div>
     </dialog>
   );
