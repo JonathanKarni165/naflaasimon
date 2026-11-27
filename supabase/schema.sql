@@ -294,7 +294,7 @@ drop policy if exists "own profile" on public.profiles;
 create policy "own profile" on public.profiles for select using (id = (select auth.uid()) or (select public.is_admin()));
 drop policy if exists "update own profile" on public.profiles;
 create policy "update own profile" on public.profiles for update using (id = (select auth.uid()))
-  with check (id = (select auth.uid()) and is_admin = (select p.is_admin from public.profiles p where p.id = (select auth.uid())));
+  with check (id = (select auth.uid()));  -- is_admin is locked by the protect_profile_fields trigger
 
 drop policy if exists "tutors readable" on public.tutors;
 create policy "tutors readable" on public.tutors for select using (true);
