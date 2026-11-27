@@ -10,7 +10,7 @@
 import nodemailer from 'npm:nodemailer@6.9.14';
 
 const env = (k: string) => Deno.env.get(k) || '';
-export const SITE = (env('SITE_URL') || 'https://jonathankarni165.github.io/naflaasimon/').replace(/\/?$/, '/');
+export const SITE = (env('SITE_URL') || 'https://nafalhaasimon.co.il/').replace(/\/?$/, '/');
 export const esc = (s: string) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 
 const NAME = 'נפל האסימון';

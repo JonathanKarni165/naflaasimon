@@ -31,7 +31,7 @@ function useTitle() {
     const known = route.name === 'home' || TITLES[route.name] || route.name === 'tutor' || route.name === 'group';
     if (!known) page = 'העמוד לא נמצא';
     document.title = page ? `${page} | ${SITE}` : `${SITE} | מורים פרטיים למתמטיקה ועוד`;
-    // Private and sample pages are kept out of search engines (robots.txt can't do it under /naflaasimon/).
+    // Private and sample pages are kept out of search engines (kept in sync with robots.txt).
     const sample = route.name === 'tutor' ? (tutors || []).find((x) => x.id === route.id)?.isExample
       : route.name === 'group' ? (() => { const g = (groups || []).find((x) => x.id === route.id); return !g || !!(tutors || []).find((x) => x.id === g.tutorId)?.isExample; })() : false;
     const hide = !known || sample || /^(panel|chat|login|signup)/.test(route.name);

@@ -6,7 +6,7 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 const DIST = 'dist';
-const SITE = (process.env.SITE_URL || 'https://jonathankarni165.github.io/naflaasimon/').replace(/\/?$/, '/');
+const SITE = (process.env.SITE_URL || 'https://nafalhaasimon.co.il/').replace(/\/?$/, '/');
 const SB_URL = process.env.VITE_SUPABASE_URL || 'https://chdzyvyvdypmjgupyrvg.supabase.co';
 const SB_KEY = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_f4sdNst38X-mSxc3iB3jxA_Hv6bt7fY';
 const NAME = 'נפל האסימון';
@@ -45,7 +45,7 @@ function page({ path, title, description, image = OG, body, type = 'website', no
   return noindex ? null : url;
 }
 
-const link = (path, text) => `<a href="${esc('/naflaasimon/' + path + (path ? '/' : ''))}">${esc(text)}</a>`;
+const link = (path, text) => `<a href="${esc('/' + path + (path ? '/' : ''))}">${esc(text)}</a>`;
 const nav = `<nav>${link('', 'דף הבית')} · ${link('search', 'חיפוש מורים')} · ${link('groups', 'קבוצות למידה')} · ${link('about', 'אודות')} · ${link('contact', 'צור קשר')}</nav>`;
 
 const [tutors, stats, groups] = await Promise.all([
@@ -109,5 +109,5 @@ for (const g of groups) {
 
 const today = new Date().toISOString().slice(0, 10);
 writeFileSync(join(DIST, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.filter(Boolean).map((u) => `  <url><loc>${esc(u)}</loc><lastmod>${today}</lastmod></url>`).join('\n')}\n</urlset>\n`);
-writeFileSync(join(DIST, 'robots.txt'), `User-agent: *\nAllow: /\nDisallow: /naflaasimon/panel\nDisallow: /naflaasimon/chat/\n\nSitemap: ${SITE}sitemap.xml\n`);
+writeFileSync(join(DIST, 'robots.txt'), `User-agent: *\nAllow: /\nDisallow: /panel\nDisallow: /chat/\n\nSitemap: ${SITE}sitemap.xml\n`);
 console.log(`prerendered ${urls.length} pages (${tutors.length} tutors, ${groups.length} groups); in sitemap: ${urls.filter(Boolean).length}`);

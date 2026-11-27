@@ -4,7 +4,7 @@ import api from './api/index.js';
 const Ctx = createContext(null);
 export const useApp = () => useContext(Ctx);
 
-// Routes are real paths (/naflaasimon/tutor/<id>) so search engines, AI tools and link previews can read each page.
+// Routes are real paths (/tutor/<id>) so search engines, AI tools and link previews can read each page.
 // Old links with #tutor-<id> still work: they are moved to the path on load.
 export const BASE = import.meta.env.BASE_URL || '/';
 const ROUTE_RE = /^(search|groups|groups-marathons|about|terms|privacy|cookies|accessibility|contact|login|signup|panel(-[a-z]+)?|(tutor|group|chat)-.+)$/;
@@ -85,7 +85,7 @@ export function AppProvider({ children }) {
         requestAnimationFrame(() => requestAnimationFrame(restore));
       }
     };
-    // Internal links are ordinary <a href="/naflaasimon/..."> (readable by crawlers); a plain click stays in the app.
+    // Internal links are ordinary <a href="/..."> (readable by crawlers); a plain click stays in the app.
     const click = (e) => {
       if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       const a = e.target.closest?.('a[href]');
